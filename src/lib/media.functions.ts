@@ -217,12 +217,18 @@ const MEDIA_BUCKET = "product-images"; // Supabase Storage bucket for all media
  * Returns the permanent public URL on success, throws on failure.
  */
 async function uploadDataUrlToStorage(
-  db: any,
+  passedDb: any,
   storagePath: string,
   dataUrl: string,
   mimeType: string
 ): Promise<string> {
-  console.log(`[Media] ⬆️ uploading to Storage: bucket=${MEDIA_BUCKET} path=${storagePath} mime=${mimeType}`);
+  let db = passedDb;
+  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) db = supabaseAdmin;
+    } catch { /* fallback */ }
+  }
 
   // Decode base64 to binary
   const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
@@ -234,27 +240,39 @@ async function uploadDataUrlToStorage(
 
   console.log(`[Media] 💾 decoded ${bytes.byteLength} bytes from base64`);
 
-  const { error: storageError } = await db.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, bytes.buffer, {
-      contentType: mimeType,
-      upsert: true,
-      cacheControl: "2592000",
-    });
+  const bucketsToTry = [MEDIA_BUCKET, "media", "uploads", "public"];
+  let lastError: any = null;
 
-  if (storageError) {
-    console.error(`[Media] ❌ Storage upload failed: ${storageError.message}`);
-    throw new Error(`فشل رفع الملف إلى التخزين: ${storageError.message}`);
+  for (const bucketName of bucketsToTry) {
+    try {
+      console.log(`[Media Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
+      const { error: storageError } = await db.storage
+        .from(bucketName)
+        .upload(storagePath, bytes.buffer, {
+          contentType: mimeType,
+          upsert: true,
+          cacheControl: "2592000",
+        });
+
+      if (storageError) {
+        console.error(`[Media Storage] Bucket "${bucketName}" error: ${storageError.message}`);
+        lastError = storageError;
+        continue;
+      }
+
+      const { data: urlData } = db.storage.from(bucketName).getPublicUrl(storagePath);
+      const publicUrl = urlData?.publicUrl;
+      if (publicUrl) {
+        console.log(`[Media Storage] ✅ Storage upload success: ${publicUrl}`);
+        return publicUrl;
+      }
+    } catch (err: any) {
+      console.error(`[Media Storage] Exception on bucket "${bucketName}":`, err?.message || err);
+      lastError = err;
+    }
   }
 
-  const { data: urlData } = db.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
-  const publicUrl = urlData?.publicUrl;
-  if (!publicUrl) {
-    throw new Error("فشل الحصول على الرابط العام بعد الرفع");
-  }
-
-  console.log(`[Media] ✅ Storage upload success: ${publicUrl}`);
-  return publicUrl;
+  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Storage error"}`);
 }
 
 /** Server Fn: Record newly uploaded media file with Supabase Storage upload */
