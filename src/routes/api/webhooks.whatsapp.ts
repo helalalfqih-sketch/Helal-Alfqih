@@ -167,10 +167,15 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         const waToken = process.env.WHATSAPP_API_TOKEN;
         const db = await getAdminDb();
 
+        // Diagnostics
+        console.log(`[WA] 🔍 mediaId=${mediaId} hasToken=${!!waToken} tokenLen=${waToken?.length ?? 0}`);
+        console.log(`[WA] 🔍 messageType=${messageType} mimeType=${mimeType} fileName=${fileName}`);
+
         // Resolve the real tenant_id from DB (FK-safe — never hardcode)
         let tenantId: string;
         try {
           tenantId = await getDefaultTenantId(db);
+          console.log(`[WA] 🏠 tenantId=${tenantId}`);
         } catch (err) {
           console.error("[WA] Could not resolve default tenant:", err);
           return Response.json({ error: "tenant not found" }, { status: 500 });
@@ -181,16 +186,29 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         let downloadedBytes = 0;
         let uploadSuccess = false;
 
-        if (waToken && mediaId) {
+        if (!waToken) {
+          console.error("[WA] ❌ WHATSAPP_API_TOKEN env var is not set — skipping media download");
+        } else if (!mediaId) {
+          console.error("[WA] ❌ mediaId is empty — cannot fetch media from Meta");
+        } else {
           // 1. Get temporary Meta CDN URL
+          console.log(`[WA] ⬇️  Step 1: fetching Meta CDN URL for mediaId=${mediaId}`);
           const metaTempUrl = await fetchMetaMediaUrl(mediaId, waToken);
+          console.log(`[WA] Step 1 result: metaTempUrl=${metaTempUrl ? metaTempUrl.slice(0, 60) + "..." : "NULL"}`);
+
           if (metaTempUrl) {
             // 2. Download binary from Meta CDN
+            console.log(`[WA] ⬇️  Step 2: downloading binary from Meta CDN`);
             const binary = await downloadBinary(metaTempUrl, waToken);
+            console.log(`[WA] Step 2 result: binary=${binary ? binary.buffer.byteLength + " bytes" : "NULL"}`);
+
             if (binary) {
               downloadedBytes = binary.buffer.byteLength;
               // 3. Upload to Supabase Storage
+              console.log(`[WA] ⬆️  Step 3: uploading to Supabase Storage bucket="${STORAGE_BUCKET}" path="${storagePath}"`);
               const pubUrl = await uploadToStorage(db, storagePath, binary.buffer, binary.contentType);
+              console.log(`[WA] Step 3 result: pubUrl=${pubUrl ?? "NULL"}`);
+
               if (pubUrl) {
                 permanentUrl = pubUrl;
                 uploadSuccess = true;
