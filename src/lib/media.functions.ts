@@ -210,13 +210,60 @@ export const listMediaFiles = createServerFn({ method: "GET" })
     }
   });
 
-/** Server Fn: Record newly uploaded media file */
+const MEDIA_BUCKET = "product-images"; // Supabase Storage bucket for all media
+
+/**
+ * Upload a base64 data URL or raw Buffer to Supabase Storage.
+ * Returns the permanent public URL on success, throws on failure.
+ */
+async function uploadDataUrlToStorage(
+  db: any,
+  storagePath: string,
+  dataUrl: string,
+  mimeType: string
+): Promise<string> {
+  console.log(`[Media] ⬆️ uploading to Storage: bucket=${MEDIA_BUCKET} path=${storagePath} mime=${mimeType}`);
+
+  // Decode base64 to binary
+  const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+  const binaryStr = atob(base64Data);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  console.log(`[Media] 💾 decoded ${bytes.byteLength} bytes from base64`);
+
+  const { error: storageError } = await db.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, bytes.buffer, {
+      contentType: mimeType,
+      upsert: true,
+      cacheControl: "2592000",
+    });
+
+  if (storageError) {
+    console.error(`[Media] ❌ Storage upload failed: ${storageError.message}`);
+    throw new Error(`فشل رفع الملف إلى التخزين: ${storageError.message}`);
+  }
+
+  const { data: urlData } = db.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+  const publicUrl = urlData?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("فشل الحصول على الرابط العام بعد الرفع");
+  }
+
+  console.log(`[Media] ✅ Storage upload success: ${publicUrl}`);
+  return publicUrl;
+}
+
+/** Server Fn: Record newly uploaded media file with Supabase Storage upload */
 export const recordMediaFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: {
     file_name: string;
     file_path: string;
-    file_url: string;
+    file_url: string;   // base64 data URL OR an existing public URL
     file_type: "image" | "video" | "other";
     mime_type: string;
     size_bytes: number;
@@ -230,26 +277,62 @@ export const recordMediaFile = createServerFn({ method: "POST" })
       throw new Error("صلاحية مرفوضة: تتطلب صلاحية رفع ومكتبة الوسائط.");
     }
 
-    const db = ctx.supabase || supabase;
+    // Prefer service role client for Storage uploads
+    let db = ctx.supabase || supabase;
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
+    console.log(`[Media] 🔍 recordMediaFile: file=${data.file_name} size=${data.size_bytes} mime=${data.mime_type} tenant=${tenantId}`);
+
+    // ── Upload to Supabase Storage if file_url is a base64 data URL ──────────
+    let finalUrl = data.file_url;
+    let storagePath = data.file_path;
+
+    const isDataUrl = data.file_url.startsWith("data:");
+    console.log(`[Media] 🔍 isDataUrl=${isDataUrl} urlLen=${data.file_url.length}`);
+
+    if (isDataUrl) {
+      // Build a safe storage path under tenant folder
+      const safeName = data.file_name.replace(/[^a-zA-Z0-9._\-\u0600-\u06FF]/g, "-");
+      storagePath = `uploads/${tenantId}/${Date.now()}_${safeName}`;
+
+      // Upload → throws on failure (prevents orphan DB record)
+      finalUrl = await uploadDataUrlToStorage(db, storagePath, data.file_url, data.mime_type);
+    } else {
+      console.log(`[Media] 🔍 file_url is already a public URL, skipping Storage upload`);
+    }
+
+    // ── Insert into media_files ───────────────────────────────────────────────
+    const source: string = (data.metadata?.source as string) || "upload";
     const payload: any = {
       tenant_id: tenantId,
       file_name: data.file_name,
-      file_path: data.file_path,
-      file_url: data.file_url,
+      file_path: storagePath,
+      file_url: finalUrl,
       file_type: data.file_type,
       mime_type: data.mime_type,
       size_bytes: data.size_bytes,
       dimensions: data.dimensions || null,
+      source,
       metadata: data.metadata || {},
       created_by: ctx.userId || null,
     };
 
+    console.log(`[Media] 💾 inserting media_files record: path=${storagePath}`);
     const { data: record, error } = await db.from("media_files").insert(payload).select("*").single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error(`[Media] ❌ DB insert failed: ${error.message}`);
+      throw new Error(error.message);
+    }
 
+    console.log(`[Media] ✅ media_files record saved: id=${(record as any)?.id}`);
     return record as unknown as MediaFileRecord;
   });
 
