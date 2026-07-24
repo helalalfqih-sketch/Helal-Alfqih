@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeFileName, extractCategoryAndTagsFromCaption } from "@/lib/whatsapp.functions";
+import { getDefaultTenantId } from "@/lib/saas/tenant-context";
 
 const STORAGE_BUCKET = "product-images"; // Supabase Storage bucket
-const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 
 /** Get privileged DB client */
 async function getAdminDb() {
@@ -167,6 +167,15 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         const waToken = process.env.WHATSAPP_API_TOKEN;
         const db = await getAdminDb();
 
+        // Resolve the real tenant_id from DB (FK-safe — never hardcode)
+        let tenantId: string;
+        try {
+          tenantId = await getDefaultTenantId(db);
+        } catch (err) {
+          console.error("[WA] Could not resolve default tenant:", err);
+          return Response.json({ error: "tenant not found" }, { status: 500 });
+        }
+
         // ── PIPELINE ─────────────────────────────────────────────────────────
         let permanentUrl = "";
         let downloadedBytes = 0;
@@ -198,7 +207,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
 
         // ── Save to media_files ───────────────────────────────────────────
         const insertPayload = {
-          tenant_id: DEFAULT_TENANT,
+          tenant_id: tenantId,
           file_name: fileName,
           file_path: storagePath,
           file_url: permanentUrl,
