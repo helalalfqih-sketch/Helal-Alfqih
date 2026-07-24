@@ -73,28 +73,34 @@ async function uploadToStorage(
   buffer: ArrayBuffer,
   contentType: string
 ): Promise<string | null> {
-  try {
-    const { error } = await db.storage
-      .from(STORAGE_BUCKET)
-      .upload(storagePath, buffer, {
-        contentType,
-        upsert: true,
-        cacheControl: "2592000", // 30 days
-      });
+  const bucketsToTry = [STORAGE_BUCKET, "media", "uploads", "public"];
 
-    if (error) {
-      console.warn(`[WA] Supabase Storage upload failed: ${error.message}`);
-      return null;
+  for (const bucketName of bucketsToTry) {
+    try {
+      console.log(`[WA Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
+      const { data, error } = await db.storage
+        .from(bucketName)
+        .upload(storagePath, buffer, {
+          contentType,
+          upsert: true,
+          cacheControl: "2592000", // 30 days
+        });
+
+      if (error) {
+        console.error(`[WA Storage] Failed bucket="${bucketName}": ${error.message} (status: ${(error as any)?.status || 'unknown'})`);
+        continue;
+      }
+
+      const { data: urlData } = db.storage.from(bucketName).getPublicUrl(storagePath);
+      const publicUrl = urlData?.publicUrl || null;
+      console.log(`[WA Storage] ✅ Successfully uploaded to bucket="${bucketName}" -> ${publicUrl}`);
+      return publicUrl;
+    } catch (err: any) {
+      console.error(`[WA Storage] Exception uploading to bucket="${bucketName}":`, err?.message || err);
     }
-
-    const { data } = db.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
-    const publicUrl = data?.publicUrl || null;
-    console.log(`[WA] ✅ Stored at: ${publicUrl}`);
-    return publicUrl;
-  } catch (err) {
-    console.warn("[WA] uploadToStorage exception:", err);
-    return null;
   }
+
+  return null;
 }
 
 export const Route = createFileRoute("/api/webhooks/whatsapp")({
