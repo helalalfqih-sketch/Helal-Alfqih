@@ -97,13 +97,6 @@ export const Route = createFileRoute("/api/ai/agent")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Safe Config Logging (identical requested format)
-        console.log("[AI_AGENT_CONFIG]", {
-          hasLovableKey: Boolean(process.env.LOVABLE_API_KEY),
-          hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-          hasVertexProject: Boolean(process.env.VERTEX_PROJECT_ID),
-        });
-
         let payload: z.infer<typeof InputSchema>;
         try {
           payload = InputSchema.parse(await request.json());
@@ -121,19 +114,35 @@ export const Route = createFileRoute("/api/ai/agent")({
           );
         }
 
-        // Direct 1:1 initialization logic from ai.analyze-product.ts
         const lovableKey = process.env.LOVABLE_API_KEY;
         const geminiKey = process.env.GEMINI_API_KEY;
+        const vertexProject =
+          process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+
+        console.log("[AI_AGENT_PROVIDER]", {
+          lovable: Boolean(lovableKey),
+          gemini: Boolean(geminiKey),
+          vertex: Boolean(vertexProject),
+        });
+
+        if (!lovableKey && !geminiKey && !vertexProject) {
+          return Response.json(
+            {
+              error: "No AI provider configured",
+            },
+            { status: 500 },
+          );
+        }
 
         let model;
-        let providerName = "";
+        let provider = "";
         let modelName = "";
 
         try {
           if (lovableKey) {
             const gateway = createLovableGateway(lovableKey);
             model = gateway("google/gemini-3-flash-preview");
-            providerName = "lovable";
+            provider = "lovable";
             modelName = "google/gemini-3-flash-preview";
           } else if (geminiKey) {
             const gateway = createOpenAICompatible({
@@ -144,27 +153,44 @@ export const Route = createFileRoute("/api/ai/agent")({
               },
             });
             model = gateway("gemini-1.5-flash");
-            providerName = "gemini";
+            provider = "gemini";
             modelName = "gemini-1.5-flash";
-          } else {
+          } else if (vertexProject) {
             const vertex = createVertex({
               location: process.env.VERTEX_LOCATION || "us-central1",
-              project: process.env.VERTEX_PROJECT_ID,
+              project: vertexProject,
             });
             model = vertex("gemini-1.5-flash");
-            providerName = "vertex";
+            provider = "vertex";
             modelName = "gemini-1.5-flash";
+          } else {
+            throw new Error("No AI provider configured");
           }
         } catch (error: any) {
-          console.error("[AI_AGENT_PROVIDER_ERROR]", error);
+          console.error("[AI_AGENT_INIT_ERROR]", error);
           return Response.json(
             {
               error: "AI Provider initialization failed",
-              message: error?.message || String(error),
+              reason: error?.message || String(error),
+              stack: error?.stack,
             },
             { status: 500 },
           );
         }
+
+        if (!model) {
+          return Response.json(
+            {
+              error: "No AI provider configured",
+            },
+            { status: 500 },
+          );
+        }
+
+        console.log("[AI_AGENT_PROVIDER_SELECTED]", {
+          provider,
+          model: modelName,
+        });
 
         const systemPrompt = buildSystemPrompt(
           payload.projectMemory,
@@ -188,7 +214,7 @@ export const Route = createFileRoute("/api/ai/agent")({
           const response = result.toTextStreamResponse();
 
           const headers = new Headers(response.headers);
-          headers.set("X-AI-Provider", providerName);
+          headers.set("X-AI-Provider", provider);
           headers.set("X-AI-Model", modelName);
           headers.set("X-AI-Session", payload.sessionId);
 
@@ -208,7 +234,7 @@ export const Route = createFileRoute("/api/ai/agent")({
             {
               error: "AI execution failed",
               message: error?.message || String(error),
-              provider: providerName,
+              provider: provider,
               model: modelName,
             },
             { status },
