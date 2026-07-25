@@ -16,9 +16,29 @@ import { CategoryCard } from "@/components/category-card";
 import { lazy, Suspense } from "react";
 import { ProductCardSkeleton, Skeleton } from "@/components/ui/skeleton";
 
-const ProductSphereHero = lazy(() => import("@/components/product-sphere-hero").then(m => ({ default: m.ProductSphereHero })));
-const ProductStage = lazy(() => import("@/components/showroom/ProductStage"));
-const CinematicStory = lazy(() => import("@/components/cinematic-story").then(m => ({ default: m.CinematicStory })));
+// Chunk reload guard: after a Vercel redeploy the browser may still have
+// old HTML referencing old chunk hashes. On a dynamic import failure we do ONE
+// hard reload (guarded by sessionStorage to avoid infinite loops).
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    factory().catch((err) => {
+      const reloadKey = "chunk_reload_attempted";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        // Return a never-resolving promise so React stays on the reload path
+        return new Promise(() => {}) as never;
+      }
+      throw err;
+    })
+  );
+}
+
+const ProductSphereHero = lazyWithRetry(() => import("@/components/product-sphere-hero").then(m => ({ default: m.ProductSphereHero })));
+const ProductStage = lazyWithRetry(() => import("@/components/showroom/ProductStage"));
+const CinematicStory = lazyWithRetry(() => import("@/components/cinematic-story").then(m => ({ default: m.CinematicStory })));
 import { OptimizedImage } from "@/components/optimized-image";
 import { quickOrderLink } from "@/lib/whatsapp";
 import { useAppearance } from "@/components/appearance-provider";

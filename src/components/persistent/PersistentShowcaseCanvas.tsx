@@ -5,7 +5,23 @@ import { allProductsQueryOptions } from "@/lib/store.queries";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import { useAppearance } from "@/components/appearance-provider";
 
-const ProductSphereHero = lazy(() =>
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    factory().catch((err) => {
+      const reloadKey = "chunk_reload_attempted";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return new Promise(() => {}) as never;
+      }
+      throw err;
+    })
+  );
+}
+
+const ProductSphereHero = lazyWithRetry(() =>
   import("@/components/product-sphere-hero").then((m) => ({ default: m.ProductSphereHero })),
 );
 
