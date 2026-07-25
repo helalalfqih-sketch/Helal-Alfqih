@@ -239,7 +239,7 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
 export const listAIProvidersFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const tenantId = context?.user?.id ? await resolveTenantId(context.user.id) : null;
+    const tenantId = await resolveTenantId(supabase, { userId: (context as any)?.user?.id });
     
     const { data, error } = await supabase
       .from("ai_provider_configs" as any)
@@ -277,7 +277,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => SaveProviderSchema.parse(d))
   .handler(async ({ context, data }) => {
-    const tenantId = data.is_global || !context?.user?.id ? null : await resolveTenantId(context.user.id);
+    const tenantId = data.is_global ? null : await resolveTenantId(supabase, { userId: (context as any)?.user?.id });
 
     let encryptedKey = null;
     if (data.api_key && !data.api_key.startsWith("••••")) {
