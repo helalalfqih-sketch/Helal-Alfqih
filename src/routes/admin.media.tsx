@@ -560,7 +560,7 @@ function AdminMediaComponent() {
                       loading="lazy"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop";
+                          "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.5'><rect width='18' height='18' x='3' y='3' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5-11 11'/></svg>";
                       }}
                     />
                   )}
