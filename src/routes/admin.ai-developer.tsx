@@ -231,7 +231,8 @@ function AIEngineeringAgentPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const detailMsg = err.detail ? `: ${err.detail}` : "";
+        throw new Error((err.error || `HTTP ${res.status}`) + detailMsg);
       }
 
       const reader = res.body?.getReader();

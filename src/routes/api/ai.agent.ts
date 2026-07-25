@@ -36,34 +36,64 @@ const InputSchema = z.object({
 function resolveModel() {
   const lovableKey = process.env.LOVABLE_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
+  const vertexProject = process.env.VERTEX_PROJECT_ID || process.env.VITE_VERTEX_PROJECT_ID;
 
+  // Safe non-sensitive config logging
+  console.log("[AI_CONFIG]", {
+    lovable: !!lovableKey,
+    gemini: !!geminiKey,
+    vertex: !!vertexProject,
+  });
+
+  const errors: string[] = [];
+
+  // Chain 1: Lovable AI Gateway (Identical to ai.analyze-product.ts)
   if (lovableKey) {
-    const gw = createLovableGateway(lovableKey);
-    // Identical model naming pattern as ai.analyze-product.ts
-    const modelName = "google/gemini-3-flash-preview";
-    console.log("[AI_PROVIDER] Initializing Lovable Gateway with model:", modelName);
-    return { model: gw(modelName), provider: "lovable", modelName };
+    try {
+      const gw = createLovableGateway(lovableKey);
+      const modelName = "google/gemini-3-flash-preview";
+      console.log("[AI_PROVIDER] Successfully initialized Lovable Gateway:", modelName);
+      return { model: gw(modelName), provider: "lovable", modelName };
+    } catch (e: any) {
+      console.warn("[AI_PROVIDER] Lovable Gateway failed, trying fallback:", e.message || e);
+      errors.push(`Lovable: ${e.message || e}`);
+    }
   }
 
+  // Chain 2: Direct Gemini Open-AI Compatible API
   if (geminiKey) {
-    const gw = createOpenAICompatible({
-      name: "gemini",
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      headers: { Authorization: `Bearer ${geminiKey}` },
+    try {
+      const gw = createOpenAICompatible({
+        name: "gemini",
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+        headers: { Authorization: `Bearer ${geminiKey}` },
+      });
+      const modelName = "gemini-1.5-flash";
+      console.log("[AI_PROVIDER] Successfully initialized Direct Gemini API:", modelName);
+      return { model: gw(modelName), provider: "gemini-api", modelName };
+    } catch (e: any) {
+      console.warn("[AI_PROVIDER] Direct Gemini API failed, trying fallback:", e.message || e);
+      errors.push(`Gemini: ${e.message || e}`);
+    }
+  }
+
+  // Chain 3: Google Vertex AI (Firebase / GCP Environment)
+  try {
+    const vertex = createVertex({
+      location: process.env.VERTEX_LOCATION || "us-central1",
+      project: vertexProject || "smartcontentcreator-d49f2",
     });
     const modelName = "gemini-1.5-flash";
-    console.log("[AI_PROVIDER] Initializing Gemini Direct API with model:", modelName);
-    return { model: gw(modelName), provider: "gemini-api", modelName };
+    console.log("[AI_PROVIDER] Initialized Google Vertex AI with project:", vertexProject || "smartcontentcreator-d49f2");
+    return { model: vertex(modelName), provider: "vertex", modelName };
+  } catch (e: any) {
+    console.error("[AI_PROVIDER] Vertex AI initialization failed:", e.message || e);
+    errors.push(`Vertex: ${e.message || e}`);
   }
 
-  // Fallback to Google Vertex AI (identical to ai.analyze-product.ts)
-  const vertex = createVertex({
-    location: process.env.VERTEX_LOCATION || "us-central1",
-    project: process.env.VERTEX_PROJECT_ID,
-  });
-  const modelName = "gemini-1.5-flash";
-  console.log("[AI_PROVIDER] Initializing Vertex AI with model:", modelName);
-  return { model: vertex(modelName), provider: "vertex", modelName };
+  throw new Error(
+    `جميع محاولات الربط بمزودات الذكاء الاصطناعي فشلت. التفاصيل: ${errors.join(" | ")}`
+  );
 }
 
 function buildSystemPrompt(projectMemory: string, agentRole: string) {
@@ -154,10 +184,18 @@ export const Route = createFileRoute("/api/ai/agent")({
         let modelInfo;
         try {
           modelInfo = resolveModel();
-        } catch (e) {
-          console.error("[AI_PROVIDER] Model resolution failed:", String(e));
+        } catch (e: any) {
+          console.error("[AI_PROVIDER] All provider resolution steps failed:", e.message || String(e));
           return Response.json(
-            { error: "فشل إعداد مزود الذكاء الاصطناعي", detail: String(e) },
+            {
+              error: "فشل إعداد مزود الذكاء الاصطناعي",
+              detail: e.message || String(e),
+              config: {
+                lovable: !!process.env.LOVABLE_API_KEY,
+                gemini: !!process.env.GEMINI_API_KEY,
+                vertex: !!(process.env.VERTEX_PROJECT_ID || process.env.VITE_VERTEX_PROJECT_ID),
+              },
+            },
             { status: 500 },
           );
         }
@@ -208,7 +246,7 @@ export const Route = createFileRoute("/api/ai/agent")({
             : /402|credit/i.test(message)
               ? 402
               : 500;
-          return Response.json({ error: message, provider, modelName }, { status });
+          return Response.json({ error: message, detail: message, provider, modelName }, { status });
         }
       },
     },
