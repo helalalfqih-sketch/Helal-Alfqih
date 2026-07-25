@@ -119,38 +119,38 @@ export const listMediaFiles = createServerFn({ method: "GET" })
   .handler(async ({ data: { search, type, source, category, sort = "newest", limit = 200 }, context }): Promise<MediaFileRecord[]> => {
     try {
       const ctx = context as any;
-      let db = supabase;
+      let db = ctx?.supabase || supabase;
+
       if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           if (supabaseAdmin) db = supabaseAdmin;
         } catch {
-          db = ctx?.supabase || supabase;
+          // fallback
         }
       }
 
       let q = db
         .from("media_files")
         .select("*")
+        .order("created_at", { ascending: false })
         .limit(limit);
 
       if (type && type !== "all") {
         q = q.eq("file_type", type);
       }
 
-      // Add 3-second timeout protection for Supabase REST query
-      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
-        setTimeout(() => resolve({ data: null, error: new Error("Supabase query timeout fallback") }), 3000)
-      );
+      const { data: rows, error } = await q;
 
-      const { data: rows, error } = await Promise.race([q, timeoutPromise]);
-      if (error && error.message !== "Supabase query timeout fallback") {
-        console.warn("Supabase media_files query info:", error.message);
+      if (error) {
+        console.warn("[Media] Supabase media_files query error:", error.message);
       }
 
       let results = (rows as unknown as MediaFileRecord[]) || [];
 
+      // If DB has no rows at all, append DEMO media to show demo items alongside new uploads
       if (results.length === 0) {
+        console.log("[Media] DB empty, returning DEMO media fallback");
         results = DEFAULT_DEMO_MEDIA;
       }
 
