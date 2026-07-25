@@ -47,6 +47,7 @@ function AISettingsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Partial<AIProviderConfig> | null>(null);
   const [isTesting, setIsTesting] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; time: string; message?: string }>>({});
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => saveProvider({ data }),
@@ -87,12 +88,17 @@ function AISettingsPage() {
           base_url: config.base_url,
         },
       });
+      const nowTime = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       if (res.success) {
+        setTestResults((prev) => ({ ...prev, [config.id]: { success: true, time: nowTime, message: res.message } }));
         toast.success(res.message);
       } else {
+        setTestResults((prev) => ({ ...prev, [config.id]: { success: false, time: nowTime, message: res.error } }));
         toast.error(`فشل الاتصال: ${res.error}`);
       }
     } catch (err: any) {
+      const nowTime = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setTestResults((prev) => ({ ...prev, [config.id]: { success: false, time: nowTime, message: err.message } }));
       toast.error(err.message);
     } finally {
       setIsTesting(null);
@@ -105,12 +111,25 @@ function AISettingsPage() {
     } else {
       setEditingProvider({
         provider: "gemini",
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         priority: 100,
         enabled: true,
       });
     }
     setIsModalOpen(true);
+  };
+
+  const getCapabilities = (provider: string) => {
+    switch (provider) {
+      case "gemini":
+      case "vertex":
+        return ["Text", "Vision", "Image"];
+      case "openrouter":
+      case "openai":
+      case "lovable":
+      default:
+        return ["Text", "Vision"];
+    }
   };
 
   const getProviderIcon = (provider: string) => {
@@ -199,6 +218,30 @@ function AISettingsPage() {
               <div className="space-y-2 mb-5">
                 <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border">
                   <span className="text-muted-foreground font-bold flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> حالة الاتصال:
+                  </span>
+                  <span className="font-bold text-[11px]">
+                    {testResults[p.id] ? (
+                      testResults[p.id].success ? (
+                        <span className="text-emerald-500 font-bold">🟢 متصل</span>
+                      ) : (
+                        <span className="text-rose-500 font-bold">🔴 غير متصل</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">⚪ لم يتم الاختبار</span>
+                    )}
+                  </span>
+                </div>
+
+                {testResults[p.id] && (
+                  <div className="flex items-center justify-between text-[11px] px-2 py-1 bg-accent/40 rounded-lg text-muted-foreground">
+                    <span>آخر اختبار:</span>
+                    <span className="font-mono text-[10px] font-bold">{testResults[p.id].time}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border">
+                  <span className="text-muted-foreground font-bold flex items-center gap-1.5">
                     <Key className="h-3.5 w-3.5" /> المفتاح:
                   </span>
                   <span className="font-mono text-[11px] tracking-wider font-semibold">
@@ -212,6 +255,17 @@ function AISettingsPage() {
                   <span className="font-black bg-accent px-2 py-0.5 rounded text-[11px]">
                     {p.priority}
                   </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-muted-foreground font-bold">القدرات:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {getCapabilities(p.provider).map((cap) => (
+                      <span key={cap} className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -312,7 +366,7 @@ function AISettingsPage() {
                 <input
                   type="text"
                   required
-                  placeholder="gemini-1.5-flash / gpt-4o-mini"
+                  placeholder="gemini-2.5-flash / google/gemini-2.5-flash / gpt-4o-mini"
                   value={editingProvider.model || ""}
                   onChange={(e) => setEditingProvider({ ...editingProvider, model: e.target.value })}
                   className="w-full rounded-xl border bg-background p-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/30"

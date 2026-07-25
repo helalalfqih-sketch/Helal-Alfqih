@@ -13,6 +13,7 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createVertex } from "@ai-sdk/google-vertex";
 function getSafeDb(context?: any) {
   return context?.supabase || supabase;
 }
@@ -82,33 +83,17 @@ export function decryptApiKey(encrypted?: string | null): string | null {
   }
 }
 
-// ──────────────────────────────────────────────────────────────
-// Model Validation & Factory Helper
-// ──────────────────────────────────────────────────────────────
+export function validateProviderModel(provider: string, rawModelName?: string | null): string {
+  const model = (rawModelName || "").trim();
 
-const VALID_GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-];
-
-export function validateProviderModel(provider: string, modelName?: string | null): string {
-  const model = (modelName || "").trim();
-
-  if (provider === "gemini" || provider === "google") {
+  if (provider === "gemini" || provider === "google" || provider === "vertex") {
     if (!model) return "gemini-2.5-flash";
-    if (!VALID_GEMINI_MODELS.includes(model)) {
-      throw new Error("The selected model is unavailable for this provider.");
-    }
     return model;
   }
 
   if (provider === "openrouter") {
     if (!model) return "google/gemini-2.5-flash";
-    if (!model.includes("/")) {
-      throw new Error("The selected model is unavailable for this provider.");
-    }
-    return model;
+    return model.includes("/") ? model : `google/${model}`;
   }
 
   return model || "gemini-2.5-flash";
@@ -153,6 +138,16 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
       },
     });
     return gateway(modelName);
+  }
+
+  if (provider === "vertex") {
+    const project = apiKey || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+    if (!project) throw new Error("Google Vertex AI Project ID is required");
+    const vertex = createVertex({
+      location: process.env.VERTEX_LOCATION || "us-central1",
+      project,
+    });
+    return vertex(modelName || "gemini-2.5-flash");
   }
 
   throw new Error(`Unsupported provider: ${provider}`);
@@ -209,9 +204,10 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     console.warn("[AI_PROVIDER_DB_ERROR] Falling back to env vars:", dbErr);
   }
 
-  // 2. Fallback to Environment Variables (Direct Gemini or Lovable)
+  // 2. Fallback to Environment Variables (Direct Gemini, Vertex, or Lovable)
   const lovableKey = process.env.LOVABLE_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
+  const vertexProject = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
 
   if (lovableKey) {
     const gateway = createLovableGateway(lovableKey);
@@ -228,6 +224,19 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     return {
       model: google("gemini-2.5-flash"),
       provider: "gemini",
+      modelName: "gemini-2.5-flash",
+      source: "env",
+    };
+  }
+
+  if (vertexProject) {
+    const vertex = createVertex({
+      location: process.env.VERTEX_LOCATION || "us-central1",
+      project: vertexProject,
+    });
+    return {
+      model: vertex("gemini-2.5-flash"),
+      provider: "vertex",
       modelName: "gemini-2.5-flash",
       source: "env",
     };
