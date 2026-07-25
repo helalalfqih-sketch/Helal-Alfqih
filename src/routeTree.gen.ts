@@ -75,6 +75,7 @@ import { Route as ApiAiAnalyzeProductRouteImport } from './routes/api/ai.analyze
 import { Route as AdminStoresTenantIdRouteImport } from './routes/admin.stores.$tenantId'
 import { Route as AdminProductIdRouteImport } from './routes/admin.product.$id'
 import { Route as AdminIntegrationsWhatsappRouteImport } from './routes/admin.integrations.whatsapp'
+import { Route as AdminDiagnosticsWhatsappRouteImport } from './routes/admin.diagnostics.whatsapp'
 
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
@@ -407,6 +408,12 @@ const AdminIntegrationsWhatsappRoute =
     path: '/integrations/whatsapp',
     getParentRoute: () => AdminRoute,
   } as any)
+const AdminDiagnosticsWhatsappRoute =
+  AdminDiagnosticsWhatsappRouteImport.update({
+    id: '/diagnostics/whatsapp',
+    path: '/diagnostics/whatsapp',
+    getParentRoute: () => AdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -469,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/admin/': typeof AdminIndexRoute
   '/store/': typeof StoreIndexRoute
+  '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -535,6 +543,7 @@ export interface FileRoutesByTo {
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/admin': typeof AdminIndexRoute
   '/store': typeof StoreIndexRoute
+  '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -604,6 +613,7 @@ export interface FileRoutesById {
   '/vendor/dashboard': typeof VendorDashboardRoute
   '/admin/': typeof AdminIndexRoute
   '/store/': typeof StoreIndexRoute
+  '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/vendor/dashboard'
     | '/admin/'
     | '/store/'
+    | '/admin/diagnostics/whatsapp'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -740,6 +751,7 @@ export interface FileRouteTypes {
     | '/vendor/dashboard'
     | '/admin'
     | '/store'
+    | '/admin/diagnostics/whatsapp'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -808,6 +820,7 @@ export interface FileRouteTypes {
     | '/vendor/dashboard'
     | '/admin/'
     | '/store/'
+    | '/admin/diagnostics/whatsapp'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -1310,6 +1323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIntegrationsWhatsappRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/diagnostics/whatsapp': {
+      id: '/admin/diagnostics/whatsapp'
+      path: '/diagnostics/whatsapp'
+      fullPath: '/admin/diagnostics/whatsapp'
+      preLoaderRoute: typeof AdminDiagnosticsWhatsappRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
@@ -1352,6 +1372,7 @@ interface AdminRouteChildren {
   AdminStudioRoute: typeof AdminStudioRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminDiagnosticsWhatsappRoute: typeof AdminDiagnosticsWhatsappRoute
   AdminIntegrationsWhatsappRoute: typeof AdminIntegrationsWhatsappRoute
   AdminProductIdRoute: typeof AdminProductIdRoute
 }
@@ -1383,6 +1404,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStudioRoute: AdminStudioRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminDiagnosticsWhatsappRoute: AdminDiagnosticsWhatsappRoute,
   AdminIntegrationsWhatsappRoute: AdminIntegrationsWhatsappRoute,
   AdminProductIdRoute: AdminProductIdRoute,
 }

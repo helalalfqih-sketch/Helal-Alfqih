@@ -675,3 +675,93 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
 
     return { ok: true, linkedCount: mediaIds.length, imagesAdded: newImageUrls.length };
   });
+
+/** Server Fn: Fetch last 50 WhatsApp media files for Diagnostics */
+export const getWhatsAppDiagnosticsMedia = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { data, error } = await db
+      .from("media_files")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("source", "whatsapp")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn("[Media] getWhatsAppDiagnosticsMedia error:", error.message);
+      return [];
+    }
+
+    return (data as unknown as MediaFileRecord[]) || [];
+  });
+
+/** Server Fn: Update thumbnail_url for a media file */
+export const updateMediaFileThumbnail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { mediaId: string; thumbnailUrl: string }) => data)
+  .handler(async ({ data: { mediaId, thumbnailUrl }, context }) => {
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { error } = await db
+      .from("media_files")
+      .update({ thumbnail_url: thumbnailUrl })
+      .eq("id", mediaId)
+      .eq("tenant_id", tenantId);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Server Fn: Backfill video thumbnails for all media files lacking thumbnail_url */
+export const backfillVideoThumbnails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { data: missingVideos, error } = await db
+      .from("media_files")
+      .select("id, file_url")
+      .eq("tenant_id", tenantId)
+      .eq("file_type", "video")
+      .is("thumbnail_url", null);
+
+    if (error) throw new Error(error.message);
+
+    return {
+      count: missingVideos ? missingVideos.length : 0,
+      videos: missingVideos || [],
+    };
+  });

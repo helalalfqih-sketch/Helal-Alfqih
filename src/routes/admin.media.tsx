@@ -22,6 +22,7 @@ import {
   Square,
   X,
   Package,
+  FileCode,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -361,6 +362,14 @@ function AdminMediaComponent() {
           >
             <MessageSquare className="h-4 w-4" />
             مزامنة الواتساب
+          </Link>
+
+          <Link
+            to="/admin/diagnostics/whatsapp"
+            className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/30 bg-purple-500/10 px-3.5 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all"
+          >
+            <FileCode className="h-4 w-4" />
+            تشخيص الواتساب
           </Link>
 
           <button
