@@ -73,7 +73,7 @@ async function uploadToStorage(
   buffer: ArrayBuffer,
   contentType: string
 ): Promise<string | null> {
-  const bucketsToTry = [STORAGE_BUCKET, "media", "uploads", "public"];
+  const bucketsToTry = [STORAGE_BUCKET, "media", "uploads"];
 
   for (const bucketName of bucketsToTry) {
     try {
@@ -113,7 +113,6 @@ async function uploadToStorage(
       console.error(`[WA Storage] Exception uploading to bucket="${bucketName}":`, err?.message || err);
     }
   }
-
   return null;
 }
 
@@ -253,6 +252,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           mime_type: mimeType,
           size_bytes: downloadedBytes || mediaObj.file_size || 0,
           source: "whatsapp",
+          thumbnail_url: messageType === "video" ? null : permanentUrl,
           metadata: {
             whatsapp_message_id: message.id || `wa_${Date.now()}`,
             sender_phone: senderPhone,

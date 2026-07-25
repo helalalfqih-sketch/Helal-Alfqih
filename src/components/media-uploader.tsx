@@ -22,6 +22,50 @@ import {
   type MediaFileRecord,
 } from "@/lib/media.functions";
 
+function SmartVideoPreview({ url }: { url: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [poster, setPoster] = useState<string | null>(null);
+
+  const handleLoadedData = () => {
+    if (poster || !videoRef.current) return;
+    try {
+      const v = videoRef.current;
+      v.currentTime = 0.5;
+      const canvas = document.createElement("canvas");
+      canvas.width = v.videoWidth || 320;
+      canvas.height = v.videoHeight || 240;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        setPoster(canvas.toDataURL("image/jpeg", 0.8));
+      }
+    } catch {
+      /* ignore CORS restrictions if cross-origin */
+    }
+  };
+
+  return (
+    <div className="relative h-full w-full bg-black flex items-center justify-center overflow-hidden">
+      {poster ? (
+        <img src={poster} alt="video thumbnail" className="h-full w-full object-cover" />
+      ) : (
+        <video
+          ref={videoRef}
+          src={url}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedData={handleLoadedData}
+          className="h-full w-full object-cover"
+        />
+      )}
+      <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+        <Film className="h-6 w-6 text-white drop-shadow-md" />
+      </div>
+    </div>
+  );
+}
+
 interface MediaUploaderProps {
   label?: string;
   value?: string | string[];
@@ -185,7 +229,7 @@ export function MediaUploader({
                   >
                     <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black/10 flex items-center justify-center">
                       {isVideo ? (
-                        <video src={url} className="h-full w-full object-cover" />
+                        <SmartVideoPreview url={url} />
                       ) : (
                         <img
                           src={url}
@@ -193,7 +237,7 @@ export function MediaUploader({
                           className="h-full w-full object-cover transition group-hover:scale-105"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80";
+                              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.5'><rect width='18' height='18' x='3' y='3' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5-11 11'/></svg>";
                           }}
                         />
                       )}

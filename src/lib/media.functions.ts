@@ -13,6 +13,7 @@ export interface MediaFileRecord {
   mime_type: string;
   size_bytes: number;
   sequence_number?: number | null;
+  thumbnail_url?: string | null;
   dimensions?: { width?: number; height?: number } | null;
   metadata?: Record<string, any> | null;
   created_at: string;
@@ -270,7 +271,7 @@ async function uploadDataUrlToStorage(
 
   console.log(`[Media] 💾 decoded ${bytes.byteLength} bytes from base64`);
 
-  const bucketsToTry = [MEDIA_BUCKET, "media", "uploads", "public"];
+  const bucketsToTry = [MEDIA_BUCKET, "media", "uploads"];
   let lastError: any = null;
 
   for (const bucketName of bucketsToTry) {

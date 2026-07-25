@@ -420,6 +420,7 @@ export type Database = {
           metadata: Json;
           source: string | null;
           sequence_number: number | null;
+          thumbnail_url: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -436,6 +437,7 @@ export type Database = {
           metadata?: Json;
           source?: string | null;
           sequence_number?: number | null;
+          thumbnail_url?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
@@ -452,6 +454,7 @@ export type Database = {
           metadata?: Json;
           source?: string | null;
           sequence_number?: number | null;
+          thumbnail_url?: string | null;
           created_by?: string | null;
           created_at?: string;
         };

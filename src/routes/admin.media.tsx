@@ -46,6 +46,50 @@ export const Route = createFileRoute("/admin/media")({
   component: AdminMediaComponent,
 });
 
+function VideoThumbnailCard({ url, posterUrl }: { url: string; posterUrl?: string | null }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [poster, setPoster] = useState<string | null>(posterUrl || null);
+
+  const handleLoadedData = () => {
+    if (poster || !videoRef.current) return;
+    try {
+      const v = videoRef.current;
+      v.currentTime = 0.5;
+      const canvas = document.createElement("canvas");
+      canvas.width = v.videoWidth || 320;
+      canvas.height = v.videoHeight || 240;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        setPoster(canvas.toDataURL("image/jpeg", 0.8));
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <div className="relative h-full w-full bg-black flex items-center justify-center overflow-hidden">
+      {poster ? (
+        <img src={poster} alt="video thumbnail" className="h-full w-full object-cover" />
+      ) : (
+        <video
+          ref={videoRef}
+          src={url}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedData={handleLoadedData}
+          className="h-full w-full object-cover"
+        />
+      )}
+      <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+        <Film className="h-7 w-7 text-white drop-shadow-md" />
+      </div>
+    </div>
+  );
+}
+
 function AdminMediaComponent() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -549,9 +593,7 @@ function AdminMediaComponent() {
 
                 <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden relative">
                   {file.file_type === "video" ? (
-                    <div className="relative h-full w-full bg-black flex items-center justify-center">
-                      <Film className="h-8 w-8 text-white/80" />
-                    </div>
+                    <VideoThumbnailCard url={file.file_url} posterUrl={file.thumbnail_url} />
                   ) : (
                     <img
                       src={file.file_url}
