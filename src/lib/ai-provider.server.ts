@@ -230,6 +230,7 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
   const lovableKey = process.env.LOVABLE_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const vertexProject = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+  const gcpCredentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
   if (lovableKey) {
     const gateway = createLovableGateway(lovableKey);
@@ -249,6 +250,31 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
       modelName: "gemini-2.5-flash",
       source: "env",
     };
+  }
+
+  // Full JSON service account credentials (best for Vercel)
+  if (gcpCredentialsJson) {
+    try {
+      const creds = JSON.parse(gcpCredentialsJson);
+      const project = creds.project_id || vertexProject || "gemini-api-project-475420";
+      const googleAuthOptions = creds.client_email && creds.private_key
+        ? { credentials: { client_email: creds.client_email, private_key: creds.private_key } }
+        : undefined;
+      const vertex = createVertex({
+        location: process.env.VERTEX_LOCATION || "us-central1",
+        project,
+        googleAuthOptions,
+      });
+      console.log(`[AI_PROVIDER_ENV] Using GOOGLE_APPLICATION_CREDENTIALS_JSON → project: ${project}`);
+      return {
+        model: vertex("gemini-2.5-flash"),
+        provider: "vertex",
+        modelName: "gemini-2.5-flash",
+        source: "env",
+      };
+    } catch (e) {
+      console.warn("[AI_PROVIDER_ENV] Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:", e);
+    }
   }
 
   if (vertexProject) {
