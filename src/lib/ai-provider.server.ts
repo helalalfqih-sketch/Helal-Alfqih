@@ -239,9 +239,10 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
 export const listAIProvidersFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const tenantId = await resolveTenantId(supabase, { userId: (context as any)?.user?.id });
+    const db = (context as any).supabase;
+    const tenantId = await resolveTenantId(db, { userId: (context as any)?.userId });
     
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("ai_provider_configs" as any)
       .select("*")
       .order("priority", { ascending: true });
@@ -277,7 +278,8 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => SaveProviderSchema.parse(d))
   .handler(async ({ context, data }) => {
-    const tenantId = data.is_global ? null : await resolveTenantId(supabase, { userId: (context as any)?.user?.id });
+    const db = (context as any).supabase;
+    const tenantId = data.is_global ? null : await resolveTenantId(db, { userId: (context as any)?.userId });
 
     let encryptedKey = null;
     if (data.api_key && !data.api_key.startsWith("••••")) {
@@ -287,7 +289,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
     if (data.id) {
       // Fetch existing if key wasn't changed
       if (data.api_key?.startsWith("••••")) {
-        const { data: existing } = await supabase
+        const { data: existing } = await db
           .from("ai_provider_configs" as any)
           .select("api_key")
           .eq("id", data.id)
@@ -297,7 +299,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
         }
       }
 
-      const { data: updated, error } = await supabase
+      const { data: updated, error } = await db
         .from("ai_provider_configs" as any)
         .update({
           provider: data.provider,
@@ -315,7 +317,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return updated;
     } else {
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await db
         .from("ai_provider_configs" as any)
         .insert({
           tenant_id: tenantId,
@@ -337,8 +339,9 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
 export const deleteAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
-  .handler(async ({ data }) => {
-    const { error } = await supabase
+  .handler(async ({ context, data }) => {
+    const db = (context as any).supabase;
+    const { error } = await db
       .from("ai_provider_configs" as any)
       .delete()
       .eq("id", data.id);
@@ -349,8 +352,9 @@ export const deleteAIProviderFn = createServerFn({ method: "POST" })
 export const toggleAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string(), enabled: z.boolean() }).parse(d))
-  .handler(async ({ data }) => {
-    const { error } = await supabase
+  .handler(async ({ context, data }) => {
+    const db = (context as any).supabase;
+    const { error } = await db
       .from("ai_provider_configs" as any)
       .update({ enabled: data.enabled, updated_at: new Date().toISOString() } as any)
       .eq("id", data.id);
@@ -375,7 +379,8 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
 
       // If masked or not provided, fetch from DB
       if ((!rawKey || rawKey.startsWith("••••")) && data.id) {
-        const { data: existing } = await supabase
+        const db = (context as any).supabase;
+        const { data: existing } = await db
           .from("ai_provider_configs" as any)
           .select("api_key")
           .eq("id", data.id)
