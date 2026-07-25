@@ -128,13 +128,17 @@ ALTER TABLE ai_agent_memory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_agent_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_agent_usage ENABLE ROW LEVEL SECURITY;
 
--- Provider Configs: authenticated users (admins) can read and manage provider configs
+-- Provider Configs: anyone can read active configs for AI ops, authenticated users manage them
 DROP POLICY IF EXISTS "ai_provider_configs_access" ON ai_provider_configs;
 DROP POLICY IF EXISTS "ai_provider_configs_authenticated_all" ON ai_provider_configs;
-CREATE POLICY "ai_provider_configs_authenticated_all" ON ai_provider_configs FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
+DROP POLICY IF EXISTS "ai_provider_configs_read_all" ON ai_provider_configs;
+DROP POLICY IF EXISTS "ai_provider_configs_write_authenticated" ON ai_provider_configs;
+
+CREATE POLICY "ai_provider_configs_read_all" ON ai_provider_configs 
+  FOR SELECT USING (true);
+
+CREATE POLICY "ai_provider_configs_write_authenticated" ON ai_provider_configs 
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Sessions: user can only access their own sessions
 DROP POLICY IF EXISTS "ai_sessions_tenant_access" ON ai_agent_sessions;

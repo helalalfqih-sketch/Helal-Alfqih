@@ -12,7 +12,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createVertex } from "@ai-sdk/google-vertex";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 function getSafeDb(context?: any) {
   return context?.supabase || supabase;
@@ -84,29 +83,52 @@ export function decryptApiKey(encrypted?: string | null): string | null {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Model Factory Helper
+// Model Validation & Factory Helper
 // ──────────────────────────────────────────────────────────────
 
-export function createModelFromConfig(provider: AIProviderType, apiKey: string | null, modelName: string, baseUrl?: string | null) {
+const VALID_GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+];
+
+export function validateProviderModel(provider: string, modelName?: string | null): string {
+  const model = (modelName || "").trim();
+
+  if (provider === "gemini" || provider === "google") {
+    if (!model) return "gemini-2.5-flash";
+    if (!VALID_GEMINI_MODELS.includes(model)) {
+      throw new Error("The selected model is unavailable for this provider.");
+    }
+    return model;
+  }
+
+  if (provider === "openrouter") {
+    if (!model) return "google/gemini-2.5-flash";
+    if (!model.includes("/")) {
+      throw new Error("The selected model is unavailable for this provider.");
+    }
+    return model;
+  }
+
+  return model || "gemini-2.5-flash";
+}
+
+export function createModelFromConfig(provider: AIProviderType | string, apiKey: string | null, rawModelName: string, baseUrl?: string | null) {
+  const modelName = validateProviderModel(provider, rawModelName);
   if (provider === "lovable") {
     if (!apiKey) throw new Error("Lovable API Key is required");
     const gateway = createLovableGateway(apiKey);
     return gateway(modelName || "google/gemini-3-flash-preview");
   }
 
-  if (provider === "gemini") {
+  if (provider === "gemini" || provider === "google") {
     if (!apiKey) throw new Error("Google Gemini API Key is required");
-    let targetModel = modelName || "gemini-1.5-flash-latest";
-    if (targetModel === "gemini-1.5-flash") {
-      targetModel = "gemini-1.5-flash-latest";
-    } else if (targetModel === "gemini-1.5-pro") {
-      targetModel = "gemini-1.5-pro-latest";
-    }
     const google = createGoogleGenerativeAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
-    return google(targetModel);
+    return google(modelName);
   }
 
   if (provider === "openai") {
@@ -118,19 +140,11 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
         Authorization: `Bearer ${apiKey}`,
       },
     });
-    return gateway(modelName || "gpt-4o-mini");
+    return gateway(modelName);
   }
 
   if (provider === "openrouter") {
     if (!apiKey) throw new Error("OpenRouter API Key is required");
-    let openrouterModel = modelName || "google/gemini-flash-1.5";
-    if (openrouterModel === "gemini-1.5-flash" || openrouterModel === "google/gemini-1.5-flash") {
-      openrouterModel = "google/gemini-flash-1.5";
-    } else if (openrouterModel === "gemini-1.5-pro" || openrouterModel === "google/gemini-1.5-pro") {
-      openrouterModel = "google/gemini-pro-1.5";
-    } else if (!openrouterModel.includes("/")) {
-      openrouterModel = `google/${openrouterModel}`;
-    }
     const gateway = createOpenAICompatible({
       name: "openrouter",
       baseURL: baseUrl || "https://openrouter.ai/api/v1/",
@@ -138,17 +152,7 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
         Authorization: `Bearer ${apiKey}`,
       },
     });
-    return gateway(openrouterModel);
-  }
-
-  if (provider === "vertex") {
-    const project = apiKey || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
-    if (!project) throw new Error("Vertex AI Project ID is required");
-    const vertex = createVertex({
-      location: process.env.VERTEX_LOCATION || "us-central1",
-      project,
-    });
-    return vertex(modelName || "gemini-1.5-flash");
+    return gateway(modelName);
   }
 
   throw new Error(`Unsupported provider: ${provider}`);
@@ -205,10 +209,9 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     console.warn("[AI_PROVIDER_DB_ERROR] Falling back to env vars:", dbErr);
   }
 
-  // 2. Fallback to Environment Variables (Exact match with existing logic)
+  // 2. Fallback to Environment Variables (Direct Gemini or Lovable)
   const lovableKey = process.env.LOVABLE_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  const vertexProject = process.env.VERTEX_PROJECT_ID;
 
   if (lovableKey) {
     const gateway = createLovableGateway(lovableKey);
@@ -221,30 +224,11 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
   }
 
   if (geminiKey) {
-    const gateway = createOpenAICompatible({
-      name: "gemini",
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      headers: {
-        Authorization: `Bearer ${geminiKey}`,
-      },
-    });
+    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
     return {
-      model: gateway("gemini-1.5-flash"),
+      model: google("gemini-2.5-flash"),
       provider: "gemini",
-      modelName: "gemini-1.5-flash",
-      source: "env",
-    };
-  }
-
-  if (vertexProject) {
-    const vertex = createVertex({
-      location: process.env.VERTEX_LOCATION || "us-central1",
-      project: vertexProject,
-    });
-    return {
-      model: vertex("gemini-1.5-flash"),
-      provider: "vertex",
-      modelName: "gemini-1.5-flash",
+      modelName: "gemini-2.5-flash",
       source: "env",
     };
   }
@@ -324,7 +308,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
         .update({
           provider: data.provider,
           api_key: encryptedKey,
-          model: data.model,
+          model: modelToSave,
           enabled: data.enabled,
           priority: data.priority,
           base_url: data.base_url || null,
@@ -343,7 +327,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
           tenant_id: tenantId,
           provider: data.provider,
           api_key: encryptedKey,
-          model: data.model,
+          model: modelToSave,
           enabled: data.enabled,
           priority: data.priority,
           base_url: data.base_url || null,
