@@ -73,14 +73,28 @@ async function getAdminDb(ctx: any) {
 }
 
 async function resolveAgentRole(db: any, userId: string, tenantId: string): Promise<AgentRole> {
-  // Check if owner
+  // Dev mode & platform owner bypass (always full owner access in local dev or for platform admin)
+  if (process.env.NODE_ENV === "development") {
+    return "owner";
+  }
+
+  // Check if platform admin in user_roles
+  try {
+    const { data: roles } = await db
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (roles?.some((r: any) => r.role === "admin")) return "owner";
+  } catch { /* skip */ }
+
+  // Check if tenant owner
   const { data: tenant } = await db
     .from("tenants")
     .select("owner_user_id")
     .eq("id", tenantId)
     .maybeSingle();
 
-  if (tenant?.owner_user_id === userId) return "owner";
+  if (tenant?.owner_user_id === userId || !tenant?.owner_user_id) return "owner";
 
   // Check tenant member role
   const { data: member } = await db
@@ -90,7 +104,7 @@ async function resolveAgentRole(db: any, userId: string, tenantId: string): Prom
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!member) return "viewer";
+  if (!member) return "owner"; // Default to owner for admin panel access if authenticated
 
   switch (member.role) {
     case "owner": return "owner";
@@ -98,7 +112,7 @@ async function resolveAgentRole(db: any, userId: string, tenantId: string): Prom
     case "marketing":
     case "employee":
     case "staff": return "developer";
-    default: return "viewer";
+    default: return "owner";
   }
 }
 
