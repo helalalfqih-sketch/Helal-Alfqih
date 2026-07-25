@@ -282,6 +282,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => SaveProviderSchema.parse(d))
   .handler(async ({ context, data }) => {
+    const modelToSave = validateProviderModel(data.provider, data.model);
     const db = getSafeDb(context);
     const tenantId = data.is_global ? null : await resolveTenantId(db, { userId: (context as any)?.userId });
 
