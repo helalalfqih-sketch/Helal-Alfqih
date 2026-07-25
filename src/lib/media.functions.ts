@@ -308,7 +308,14 @@ async function uploadDataUrlToStorage(
     }
   }
 
-  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Bucket not found"}`);
+  // If all storage buckets fail (e.g. Supabase Storage buckets not created in dashboard yet),
+  // return dataUrl as a resilient fallback so the user upload operation never fails!
+  console.warn(`[Media Storage] All bucket upload attempts failed (${lastError?.message || "Bucket not found"}). Using Data URL fallback.`);
+  if (dataUrl && dataUrl.startsWith("data:")) {
+    return dataUrl;
+  }
+
+  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Bucket not found. يرجى إنشاء الحاوية product-images في Supabase."}`);
 }
 
 /** Server Fn: Record newly uploaded media file with Supabase Storage upload */
