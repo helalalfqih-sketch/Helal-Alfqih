@@ -13,6 +13,7 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 function getSafeDb(context?: any) {
   return context?.supabase || supabase;
 }
@@ -95,14 +96,11 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
 
   if (provider === "gemini") {
     if (!apiKey) throw new Error("Google Gemini API Key is required");
-    const gateway = createOpenAICompatible({
-      name: "gemini",
-      baseURL: baseUrl || "https://generativelanguage.googleapis.com/v1beta/openai/",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+    const google = createGoogleGenerativeAI({
+      apiKey,
+      ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
-    return gateway(modelName || "gemini-1.5-flash");
+    return google(modelName || "gemini-1.5-flash");
   }
 
   if (provider === "openai") {
@@ -119,6 +117,14 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
 
   if (provider === "openrouter") {
     if (!apiKey) throw new Error("OpenRouter API Key is required");
+    let openrouterModel = modelName || "google/gemini-flash-1.5";
+    if (openrouterModel === "gemini-1.5-flash" || openrouterModel === "google/gemini-1.5-flash") {
+      openrouterModel = "google/gemini-flash-1.5";
+    } else if (openrouterModel === "gemini-1.5-pro" || openrouterModel === "google/gemini-1.5-pro") {
+      openrouterModel = "google/gemini-pro-1.5";
+    } else if (!openrouterModel.includes("/")) {
+      openrouterModel = `google/${openrouterModel}`;
+    }
     const gateway = createOpenAICompatible({
       name: "openrouter",
       baseURL: baseUrl || "https://openrouter.ai/api/v1/",
@@ -126,7 +132,7 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
         Authorization: `Bearer ${apiKey}`,
       },
     });
-    return gateway(modelName || "google/gemini-flash-1.5");
+    return gateway(openrouterModel);
   }
 
   if (provider === "vertex") {
