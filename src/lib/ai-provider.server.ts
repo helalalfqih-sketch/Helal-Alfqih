@@ -149,7 +149,8 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     const tenantId = options?.tenantId || null;
 
     // Build query for tenant configs OR global configs (tenant_id IS NULL)
-    let query = supabase
+    const adminDb = await getAdminDb();
+    let query = adminDb
       .from("ai_provider_configs" as any)
       .select("*")
       .eq("enabled", true)
@@ -386,8 +387,8 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
 
       // If masked or not provided, fetch from DB
       if ((!rawKey || rawKey.startsWith("••••")) && data.id) {
-        const db = (context as any).supabase;
-        const { data: existing } = await db
+        const adminDb = await getAdminDb();
+        const { data: existing } = await adminDb
           .from("ai_provider_configs" as any)
           .select("api_key")
           .eq("id", data.id)
