@@ -428,7 +428,11 @@ function ProductPage() {
         </div>
 
         {/* Product Recommendations ("قد يعجبك أيضاً") */}
-        <ProductRecommendations currentProductId={product.id} categoryId={product.categoryId} />
+        <ProductRecommendations
+          currentProductId={product.id}
+          categoryId={product.categoryId}
+          productName={product.name}
+        />
       </div>
 
       {/* Sticky Conversion Bar when scrolling */}
