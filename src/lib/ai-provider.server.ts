@@ -96,11 +96,17 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
 
   if (provider === "gemini") {
     if (!apiKey) throw new Error("Google Gemini API Key is required");
+    let targetModel = modelName || "gemini-1.5-flash-latest";
+    if (targetModel === "gemini-1.5-flash") {
+      targetModel = "gemini-1.5-flash-latest";
+    } else if (targetModel === "gemini-1.5-pro") {
+      targetModel = "gemini-1.5-pro-latest";
+    }
     const google = createGoogleGenerativeAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
-    return google(modelName || "gemini-1.5-flash");
+    return google(targetModel);
   }
 
   if (provider === "openai") {
