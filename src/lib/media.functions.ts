@@ -212,6 +212,26 @@ export const listMediaFiles = createServerFn({ method: "GET" })
 
 const MEDIA_BUCKET = "product-images"; // Supabase Storage bucket for all media
 
+async function ensureBucketExists(db: any, bucketName: string): Promise<boolean> {
+  try {
+    const { data: buckets } = await db.storage.listBuckets();
+    const exists = Array.isArray(buckets) && buckets.some((b: any) => b.name === bucketName || b.id === bucketName);
+    if (!exists) {
+      console.log(`[Media Storage] Bucket "${bucketName}" not found. Creating bucket...`);
+      const { error: createErr } = await db.storage.createBucket(bucketName, { public: true });
+      if (createErr) {
+        console.warn(`[Media Storage] Could not auto-create bucket "${bucketName}": ${createErr.message}`);
+        return false;
+      }
+      console.log(`[Media Storage] ✅ Bucket "${bucketName}" created successfully!`);
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[Media Storage] Bucket check/create exception for "${bucketName}":`, err);
+    return false;
+  }
+}
+
 /**
  * Upload a base64 data URL or raw Buffer to Supabase Storage.
  * Returns the permanent public URL on success, throws on failure.
@@ -245,14 +265,30 @@ async function uploadDataUrlToStorage(
 
   for (const bucketName of bucketsToTry) {
     try {
+      await ensureBucketExists(db, bucketName);
       console.log(`[Media Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
-      const { error: storageError } = await db.storage
+      
+      let { error: storageError } = await db.storage
         .from(bucketName)
         .upload(storagePath, bytes.buffer, {
           contentType: mimeType,
           upsert: true,
           cacheControl: "2592000",
         });
+
+      // If failed due to bucket missing, try creating it directly and retrying upload
+      if (storageError && storageError.message?.toLowerCase().includes("not found")) {
+        console.log(`[Media Storage] Bucket "${bucketName}" reported missing. Retrying after explicit creation...`);
+        await db.storage.createBucket(bucketName, { public: true });
+        const retryRes = await db.storage
+          .from(bucketName)
+          .upload(storagePath, bytes.buffer, {
+            contentType: mimeType,
+            upsert: true,
+            cacheControl: "2592000",
+          });
+        storageError = retryRes.error;
+      }
 
       if (storageError) {
         console.error(`[Media Storage] Bucket "${bucketName}" error: ${storageError.message}`);
@@ -272,7 +308,7 @@ async function uploadDataUrlToStorage(
     }
   }
 
-  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Storage error"}`);
+  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Bucket not found"}`);
 }
 
 /** Server Fn: Record newly uploaded media file with Supabase Storage upload */

@@ -78,13 +78,27 @@ async function uploadToStorage(
   for (const bucketName of bucketsToTry) {
     try {
       console.log(`[WA Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
-      const { data, error } = await db.storage
+      let { data, error } = await db.storage
         .from(bucketName)
         .upload(storagePath, buffer, {
           contentType,
           upsert: true,
           cacheControl: "2592000", // 30 days
         });
+
+      if (error && error.message?.toLowerCase().includes("not found")) {
+        console.log(`[WA Storage] Bucket "${bucketName}" not found. Auto-creating bucket...`);
+        await db.storage.createBucket(bucketName, { public: true });
+        const retryRes = await db.storage
+          .from(bucketName)
+          .upload(storagePath, buffer, {
+            contentType,
+            upsert: true,
+            cacheControl: "2592000",
+          });
+        error = retryRes.error;
+        data = retryRes.data;
+      }
 
       if (error) {
         console.error(`[WA Storage] Failed bucket="${bucketName}": ${error.message} (status: ${(error as any)?.status || 'unknown'})`);
