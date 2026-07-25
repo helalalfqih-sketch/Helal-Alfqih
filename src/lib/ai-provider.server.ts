@@ -84,15 +84,7 @@ export function decryptApiKey(encrypted?: string | null): string | null {
 }
 
 export function validateProviderModel(provider: string, rawModelName?: string | null): string {
-  let model = (rawModelName || "").trim();
-
-  // Auto-upgrade deprecated or invalid Gemini model names to official gemini-2.0-flash
-  if (!model || /^gemini-(1\.5|2\.5)(-flash|-pro)?(-latest)?$/i.test(model)) {
-    model = "gemini-2.0-flash";
-  }
-  if (/^google\/gemini-(1\.5|2\.5)(-flash|-pro)?(-latest)?$/i.test(model)) {
-    model = "google/gemini-2.0-flash";
-  }
+  const model = (rawModelName || "").trim();
 
   if (provider === "gemini" || provider === "google" || provider === "vertex") {
     if (!model) return "gemini-2.0-flash";
@@ -460,20 +452,40 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
         }
       }
 
-      const model = createModelFromConfig(data.provider, rawKey, data.model, data.base_url);
-      
-      // Perform a lightweight text generation ping
-      const { text } = await generateText({
-        model,
-        prompt: "Respond with ONLY the word OK.",
-      });
+      const modelsToTry = Array.from(new Set([
+        data.model,
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+      ]));
 
-      return {
-        success: true,
-        message: `تم الاتصال بنجاح بالمزود (${data.provider}). رد النموذج: ${text.trim() || "OK"}`,
-        provider: data.provider,
-        model: data.model,
-      };
+      let lastErr: any = null;
+      for (const mName of modelsToTry) {
+        try {
+          const model = createModelFromConfig(data.provider, rawKey, mName, data.base_url);
+          const { text } = await generateText({
+            model,
+            prompt: "Respond with ONLY the word OK.",
+          });
+
+          return {
+            success: true,
+            message: `تم الاتصال بنجاح بالمزود (${data.provider}) بالموديل [${mName}]. رد النموذج: ${text.trim() || "OK"}`,
+            provider: data.provider,
+            model: mName,
+          };
+        } catch (err: any) {
+          lastErr = err;
+          // If rate limit / quota / 429 error, continue to try next fallback model
+          if (/quota|rate|429|limit/i.test(err?.message || "")) {
+            console.warn(`[AI_TEST_FALLBACK] Model ${mName} hit quota/rate limit, trying next fallback...`);
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw lastErr;
     } catch (err: any) {
       console.error("[AI_TEST_ERROR]", err);
       return {

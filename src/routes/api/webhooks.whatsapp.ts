@@ -252,7 +252,6 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           mime_type: mimeType,
           size_bytes: downloadedBytes || mediaObj.file_size || 0,
           source: "whatsapp",
-          thumbnail_url: messageType === "video" ? null : permanentUrl,
           metadata: {
             whatsapp_message_id: message.id || `wa_${Date.now()}`,
             sender_phone: senderPhone,
@@ -260,6 +259,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
             caption,
             category,
             tags,
+            thumbnail_url: messageType === "video" ? null : permanentUrl,
             upload_success: uploadSuccess,
             received_at: new Date().toISOString(),
           },
