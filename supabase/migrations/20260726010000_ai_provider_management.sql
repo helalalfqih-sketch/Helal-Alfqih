@@ -129,6 +129,7 @@ ALTER TABLE ai_agent_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_agent_usage ENABLE ROW LEVEL SECURITY;
 
 -- Provider Configs: tenant owners and members can read and manage their configs or global ones
+DROP POLICY IF EXISTS "ai_provider_configs_access" ON ai_provider_configs;
 CREATE POLICY "ai_provider_configs_access" ON ai_provider_configs FOR ALL
   USING (
     tenant_id IS NULL 
@@ -136,39 +137,48 @@ CREATE POLICY "ai_provider_configs_access" ON ai_provider_configs FOR ALL
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_provider_configs.tenant_id AND user_id = auth.uid())
   );
 
--- Sessions: tenant members access
+-- Sessions: tenant members access OR session creator
+DROP POLICY IF EXISTS "ai_sessions_tenant_access" ON ai_agent_sessions;
 CREATE POLICY "ai_sessions_tenant_access" ON ai_agent_sessions FOR ALL
   USING (
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_sessions.tenant_id AND user_id = auth.uid())
+    OR user_id = auth.uid()
   );
 
--- Messages: tenant members access
+-- Messages: tenant members access OR session creator
+DROP POLICY IF EXISTS "ai_messages_tenant_access" ON ai_agent_messages;
 CREATE POLICY "ai_messages_tenant_access" ON ai_agent_messages FOR ALL
   USING (
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_messages.tenant_id AND user_id = auth.uid())
+    OR session_id IN (SELECT id FROM ai_agent_sessions WHERE user_id = auth.uid())
   );
 
 -- Memory: tenant members access
+DROP POLICY IF EXISTS "ai_memory_tenant_access" ON ai_agent_memory;
 CREATE POLICY "ai_memory_tenant_access" ON ai_agent_memory FOR ALL
   USING (
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_memory.tenant_id AND user_id = auth.uid())
   );
 
--- Audit logs: tenant members read
+-- Audit logs: tenant members read OR action creator
+DROP POLICY IF EXISTS "ai_audit_tenant_access" ON ai_agent_audit_logs;
 CREATE POLICY "ai_audit_tenant_access" ON ai_agent_audit_logs FOR ALL
   USING (
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_audit_logs.tenant_id AND user_id = auth.uid())
+    OR user_id = auth.uid()
   );
 
--- Usage: tenant members read
+-- Usage: tenant members read OR usage creator
+DROP POLICY IF EXISTS "ai_usage_tenant_access" ON ai_agent_usage;
 CREATE POLICY "ai_usage_tenant_access" ON ai_agent_usage FOR ALL
   USING (
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_usage.tenant_id AND user_id = auth.uid())
+    OR user_id = auth.uid()
   );
 
 -- ============ Role Permissions ============
