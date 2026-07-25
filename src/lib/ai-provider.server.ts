@@ -84,7 +84,15 @@ export function decryptApiKey(encrypted?: string | null): string | null {
 }
 
 export function validateProviderModel(provider: string, rawModelName?: string | null): string {
-  const model = (rawModelName || "").trim();
+  let model = (rawModelName || "").trim();
+
+  // Auto-upgrade deprecated Gemini 1.5 model names to Gemini 2.5 Flash
+  if (/^gemini-1\.5(-flash|-pro)?(-latest)?$/i.test(model)) {
+    model = "gemini-2.5-flash";
+  }
+  if (/^google\/gemini-1\.5(-flash|-pro)?(-latest)?$/i.test(model)) {
+    model = "google/gemini-2.5-flash";
+  }
 
   if (provider === "gemini" || provider === "google" || provider === "vertex") {
     if (!model) return "gemini-2.5-flash";
