@@ -69,6 +69,7 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
 import { Route as AdminBannersRouteImport } from './routes/admin.banners'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
+import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
 import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public.image-proxy'
@@ -380,6 +381,11 @@ const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
+  id: '/ai-settings',
+  path: '/ai-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
   id: '/ai-developer',
   path: '/ai-developer',
@@ -450,6 +456,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -520,6 +527,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -667,6 +676,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/track'
     | '/admin/ai-developer'
+    | '/admin/ai-settings'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -737,6 +747,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/track'
     | '/admin/ai-developer'
+    | '/admin/ai-settings'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -809,6 +820,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/track'
     | '/admin/ai-developer'
+    | '/admin/ai-settings'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -1319,6 +1331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAppearanceRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/ai-settings': {
+      id: '/admin/ai-settings'
+      path: '/ai-settings'
+      fullPath: '/admin/ai-settings'
+      preLoaderRoute: typeof AdminAiSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/ai-developer': {
       id: '/admin/ai-developer'
       path: '/ai-developer'
@@ -1406,6 +1425,7 @@ const AdminStoresRouteWithChildren = AdminStoresRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminAiDeveloperRoute: typeof AdminAiDeveloperRoute
+  AdminAiSettingsRoute: typeof AdminAiSettingsRoute
   AdminAppearanceRoute: typeof AdminAppearanceRoute
   AdminBannersRoute: typeof AdminBannersRoute
   AdminBranchesRoute: typeof AdminBranchesRoute
@@ -1439,6 +1459,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiDeveloperRoute: AdminAiDeveloperRoute,
+  AdminAiSettingsRoute: AdminAiSettingsRoute,
   AdminAppearanceRoute: AdminAppearanceRoute,
   AdminBannersRoute: AdminBannersRoute,
   AdminBranchesRoute: AdminBranchesRoute,

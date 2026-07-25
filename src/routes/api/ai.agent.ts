@@ -11,6 +11,7 @@ import { z } from "zod";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
+import { resolveActiveAIProvider } from "@/lib/ai-provider.server";
 import {
   PROJECT_FILE_STRUCTURE,
   DB_SCHEMA_SUMMARY,
@@ -123,57 +124,31 @@ export const Route = createFileRoute("/api/ai/agent")({
           VERCEL_ENV: process.env.VERCEL_ENV,
         });
 
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        const geminiKey = process.env.GEMINI_API_KEY;
-        const vertexProject = process.env.VERTEX_PROJECT_ID;
-
-        console.log("[AI_AGENT_PROVIDER]", {
-          lovable: Boolean(lovableKey),
-          gemini: Boolean(geminiKey),
-          vertex: Boolean(vertexProject),
-        });
-
-        if (!lovableKey && !geminiKey && !vertexProject) {
-          return Response.json(
-            {
-              error: "No AI provider configured",
-            },
-            { status: 500 },
-          );
-        }
-
         let model;
         let provider = "";
         let modelName = "";
 
         try {
-          if (lovableKey) {
-            const gateway = createLovableGateway(lovableKey);
-            model = gateway("google/gemini-3-flash-preview");
-            provider = "lovable";
-            modelName = "google/gemini-3-flash-preview";
-          } else if (geminiKey) {
-            const gateway = createOpenAICompatible({
-              name: "gemini",
-              baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-              headers: {
-                Authorization: `Bearer ${geminiKey}`,
+          const resolved = await resolveActiveAIProvider();
+          console.log("[AI_AGENT_RESOLVED]", {
+            found: Boolean(resolved),
+            provider: resolved?.provider,
+            modelName: resolved?.modelName,
+            source: resolved?.source,
+          });
+
+          if (!resolved) {
+            return Response.json(
+              {
+                error: "No AI provider configured in database or environment variables.",
               },
-            });
-            model = gateway("gemini-1.5-flash");
-            provider = "gemini";
-            modelName = "gemini-1.5-flash";
-          } else if (vertexProject) {
-            const vertex = createVertex({
-              location: process.env.VERTEX_LOCATION || "us-central1",
-              project: vertexProject,
-            });
-            model = vertex("gemini-1.5-flash");
-            provider = "vertex";
-            modelName = "gemini-1.5-flash";
-          } else {
-            throw new Error("No AI provider configured");
+              { status: 500 },
+            );
           }
+
+          model = resolved.model;
+          provider = String(resolved.provider);
+          modelName = resolved.modelName;
         } catch (error: any) {
           console.error("[AI_AGENT_INIT_ERROR]", error);
           return Response.json(

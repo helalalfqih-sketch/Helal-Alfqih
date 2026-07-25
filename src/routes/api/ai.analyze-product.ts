@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
+import { resolveActiveAIProvider } from "@/lib/ai-provider.server";
 
 const InputSchema = z.object({
   hint: z.string().default(""),
@@ -30,9 +31,6 @@ export const Route = createFileRoute("/api/ai/analyze-product")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        const geminiKey = process.env.GEMINI_API_KEY;
-
         let payload: z.infer<typeof InputSchema>;
         try {
           payload = InputSchema.parse(await request.json());
@@ -40,27 +38,14 @@ export const Route = createFileRoute("/api/ai/analyze-product")({
           return Response.json({ error: "Invalid input", detail: String(e) }, { status: 400 });
         }
 
-        let model;
-        if (lovableKey) {
-          const gateway = createLovableGateway(lovableKey);
-          model = gateway("google/gemini-3-flash-preview");
-        } else if (geminiKey) {
-          const gateway = createOpenAICompatible({
-            name: "gemini",
-            baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-            headers: {
-              Authorization: `Bearer ${geminiKey}`,
-            },
-          });
-          model = gateway("gemini-1.5-flash");
-        } else {
-          // استخدام Google Vertex AI تلقائياً (خاصة في بيئة Firebase المستضافة)
-          const vertex = createVertex({
-            location: process.env.VERTEX_LOCATION || "us-central1",
-            project: process.env.VERTEX_PROJECT_ID,
-          });
-          model = vertex("gemini-1.5-flash");
+        const resolved = await resolveActiveAIProvider();
+        if (!resolved) {
+          return Response.json(
+            { error: "No AI provider configured in database or environment variables." },
+            { status: 500 },
+          );
         }
+        const model = resolved.model;
 
         const lang = payload.language;
         const systemMsg =

@@ -318,6 +318,7 @@ function ShellInner() {
         { to: "/admin/studio", label: t("nav.studio"), icon: Sparkles },
         { to: "/admin/insights", label: "رؤى AI", icon: Brain },
         { to: "/admin/studio", label: "مولّد المنتجات", icon: Wand2 },
+        { to: "/admin/ai-settings", label: "إعدادات مزودي AI", icon: Settings },
       ],
     },
     {
