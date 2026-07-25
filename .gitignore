@@ -1,4 +1,7 @@
-# Env files
+# Credentials & Secret Keys
+*-*.json
+*.pem
+*.key
 .env
 .env.local
 .env.production

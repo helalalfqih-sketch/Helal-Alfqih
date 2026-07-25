@@ -141,11 +141,33 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
   }
 
   if (provider === "vertex") {
-    const project = apiKey || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
-    if (!project) throw new Error("Google Vertex AI Project ID is required");
+    let raw = apiKey || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+    let project = "gemini-api-project-475420";
+    let credentials: any = undefined;
+
+    if (raw) {
+      if (raw.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.project_id) project = parsed.project_id;
+          if (parsed.client_email && parsed.private_key) {
+            credentials = {
+              client_email: parsed.client_email,
+              private_key: parsed.private_key,
+            };
+          }
+        } catch (e) {
+          console.warn("[VERTEX_JSON_PARSE_ERROR]", e);
+        }
+      } else {
+        project = raw.trim();
+      }
+    }
+
     const vertex = createVertex({
       location: process.env.VERTEX_LOCATION || "us-central1",
       project,
+      googleAuthOptions: credentials ? { credentials } : undefined,
     });
     return vertex(modelName || "gemini-2.5-flash");
   }
