@@ -114,10 +114,18 @@ export const Route = createFileRoute("/api/ai/agent")({
           );
         }
 
+        console.log("[ENV_DEBUG]", {
+          LOVABLE_API_KEY: Boolean(process.env.LOVABLE_API_KEY),
+          GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
+          GOOGLE_VERTEX_PROJECT: Boolean(process.env.GOOGLE_VERTEX_PROJECT),
+          VERTEX_PROJECT_ID: Boolean(process.env.VERTEX_PROJECT_ID),
+          NODE_ENV: process.env.NODE_ENV,
+          VERCEL_ENV: process.env.VERCEL_ENV,
+        });
+
         const lovableKey = process.env.LOVABLE_API_KEY;
         const geminiKey = process.env.GEMINI_API_KEY;
-        const vertexProject =
-          process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+        const vertexProject = process.env.VERTEX_PROJECT_ID;
 
         console.log("[AI_AGENT_PROVIDER]", {
           lovable: Boolean(lovableKey),
