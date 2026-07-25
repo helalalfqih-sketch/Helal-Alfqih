@@ -86,25 +86,25 @@ export function decryptApiKey(encrypted?: string | null): string | null {
 export function validateProviderModel(provider: string, rawModelName?: string | null): string {
   let model = (rawModelName || "").trim();
 
-  // Auto-upgrade deprecated Gemini 1.5 model names to Gemini 2.5 Flash
-  if (/^gemini-1\.5(-flash|-pro)?(-latest)?$/i.test(model)) {
-    model = "gemini-2.5-flash";
+  // Auto-upgrade deprecated or invalid Gemini model names to official gemini-2.0-flash
+  if (!model || /^gemini-(1\.5|2\.5)(-flash|-pro)?(-latest)?$/i.test(model)) {
+    model = "gemini-2.0-flash";
   }
-  if (/^google\/gemini-1\.5(-flash|-pro)?(-latest)?$/i.test(model)) {
-    model = "google/gemini-2.5-flash";
+  if (/^google\/gemini-(1\.5|2\.5)(-flash|-pro)?(-latest)?$/i.test(model)) {
+    model = "google/gemini-2.0-flash";
   }
 
   if (provider === "gemini" || provider === "google" || provider === "vertex") {
-    if (!model) return "gemini-2.5-flash";
+    if (!model) return "gemini-2.0-flash";
     return model;
   }
 
   if (provider === "openrouter") {
-    if (!model) return "google/gemini-2.5-flash";
+    if (!model) return "google/gemini-2.0-flash";
     return model.includes("/") ? model : `google/${model}`;
   }
 
-  return model || "gemini-2.5-flash";
+  return model || "gemini-2.0-flash";
 }
 
 export function createModelFromConfig(provider: AIProviderType | string, apiKey: string | null, rawModelName: string, baseUrl?: string | null) {
@@ -177,7 +177,7 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
       project,
       googleAuthOptions: credentials ? { credentials } : undefined,
     });
-    return vertex(modelName || "gemini-2.5-flash");
+    return vertex(modelName || "gemini-2.0-flash");
   }
 
   throw new Error(`Unsupported provider: ${provider}`);
@@ -253,9 +253,9 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
   if (geminiKey) {
     const google = createGoogleGenerativeAI({ apiKey: geminiKey });
     return {
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-2.0-flash"),
       provider: "gemini",
-      modelName: "gemini-2.5-flash",
+      modelName: "gemini-2.0-flash",
       source: "env",
     };
   }
@@ -275,9 +275,9 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
       });
       console.log(`[AI_PROVIDER_ENV] Using GOOGLE_APPLICATION_CREDENTIALS_JSON → project: ${project}`);
       return {
-        model: vertex("gemini-2.5-flash"),
+        model: vertex("gemini-2.0-flash"),
         provider: "vertex",
-        modelName: "gemini-2.5-flash",
+        modelName: "gemini-2.0-flash",
         source: "env",
       };
     } catch (e) {
@@ -291,9 +291,9 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
       project: vertexProject,
     });
     return {
-      model: vertex("gemini-2.5-flash"),
+      model: vertex("gemini-2.0-flash"),
       provider: "vertex",
-      modelName: "gemini-2.5-flash",
+      modelName: "gemini-2.0-flash",
       source: "env",
     };
   }
