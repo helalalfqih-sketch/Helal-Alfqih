@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Bot,
   PlusCircle,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -85,7 +86,7 @@ function AdminMediaComponent() {
   const uploadMutation = useMutation({
     mutationFn: (data: Parameters<typeof recordMediaFn>[0]["data"]) => recordMediaFn({ data }),
     onSuccess: () => {
-      toast.success("تم رفع وسيلة الإعلام وتنصيبها بنجاح ✨");
+      toast.success("تم رفع الوسيطة وتسجيلها بنجاح ✨");
       queryClient.invalidateQueries({ queryKey: ["admin-media-files"] });
     },
     onError: (err: Error) => {
@@ -158,44 +159,50 @@ function AdminMediaComponent() {
   };
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 font-sans" dir="rtl">
+      {/* Header & Simplified Quick Action Buttons Bar */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border/60 pb-5">
         <div>
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <ImageIcon className="h-7 w-7 text-primary" />
-            مكتبة الوسائط (Media Library)
+          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2.5 text-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-xs">
+              <ImageIcon className="h-5 w-5" />
+            </div>
+            مكتبة الوسائط
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            إدارة صور المنتجات، فيديوهات العرض، بنرات واجهة المتجر والوسائط المستوردة من الواتساب.
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
+            إدارة صور وفيديوهات المنتجات والبنرات والوسائط المستوردة من الواتساب والذكاء الاصطناعي.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-md hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Upload className="h-4 w-4" />
+            رفع وسائط جديدة
+          </button>
+
           <Link
             to="/admin/integrations/whatsapp"
-            className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition"
+            className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all"
           >
             <MessageSquare className="h-4 w-4" />
-            مزامنة الواتساب (WhatsApp Sync)
+            مزامنة الواتساب
           </Link>
 
           <button
+            type="button"
             onClick={handleScanUnused}
             disabled={isScanningUnused}
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs font-bold transition hover:bg-accent disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-accent transition-all disabled:opacity-50"
+            title="فحص الملفات التي لا ترتبط بأي منتج"
           >
-            {isScanningUnused ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-warning" />}
-            فحص الملفات غير المستخدمة
+            {isScanningUnused ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-amber-500" />}
+            فحص الملفات المهملة
           </button>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 shadow-brand"
-          >
-            <Upload className="h-4 w-4" />
-            رفع وسائط
-          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -215,78 +222,86 @@ function AdminMediaComponent() {
           handleFileUpload(Array.from(e.dataTransfer.files || []));
         }}
         onClick={() => fileInputRef.current?.click()}
-        className="rounded-2xl border-2 border-dashed border-border/80 bg-surface/50 p-6 text-center cursor-pointer hover:bg-muted/10 hover:border-primary transition group"
+        className="group relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed border-border/80 bg-surface/40 p-5 text-center transition-all duration-200 hover:border-primary/60 hover:bg-primary/5 hover:shadow-xs"
       >
-        <Upload className="mx-auto h-8 w-8 text-muted-foreground group-hover:text-primary transition" />
-        <p className="mt-2 text-sm font-bold text-foreground">
-          اسحب الصور أو الفيديوهات هنا، أو انقر للاختيار من الجهاز
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
+          <Upload className="h-5 w-5" />
+        </div>
+        <p className="mt-2 text-xs font-bold text-foreground">
+          اسحب الصور أو الفيديوهات هنا، أو انقر للاختيار من جهازك مباشرة
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-[11px] text-muted-foreground">
           يدعم الصور (JPG, PNG, WebP, SVG حتى 10MB) والفيديوهات (MP4, WebM حتى 50MB)
         </p>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-surface border border-border p-4 rounded-2xl shadow-sm">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="ابحث باسم الملف أو الوسوم (Tags)..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background ps-9 pe-4 py-2 text-sm focus:outline-none"
-          />
+      {/* Filter and Search Toolbar */}
+      <div className="space-y-3 rounded-3xl border border-border/80 bg-surface p-4 shadow-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="ابحث باسم الملف أو الوسوم (#tags)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-border bg-background ps-9 pe-4 py-2 text-xs font-medium focus:outline-none focus:border-primary transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="all">جميع التصنيفات</option>
+              <option value="معدات وأدوات">معدات وأدوات</option>
+              <option value="إلكترونيات">إلكترونيات</option>
+              <option value="ساعات ومجوهرات">ساعات ومجوهرات</option>
+              <option value="أثاث ومنزل">أثاث ومنزل</option>
+              <option value="وسائط متنوعة">وسائط متنوعة</option>
+            </select>
+
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="newest">الأحدث أولاً ⏱️</option>
+              <option value="oldest">الأقدم أولاً</option>
+              <option value="name_asc">الاسم (أ - ي)</option>
+              <option value="name_desc">الاسم (ي - أ)</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Category Filter */}
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
-          >
-            <option value="all">جميع التصنيفات</option>
-            <option value="معدات وأدوات">معدات وأدوات</option>
-            <option value="إلكترونيات">إلكترونيات</option>
-            <option value="ساعات ومجوهرات">ساعات ومجوهرات</option>
-            <option value="أزياء وموضة">أزياء وموضة</option>
-            <option value="وسائط متنوعة">وسائط متنوعة</option>
-          </select>
-
-          {/* Sort Selector */}
-          <select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
-          >
-            <option value="newest">الأحدث أولاً ⏱️</option>
-            <option value="oldest">الأقدم أولاً</option>
-            <option value="largest">الأكبر حجماً 📦</option>
-            <option value="smallest">الأصغر حجماً</option>
-            <option value="name_asc">الاسم (أ - ي)</option>
-            <option value="name_desc">الاسم (ي - أ)</option>
-          </select>
-
-          {/* File Type Filter */}
-          <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border">
-            {(["all", "image", "video"] as const).map((t) => (
+        {/* Filter Pills (Media Types & Sources) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-[11px] font-bold text-muted-foreground me-1 shrink-0">النوع:</span>
+            {[
+              { id: "all", label: "الكل" },
+              { id: "image", label: "الصور 🖼️" },
+              { id: "video", label: "الفيديوهات 🎥" },
+            ].map((t) => (
               <button
-                key={t}
-                onClick={() => setFilterType(t)}
-                className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
-                  filterType === t
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent"
+                key={t.id}
+                type="button"
+                onClick={() => setFilterType(t.id as any)}
+                className={`rounded-xl px-3 py-1 text-xs font-bold transition shrink-0 ${
+                  filterType === t.id
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
-                {t === "all" ? "الكل" : t === "image" ? "الصور 🖼️" : "الفيديوهات 🎥"}
+                {t.label}
               </button>
             ))}
           </div>
 
-          {/* Source Filter */}
-          <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-[11px] font-bold text-muted-foreground me-1 shrink-0">المصدر:</span>
             {[
               { id: "all", label: "جميع المصادر" },
               { id: "upload", label: "مرفوع يدويًا" },
@@ -295,11 +310,12 @@ function AdminMediaComponent() {
             ].map((s) => (
               <button
                 key={s.id}
+                type="button"
                 onClick={() => setFilterSource(s.id as any)}
-                className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
+                className={`rounded-xl px-3 py-1 text-xs font-bold transition shrink-0 ${
                   filterSource === s.id
-                    ? "bg-emerald-600 text-white"
-                    : "text-muted-foreground hover:bg-accent"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
                 {s.label}
@@ -311,21 +327,22 @@ function AdminMediaComponent() {
 
       {/* Unused Media Scanner Result Banner */}
       {unusedFiles && unusedFiles.length > 0 && (
-        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 text-xs font-bold text-warning-foreground">
-            <AlertCircle className="h-5 w-5 shrink-0 text-warning" />
+        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-xs font-bold text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-5 w-5 shrink-0" />
             <span>تم العثور على {unusedFiles.length} ملف غير مرتبط بأي منتج أو تصنيف في المتجر.</span>
           </div>
           <button
+            type="button"
             onClick={() => {
               if (confirm(`هل أنت تأكد من حذف ${unusedFiles.length} ملف غير مستخدم لتوفير المساحة؟`)) {
                 unusedFiles.forEach((f) => deleteMutation.mutate(f.id));
                 setUnusedFiles(null);
               }
             }}
-            className="rounded-xl bg-destructive px-3.5 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90"
+            className="rounded-2xl bg-destructive px-3.5 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90 transition shadow-xs"
           >
-            تنظيف الملفات غير المستخدمة
+            تنظيف الملفات المهملة
           </button>
         </div>
       )}
@@ -336,43 +353,52 @@ function AdminMediaComponent() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : mediaFiles.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-12 text-center bg-surface">
-          <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-3 text-lg font-bold">لا توجد وسائط طابق تصفيتك</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="rounded-3xl border border-dashed border-border p-12 text-center bg-surface">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10 text-primary mb-3">
+            <ImageIcon className="h-7 w-7" />
+          </div>
+          <h3 className="text-base font-bold text-foreground">لا توجد وسائط تطابق تصفيتك</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
             قم برفع وسائط جديدة أو ربط WhatsApp Media Sync لاستقبال وسائط المنتجات تلقائياً.
           </p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition"
+          >
+            <Upload className="h-4 w-4" /> رفع ملف الآن
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {mediaFiles.map((file) => {
-            const source = (file as any).metadata?.source || "upload";
+            const source = (file as any).source || (file as any).metadata?.source || "upload";
             return (
               <div
                 key={file.id}
                 onClick={() => setSelectedFile(file)}
-                className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:border-primary/60 hover:shadow-md"
+                className="group relative cursor-pointer overflow-hidden rounded-3xl border border-border/80 bg-surface shadow-xs transition duration-200 hover:border-primary/60 hover:shadow-md"
               >
                 {/* Source Badge overlay */}
-                <div className="absolute top-2 start-2 z-10">
+                <div className="absolute top-2.5 start-2.5 z-10">
                   {source === "whatsapp" && (
-                    <span className="flex items-center gap-1 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-xs backdrop-blur-md">
                       <MessageSquare className="h-2.5 w-2.5" /> WhatsApp
                     </span>
                   )}
                   {source === "ai_generated" && (
-                    <span className="flex items-center gap-1 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-xs backdrop-blur-md">
                       <Bot className="h-2.5 w-2.5" /> AI
                     </span>
                   )}
                   {source === "upload" && (
-                    <span className="bg-background/80 backdrop-blur-sm text-foreground text-[9px] font-bold px-2 py-0.5 rounded-md border border-border/50">
-                      Upload
+                    <span className="inline-flex items-center gap-1 bg-background/90 text-foreground text-[9px] font-bold px-2 py-0.5 rounded-lg border border-border/60 backdrop-blur-md">
+                      <Upload className="h-2.5 w-2.5" /> مرفوع
                     </span>
                   )}
                 </div>
 
-                <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden relative">
                   {file.file_type === "video" ? (
                     <div className="relative h-full w-full bg-black flex items-center justify-center">
                       <Film className="h-8 w-8 text-white/80" />
@@ -384,7 +410,9 @@ function AdminMediaComponent() {
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                       loading="lazy"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
+                        // Resilient Fallback Image rendering
+                        (e.currentTarget as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop";
                       }}
                     />
                   )}
@@ -418,20 +446,21 @@ function AdminMediaComponent() {
 
       {/* Selected File Detail Modal Drawer */}
       {selectedFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-showcase/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" dir="rtl">
           <div className="w-full max-w-xl rounded-3xl bg-surface border border-border p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2 truncate">
                 <h3 className="text-base font-bold truncate">{selectedFile.file_name}</h3>
                 {((selectedFile as any).metadata?.source === "whatsapp") && (
-                  <span className="bg-emerald-500/10 text-emerald-500 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                  <span className="bg-emerald-500/10 text-emerald-600 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                     <MessageSquare className="h-3 w-3" /> WhatsApp Media
                   </span>
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedFile(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-accent"
+                className="rounded-xl p-1 text-muted-foreground hover:bg-accent"
               >
                 ✕
               </button>
@@ -441,7 +470,15 @@ function AdminMediaComponent() {
               {selectedFile.file_type === "video" ? (
                 <video src={selectedFile.file_url} controls className="h-full w-full" />
               ) : (
-                <img src={selectedFile.file_url} alt="" className="h-full w-full object-contain" />
+                <img
+                  src={selectedFile.file_url}
+                  alt={selectedFile.file_name}
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop";
+                  }}
+                />
               )}
             </div>
 
@@ -449,82 +486,56 @@ function AdminMediaComponent() {
             {(selectedFile as any).metadata?.ai_suggestion && (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-emerald-500 flex items-center gap-1">
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">
                     <Bot className="h-4 w-4" /> اقتراح الذكاء الاصطناعي للمنتج
                   </span>
-                  <button
-                    onClick={() => navigate({ to: "/admin/products" })}
-                    className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition"
-                  >
-                    <PlusCircle className="h-3 w-3" /> تحويل إلى منتج
-                  </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2 bg-background p-2 rounded-lg border border-border">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">الاسم:</span>
-                    <span className="font-bold text-foreground truncate block">
-                      {(selectedFile as any).metadata.ai_suggestion.title}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">التصنيف:</span>
-                    <span className="font-bold text-primary truncate block">
-                      {(selectedFile as any).metadata.ai_suggestion.category}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">السعر التقديري:</span>
-                    <span className="font-bold text-emerald-500 truncate block">
-                      {(selectedFile as any).metadata.ai_suggestion.price} YER
-                    </span>
-                  </div>
-                </div>
+                <p className="text-muted-foreground">
+                  تم اكتشاف صنف هذا المنتج تلقائياً من المحادثة والميديا.
+                </p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-xs border-t border-b border-border/60 py-3">
+            <div className="grid grid-cols-2 gap-2 text-xs border-t border-border pt-3">
               <div>
-                <span className="text-muted-foreground">نوع الملف:</span>{" "}
-                <span className="font-bold text-foreground">{selectedFile.mime_type}</span>
+                <span className="text-muted-foreground block">اسم الملف:</span>
+                <span className="font-bold truncate block">{selectedFile.file_name}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">الحجم:</span>{" "}
-                <span className="font-bold text-foreground">
-                  {(selectedFile.size_bytes / (1024 * 1024)).toFixed(2)} MB
-                </span>
+                <span className="text-muted-foreground block">الحجم:</span>
+                <span className="font-bold">{((selectedFile.size_bytes || 0) / (1024 * 1024)).toFixed(2)} MB</span>
               </div>
               <div>
-                <span className="text-muted-foreground">المصدر:</span>{" "}
-                <span className="font-bold text-foreground">
-                  {(selectedFile as any).metadata?.source || "Upload"}
-                </span>
+                <span className="text-muted-foreground block">نوع الملف:</span>
+                <span className="font-bold">{selectedFile.mime_type}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">تاريخ الاستيراد:</span>{" "}
-                <span className="font-bold text-foreground">
-                  {new Date(selectedFile.created_at).toLocaleDateString("ar-YE")}
-                </span>
+                <span className="text-muted-foreground block">تاريخ الإضافة:</span>
+                <span className="font-bold">{new Date(selectedFile.created_at).toLocaleDateString("ar-SA")}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="flex items-center justify-between border-t border-border pt-3">
               <button
-                onClick={() => {
-                  if (confirm(`هل أنت تأكد من حذف ملف "${selectedFile.file_name}"؟`)) {
-                    deleteMutation.mutate(selectedFile.id);
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-xl bg-destructive/10 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/20"
+                type="button"
+                onClick={() => handleCopyUrl(selectedFile.file_url, selectedFile.id)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-accent transition"
               >
-                <Trash2 className="h-4 w-4" /> حذف الملف
+                {copiedId === selectedFile.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedId === selectedFile.id ? "تم النسخ" : "نسخ رابط الصورة"}
               </button>
 
               <button
-                onClick={() => handleCopyUrl(selectedFile.file_url, selectedFile.id)}
-                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                type="button"
+                onClick={() => {
+                  if (confirm("هل أنت تأكد من حذف هذا الملف نهائياً من المكتبة؟")) {
+                    deleteMutation.mutate(selectedFile.id);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 transition"
               >
-                {copiedId === selectedFile.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                نسخ رابط الملف
+                <Trash2 className="h-3.5 w-3.5" />
+                حذف الملف
               </button>
             </div>
           </div>
