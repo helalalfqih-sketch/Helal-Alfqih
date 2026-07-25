@@ -12,6 +12,7 @@ export interface MediaFileRecord {
   file_type: "image" | "video" | "other";
   mime_type: string;
   size_bytes: number;
+  sequence_number?: number | null;
   dimensions?: { width?: number; height?: number } | null;
   metadata?: Record<string, any> | null;
   created_at: string;
@@ -62,6 +63,7 @@ const DEFAULT_DEMO_MEDIA: MediaFileRecord[] = [
     file_type: "image",
     mime_type: "image/jpeg",
     size_bytes: 1450000,
+    sequence_number: 1,
     metadata: {
       source: "whatsapp",
       sender_phone: "+967738609222",
@@ -81,6 +83,7 @@ const DEFAULT_DEMO_MEDIA: MediaFileRecord[] = [
     file_type: "image",
     mime_type: "image/jpeg",
     size_bytes: 2100000,
+    sequence_number: 2,
     metadata: {
       source: "whatsapp",
       sender_phone: "+967738609222",
@@ -100,6 +103,7 @@ const DEFAULT_DEMO_MEDIA: MediaFileRecord[] = [
     file_type: "image",
     mime_type: "image/jpeg",
     size_bytes: 1890000,
+    sequence_number: 3,
     metadata: {
       source: "whatsapp",
       sender_phone: "+967785574271",
@@ -186,6 +190,12 @@ export const listMediaFiles = createServerFn({ method: "GET" })
       results.sort((a: any, b: any) => {
         if (sort === "oldest") {
           return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        }
+        if (sort === "seq_asc") {
+          return (a.sequence_number || 0) - (b.sequence_number || 0);
+        }
+        if (sort === "seq_desc") {
+          return (b.sequence_number || 0) - (a.sequence_number || 0);
         }
         if (sort === "largest") {
           return (b.size_bytes || 0) - (a.size_bytes || 0);
@@ -458,4 +468,209 @@ export const findUnusedMediaFiles = createServerFn({ method: "GET" })
     // Filter media files that are not referenced anywhere
     const unused = mediaRows.filter((m: any) => !usedUrls.has(m.file_url) && !usedUrls.has(m.file_path));
     return unused as unknown as MediaFileRecord[];
+  });
+
+/** Server Fn: Get media files by IDs */
+export const getMediaFilesByIds = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { ids: string[] }) => data)
+  .handler(async ({ data: { ids }, context }): Promise<MediaFileRecord[]> => {
+    if (!ids || ids.length === 0) return [];
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const { data: rows, error } = await db
+      .from("media_files")
+      .select("*")
+      .in("id", ids)
+      .order("sequence_number", { ascending: true });
+
+    if (error) {
+      console.warn("[Media] getMediaFilesByIds error:", error.message);
+      return [];
+    }
+
+    return (rows as unknown as MediaFileRecord[]) || [];
+  });
+
+/** Server Fn: Link product to media files in product_media table */
+export const linkProductMedia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { productId: string; mediaIds: string[] }) => data)
+  .handler(async ({ data: { productId, mediaIds }, context }) => {
+    if (!productId || !mediaIds || mediaIds.length === 0) return { ok: true };
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const records = mediaIds.map((mediaId, idx) => ({
+      tenant_id: tenantId,
+      product_id: productId,
+      media_id: mediaId,
+      sort_order: idx + 1,
+    }));
+
+    const { error } = await db.from("product_media").upsert(records, { onConflict: "product_id,media_id" });
+    if (error) {
+      console.warn("[Media] linkProductMedia warning:", error.message);
+    }
+
+    return { ok: true };
+  });
+
+/** Server Fn: Bulk delete media files */
+export const bulkDeleteMediaFiles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { ids: string[] }) => data)
+  .handler(async ({ data: { ids }, context }) => {
+    if (!ids || ids.length === 0) return { ok: true };
+    const ctx = context as any;
+    const hasPerm = await checkTenantPermission("cms", ctx);
+    if (!hasPerm) {
+      throw new Error("صلاحية مرفوضة: تتطلب صلاحية حذف الوسائط.");
+    }
+
+    let db = ctx?.supabase || supabase;
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { error } = await db.from("media_files").delete().in("id", ids).eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+
+    return { ok: true };
+  });
+
+/** Server Fn: Search existing products for linking media */
+export const searchExistingProductsForLink = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { query?: string }) => data)
+  .handler(async ({ data: { query }, context }) => {
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    let q = db
+      .from("products")
+      .select("id, name, price, currency, images, sku, is_published")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (query && query.trim()) {
+      q = q.ilike("name", `%${query.trim()}%`);
+    }
+
+    const { data: products, error } = await q;
+    if (error) {
+      console.warn("[Media] searchExistingProductsForLink error:", error.message);
+      return [];
+    }
+
+    return products || [];
+  });
+
+/** Server Fn: Attach selected media files to an existing product */
+export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { productId: string; mediaIds: string[] }) => data)
+  .handler(async ({ data: { productId, mediaIds }, context }) => {
+    if (!productId || !mediaIds || mediaIds.length === 0) {
+      throw new Error("يرجى تحديد المنتج والوسائط المراد ربطها.");
+    }
+    const ctx = context as any;
+    let db = ctx?.supabase || supabase;
+
+    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin) db = supabaseAdmin;
+      } catch { /* fallback */ }
+    }
+
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    // 1. Fetch selected media files
+    const { data: mediaRows } = await db.from("media_files").select("*").in("id", mediaIds);
+    if (!mediaRows || mediaRows.length === 0) {
+      throw new Error("لم يتم العثور على الملفات المحددة");
+    }
+
+    // 2. Fetch existing product
+    const { data: product, error: prodErr } = await db
+      .from("products")
+      .select("images, source_url, video_playback_id")
+      .eq("id", productId)
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (prodErr || !product) {
+      throw new Error("المنتج المحدد غير موجود");
+    }
+
+    // Sort media by sequence_number
+    const sortedMedia = [...mediaRows].sort(
+      (a: any, b: any) => (a.sequence_number || 0) - (b.sequence_number || 0)
+    );
+
+    const newImageUrls = sortedMedia.filter((m: any) => m.file_type === "image").map((m: any) => m.file_url);
+    const firstVideo = sortedMedia.find((m: any) => m.file_type === "video");
+
+    const currentImages = Array.isArray(product.images) ? product.images : [];
+    const combinedImages = Array.from(new Set([...currentImages, ...newImageUrls]));
+
+    const updatePayload: any = {
+      images: combinedImages,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (firstVideo) {
+      updatePayload.source_url = firstVideo.file_url;
+    }
+
+    // 3. Update Product
+    const { error: updateErr } = await db.from("products").update(updatePayload).eq("id", productId);
+    if (updateErr) {
+      throw new Error(`فشل تحديث المنتج: ${updateErr.message}`);
+    }
+
+    // 4. Link in product_media table
+    const pmRecords = mediaIds.map((mediaId, idx) => ({
+      tenant_id: tenantId,
+      product_id: productId,
+      media_id: mediaId,
+      sort_order: idx + 1,
+    }));
+
+    await db.from("product_media").upsert(pmRecords, { onConflict: "product_id,media_id" });
+
+    return { ok: true, linkedCount: mediaIds.length, imagesAdded: newImageUrls.length };
   });

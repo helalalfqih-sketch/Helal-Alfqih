@@ -45,7 +45,12 @@ import { ChipInput } from "@/components/admin/chip-input";
 import { ImageManager } from "@/components/admin/image-manager";
 import { GooglePreview } from "@/components/admin/google-preview";
 
+import { getMediaFilesByIds, linkProductMedia } from "@/lib/media.functions";
+
 export const Route = createFileRoute("/admin/product/$id")({
+  validateSearch: (search: Record<string, unknown>): { media_ids?: string } => ({
+    media_ids: (search.media_ids as string) || undefined,
+  }),
   component: ProductDetailPage,
 });
 
@@ -162,6 +167,9 @@ const TAG_SUGGESTIONS = ["جديد", "عرض", "الأكثر مبيعاً", "ح�
 
 function ProductDetailPage() {
   const { id } = Route.useParams();
+  const searchParams = Route.useSearch();
+  const media_ids = searchParams.media_ids || "";
+
   const { t, dir } = useI18n();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -169,6 +177,8 @@ function ProductDetailPage() {
 
   const analyzeImage = useServerFn(aiAnalyzeImage);
   const optimizeDescription = useServerFn(aiOptimizeDescription);
+  const getMediaByIdsFn = useServerFn(getMediaFilesByIds);
+  const linkProductMediaFn = useServerFn(linkProductMedia);
 
   const productQ = useQuery({
     queryKey: ["admin-product", id],
@@ -178,6 +188,13 @@ function ProductDetailPage() {
   const categoriesQ = useQuery({
     queryKey: ["admin-categories"],
     queryFn: () => listAdminCategories(),
+  });
+
+  // Query incoming media files if passed via media_ids query param
+  const { data: incomingMedia = [] } = useQuery({
+    queryKey: ["admin-incoming-media", media_ids],
+    queryFn: () => getMediaByIdsFn({ data: { ids: (media_ids || "").split(",").filter(Boolean) } }),
+    enabled: !!media_ids,
   });
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -192,25 +209,32 @@ function ProductDetailPage() {
   const [localVideoUrl, setLocalVideoUrl] = useState<string>("");
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Auto-populate form images and video from incoming selected media files
+  useEffect(() => {
+    if (incomingMedia && incomingMedia.length > 0) {
+      const sortedMedia = [...incomingMedia].sort(
+        (a, b) => (a.sequence_number || 0) - (b.sequence_number || 0)
+      );
 
-    if (!file.type.startsWith("video/")) {
-      toast.error("يرجى اختيار ملف فيديو صالح");
-      return;
+      const images = sortedMedia
+        .filter((m) => m.file_type === "image")
+        .map((m) => m.file_url);
+
+      const video = sortedMedia.find((m) => m.file_type === "video");
+
+      setForm((prev) => ({
+        ...prev,
+        images: Array.from(new Set([...images, ...prev.images])),
+        source_url: video ? video.file_url : prev.source_url,
+      }));
+
+      if (video) {
+        setLocalVideoUrl(video.file_url);
+      }
+
+      toast.info(`تم استيراد ${images.length} صورة ${video ? "وفيديو 1" : ""} تلقائياً لمنتجك!`);
     }
-
-    setUploadingVideo(true);
-    setLocalVideoUrl(URL.createObjectURL(file));
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const mockPlaybackId = `mux-playback-${Date.now()}`;
-    setForm((f) => ({ ...f, video_playback_id: mockPlaybackId }));
-    setUploadingVideo(false);
-    toast.success("تم رفع ومعالجة الفيديو بنجاح!");
-  };
+  }, [incomingMedia]);
 
   const handleVideoDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -414,7 +438,18 @@ function ProductDetailPage() {
       if (isNew) return createAdminProduct(payload);
       return updateAdminProduct({ id, ...payload });
     },
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
+      const savedId = isNew && res && "id" in res ? (res as { id: string }).id : id;
+
+      if (media_ids && savedId) {
+        try {
+          const mediaIdList = media_ids.split(",").filter(Boolean);
+          await linkProductMediaFn({ data: { productId: savedId, mediaIds: mediaIdList } });
+        } catch (e) {
+          console.warn("linkProductMedia error:", e);
+        }
+      }
+
       toast.success(isNew ? "تم إنشاء المنتج بنجاح" : "تم حفظ التغييرات");
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["admin-product", id] });

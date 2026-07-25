@@ -419,6 +419,7 @@ export type Database = {
           dimensions: Json | null;
           metadata: Json;
           source: string | null;
+          sequence_number: number | null;
           created_by: string | null;
           created_at: string;
         };
@@ -434,6 +435,7 @@ export type Database = {
           dimensions?: Json | null;
           metadata?: Json;
           source?: string | null;
+          sequence_number?: number | null;
           created_by?: string | null;
           created_at?: string;
         };
@@ -449,10 +451,53 @@ export type Database = {
           dimensions?: Json | null;
           metadata?: Json;
           source?: string | null;
+          sequence_number?: number | null;
           created_by?: string | null;
           created_at?: string;
         };
         Relationships: [];
+      };
+      product_media: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          product_id: string;
+          media_id: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          product_id: string;
+          media_id: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          product_id?: string;
+          media_id?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_media_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_media_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media_files";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       tenant_audit_logs: {
         Row: {
