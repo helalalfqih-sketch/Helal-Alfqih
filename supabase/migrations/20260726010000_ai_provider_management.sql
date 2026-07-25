@@ -170,3 +170,22 @@ CREATE POLICY "ai_usage_tenant_access" ON ai_agent_usage FOR ALL
     tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_usage.tenant_id AND user_id = auth.uid())
   );
+
+-- ============ Role Permissions ============
+GRANT ALL ON TABLE ai_provider_configs TO authenticated;
+GRANT ALL ON TABLE ai_provider_configs TO service_role;
+
+GRANT ALL ON TABLE ai_agent_sessions TO authenticated;
+GRANT ALL ON TABLE ai_agent_sessions TO service_role;
+
+GRANT ALL ON TABLE ai_agent_messages TO authenticated;
+GRANT ALL ON TABLE ai_agent_messages TO service_role;
+
+GRANT ALL ON TABLE ai_agent_memory TO authenticated;
+GRANT ALL ON TABLE ai_agent_memory TO service_role;
+
+GRANT ALL ON TABLE ai_agent_audit_logs TO authenticated;
+GRANT ALL ON TABLE ai_agent_audit_logs TO service_role;
+
+GRANT ALL ON TABLE ai_agent_usage TO authenticated;
+GRANT ALL ON TABLE ai_agent_usage TO service_role;
