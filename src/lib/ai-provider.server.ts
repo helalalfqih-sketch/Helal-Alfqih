@@ -13,6 +13,7 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
+import { getAdminDb } from "@/integrations/supabase/client.server";
 
 // ──────────────────────────────────────────────────────────────
 // Types & Schemas
@@ -303,7 +304,8 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
         }
       }
 
-      const { data: updated, error } = await db
+      const adminDb = await getAdminDb();
+      const { data: updated, error } = await adminDb
         .from("ai_provider_configs" as any)
         .update({
           provider: data.provider,
@@ -321,7 +323,8 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return updated;
     } else {
-      const { data: inserted, error } = await db
+      const adminDb = await getAdminDb();
+      const { data: inserted, error } = await adminDb
         .from("ai_provider_configs" as any)
         .insert({
           tenant_id: tenantId,
@@ -344,8 +347,8 @@ export const deleteAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
-    const db = (context as any).supabase;
-    const { error } = await db
+    const adminDb = await getAdminDb();
+    const { error } = await adminDb
       .from("ai_provider_configs" as any)
       .delete()
       .eq("id", data.id);
@@ -357,8 +360,8 @@ export const toggleAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string(), enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
-    const db = (context as any).supabase;
-    const { error } = await db
+    const adminDb = await getAdminDb();
+    const { error } = await adminDb
       .from("ai_provider_configs" as any)
       .update({ enabled: data.enabled, updated_at: new Date().toISOString() } as any)
       .eq("id", data.id);
