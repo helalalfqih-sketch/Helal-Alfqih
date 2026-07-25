@@ -193,3 +193,7 @@ GRANT ALL ON TABLE ai_agent_audit_logs TO service_role;
 
 GRANT ALL ON TABLE ai_agent_usage TO authenticated;
 GRANT ALL ON TABLE ai_agent_usage TO service_role;
+
+-- Grant SELECT on related tables used in RLS policies
+GRANT SELECT ON TABLE tenants TO authenticated;
+GRANT SELECT ON TABLE tenant_members TO authenticated;
