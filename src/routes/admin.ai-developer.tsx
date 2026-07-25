@@ -245,17 +245,22 @@ function AIEngineeringAgentPage() {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        // Parse Vercel AI SDK data stream format
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("0:")) {
-            // Text delta — the content is JSON-encoded after "0:"
-            try {
-              const text = JSON.parse(line.slice(2));
-              fullContent += text;
-              setStreamingContent(fullContent);
-            } catch { /* skip non-JSON lines */ }
+        if (chunk) {
+          const lines = chunk.split("\n");
+          let hasFormattedLine = false;
+          for (const line of lines) {
+            if (line.startsWith("0:")) {
+              hasFormattedLine = true;
+              try {
+                const text = JSON.parse(line.slice(2));
+                fullContent += text;
+              } catch { /* skip */ }
+            }
           }
+          if (!hasFormattedLine) {
+            fullContent += chunk;
+          }
+          setStreamingContent(fullContent);
         }
       }
 

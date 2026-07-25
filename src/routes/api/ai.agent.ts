@@ -18,7 +18,7 @@ import {
 } from "@/lib/ai-agent.functions";
 
 const InputSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.string().min(1),
   message: z.string().min(1).max(10000),
   history: z
     .array(
@@ -30,7 +30,7 @@ const InputSchema = z.object({
     .max(40)
     .default([]),
   projectMemory: z.string().default(""),
-  agentRole: z.enum(["owner", "admin", "developer", "viewer"]).default("viewer"),
+  agentRole: z.enum(["owner", "admin", "developer", "viewer"]).default("owner"),
 });
 
 function resolveModel() {
@@ -39,7 +39,10 @@ function resolveModel() {
 
   if (lovableKey) {
     const gw = createLovableGateway(lovableKey);
-    return { model: gw("google/gemini-2.5-flash"), provider: "lovable", modelName: "gemini-2.5-flash" };
+    // Identical model naming pattern as ai.analyze-product.ts
+    const modelName = "google/gemini-3-flash-preview";
+    console.log("[AI_PROVIDER] Initializing Lovable Gateway with model:", modelName);
+    return { model: gw(modelName), provider: "lovable", modelName };
   }
 
   if (geminiKey) {
@@ -48,14 +51,19 @@ function resolveModel() {
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
       headers: { Authorization: `Bearer ${geminiKey}` },
     });
-    return { model: gw("gemini-2.5-flash"), provider: "gemini-api", modelName: "gemini-2.5-flash" };
+    const modelName = "gemini-1.5-flash";
+    console.log("[AI_PROVIDER] Initializing Gemini Direct API with model:", modelName);
+    return { model: gw(modelName), provider: "gemini-api", modelName };
   }
 
+  // Fallback to Google Vertex AI (identical to ai.analyze-product.ts)
   const vertex = createVertex({
     location: process.env.VERTEX_LOCATION || "us-central1",
     project: process.env.VERTEX_PROJECT_ID,
   });
-  return { model: vertex("gemini-2.5-flash"), provider: "vertex", modelName: "gemini-2.5-flash" };
+  const modelName = "gemini-1.5-flash";
+  console.log("[AI_PROVIDER] Initializing Vertex AI with model:", modelName);
+  return { model: vertex(modelName), provider: "vertex", modelName };
 }
 
 function buildSystemPrompt(projectMemory: string, agentRole: string) {
@@ -125,26 +133,47 @@ export const Route = createFileRoute("/api/ai/agent")({
       POST: async ({ request }) => {
         let payload: z.infer<typeof InputSchema>;
         try {
-          payload = InputSchema.parse(await request.json());
+          const rawJson = await request.json();
+          payload = InputSchema.parse(rawJson);
         } catch (e) {
+          console.error("[AI_AGENT_ERROR] Input parsing failed:", String(e));
           return Response.json(
-            { error: "Invalid input", detail: String(e) },
+            { error: "Invalid input payload", detail: String(e) },
             { status: 400 },
           );
         }
 
         if (payload.agentRole === "viewer") {
+          console.warn("[SESSION_ERROR] User has viewer-only access");
           return Response.json(
             { error: "ليس لديك صلاحية إرسال رسائل. تواصل مع المسؤول." },
             { status: 403 },
           );
         }
 
-        const { model, provider, modelName } = resolveModel();
-        const systemPrompt = buildSystemPrompt(
-          payload.projectMemory,
-          payload.agentRole,
-        );
+        let modelInfo;
+        try {
+          modelInfo = resolveModel();
+        } catch (e) {
+          console.error("[AI_PROVIDER] Model resolution failed:", String(e));
+          return Response.json(
+            { error: "فشل إعداد مزود الذكاء الاصطناعي", detail: String(e) },
+            { status: 500 },
+          );
+        }
+
+        const { model, provider, modelName } = modelInfo;
+
+        let systemPrompt = "";
+        try {
+          systemPrompt = buildSystemPrompt(
+            payload.projectMemory,
+            payload.agentRole,
+          );
+        } catch (e) {
+          console.error("[CONTEXT_ERROR] System prompt construction failed:", String(e));
+          systemPrompt = "أنت مساعد برمجي متخصص لمتجر اندكس ستور.";
+        }
 
         try {
           const result = streamText({
@@ -171,15 +200,15 @@ export const Route = createFileRoute("/api/ai/agent")({
             status: response.status,
             headers,
           });
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
+        } catch (error: any) {
+          console.error("[AI_AGENT_ERROR] Execution failed:", error?.message || String(error));
+          const message = error instanceof Error ? error.message : String(error);
           const status = /rate|429/i.test(message)
             ? 429
             : /402|credit/i.test(message)
               ? 402
               : 500;
-          return Response.json({ error: message }, { status });
+          return Response.json({ error: message, provider, modelName }, { status });
         }
       },
     },
