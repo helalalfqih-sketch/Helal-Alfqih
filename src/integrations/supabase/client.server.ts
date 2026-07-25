@@ -63,6 +63,13 @@ let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
 // Top-level import is safe only in other .server.ts modules - route files and *.functions.ts ship to the client bundle.
 export const supabaseAdmin = new Proxy({} as ReturnType<typeof createSupabaseAdminClient>, {
   get(_, prop, receiver) {
+    if (prop === 'then' || prop === 'toJSON' || typeof prop === 'symbol') {
+      return undefined;
+    }
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      return undefined;
+    }
     if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
     return Reflect.get(_supabaseAdmin, prop, receiver);
   },

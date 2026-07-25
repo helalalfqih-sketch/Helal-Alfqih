@@ -13,16 +13,7 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
 function getSafeDb(context?: any) {
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      return supabaseAdmin;
-    } catch (e) {
-      console.warn("[AI_PROVIDER] supabaseAdmin unavailable, falling back to authenticated client:", e);
-    }
-  }
   return context?.supabase || supabase;
 }
 
