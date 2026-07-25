@@ -56,6 +56,7 @@ import {
   type AgentMessage,
   type AgentMemoryEntry,
 } from "@/lib/ai-agent.functions";
+import { listAIProvidersFn } from "@/lib/ai-provider.server";
 
 export const Route = createFileRoute("/admin/ai-developer")({
   head: () => ({
@@ -87,9 +88,11 @@ function AIEngineeringAgentPage() {
   const seedMemoryFn = useServerFn(seedProjectMemory);
   const getUsageFn = useServerFn(getAgentUsageStats);
   const getRoleFn = useServerFn(getAgentRole);
+  const listProvidersFn = useServerFn(listAIProvidersFn);
 
   // State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -115,6 +118,11 @@ function AIEngineeringAgentPage() {
   const { data: usageStats } = useQuery({
     queryKey: ["ai-agent-usage"],
     queryFn: () => getUsageFn(),
+  });
+
+  const { data: providers = [] } = useQuery({
+    queryKey: ["ai-providers"],
+    queryFn: () => listProvidersFn(),
   });
 
   const agentRole = roleData?.role || "viewer";
@@ -226,6 +234,7 @@ function AIEngineeringAgentPage() {
           history,
           projectMemory: memoryStr,
           agentRole,
+          providerId: selectedProviderId || undefined,
         }),
       });
 
@@ -339,6 +348,22 @@ function AIEngineeringAgentPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Provider Select */}
+          {providers.length > 0 && (
+            <select
+              value={selectedProviderId}
+              onChange={(e) => setSelectedProviderId(e.target.value)}
+              className="rounded-xl border border-border bg-surface/50 px-3 py-1.5 text-[11px] font-bold text-foreground outline-none focus:border-violet-500/50 focus:ring-1 ring-violet-500/30 transition-all cursor-pointer hover:bg-surface"
+            >
+              <option value="">✨ تلقائي (حسب الأولوية)</option>
+              {providers.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.provider === "gemini" ? "Gemini" : p.provider === "lovable" ? "Lovable" : p.provider === "vertex" ? "Vertex" : p.provider} ({p.model})
+                </option>
+              ))}
+            </select>
+          )}
+
           {/* Role Badge */}
           <div className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold border ${
             agentRole === "owner"

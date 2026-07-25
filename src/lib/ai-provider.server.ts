@@ -143,7 +143,7 @@ export function createModelFromConfig(provider: AIProviderType, apiKey: string |
 // 1. Core Provider Resolver (Database priority -> Env fallback)
 // ──────────────────────────────────────────────────────────────
 
-export async function resolveActiveAIProvider(options?: { tenantId?: string | null }): Promise<ResolvedAIProvider | null> {
+export async function resolveActiveAIProvider(options?: { tenantId?: string | null; providerId?: string }): Promise<ResolvedAIProvider | null> {
   try {
     const tenantId = options?.tenantId || null;
 
@@ -153,6 +153,10 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
       .select("*")
       .eq("enabled", true)
       .order("priority", { ascending: true });
+
+    if (options?.providerId) {
+      query = query.eq("id", options.providerId);
+    }
 
     const { data: configs, error } = await query;
 
@@ -373,7 +377,7 @@ const TestConnectionSchema = z.object({
 export const testAIConnectionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => TestConnectionSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ context, data }) => {
     try {
       let rawKey = data.api_key || null;
 

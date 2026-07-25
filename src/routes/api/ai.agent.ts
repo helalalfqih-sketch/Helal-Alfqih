@@ -31,6 +31,7 @@ const InputSchema = z.object({
     .default([]),
   projectMemory: z.string().default(""),
   agentRole: z.enum(["owner", "admin", "developer", "viewer"]).default("owner"),
+  providerId: z.string().optional(),
 });
 
 function buildSystemPrompt(projectMemory: string, agentRole: string) {
@@ -129,7 +130,7 @@ export const Route = createFileRoute("/api/ai/agent")({
         let modelName = "";
 
         try {
-          const resolved = await resolveActiveAIProvider();
+          const resolved = await resolveActiveAIProvider({ providerId: payload.providerId });
           console.log("[AI_AGENT_RESOLVED]", {
             found: Boolean(resolved),
             provider: resolved?.provider,
