@@ -137,23 +137,17 @@ CREATE POLICY "ai_provider_configs_access" ON ai_provider_configs FOR ALL
     OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_provider_configs.tenant_id AND user_id = auth.uid())
   );
 
--- Sessions: tenant members access OR session creator
+-- Sessions: user can only access their own sessions
 DROP POLICY IF EXISTS "ai_sessions_tenant_access" ON ai_agent_sessions;
-CREATE POLICY "ai_sessions_tenant_access" ON ai_agent_sessions FOR ALL
-  USING (
-    tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_sessions.tenant_id AND user_id = auth.uid())
-    OR user_id = auth.uid()
-  );
+DROP POLICY IF EXISTS "ai_sessions_user_access" ON ai_agent_sessions;
+CREATE POLICY "ai_sessions_user_access" ON ai_agent_sessions FOR ALL
+  USING (user_id = auth.uid());
 
--- Messages: tenant members access OR session creator
+-- Messages: user can only access messages in their own sessions
 DROP POLICY IF EXISTS "ai_messages_tenant_access" ON ai_agent_messages;
-CREATE POLICY "ai_messages_tenant_access" ON ai_agent_messages FOR ALL
-  USING (
-    tenant_id IN (SELECT id FROM tenants WHERE owner_user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM tenant_members WHERE tenant_id = ai_agent_messages.tenant_id AND user_id = auth.uid())
-    OR session_id IN (SELECT id FROM ai_agent_sessions WHERE user_id = auth.uid())
-  );
+DROP POLICY IF EXISTS "ai_messages_user_access" ON ai_agent_messages;
+CREATE POLICY "ai_messages_user_access" ON ai_agent_messages FOR ALL
+  USING (session_id IN (SELECT id FROM ai_agent_sessions WHERE user_id = auth.uid()));
 
 -- Memory: tenant members access
 DROP POLICY IF EXISTS "ai_memory_tenant_access" ON ai_agent_memory;

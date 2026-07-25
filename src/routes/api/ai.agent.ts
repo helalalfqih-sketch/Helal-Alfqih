@@ -137,11 +137,9 @@ export const Route = createFileRoute("/api/ai/agent")({
             source: resolved?.source,
           });
 
-          if (!resolved) {
+          if (!resolved || !resolved.model) {
             return Response.json(
-              {
-                error: "No AI provider configured in database or environment variables.",
-              },
+              { error: "No AI provider configured" },
               { status: 500 },
             );
           }
@@ -156,15 +154,6 @@ export const Route = createFileRoute("/api/ai/agent")({
               error: "AI Provider initialization failed",
               reason: error?.message || String(error),
               stack: error?.stack,
-            },
-            { status: 500 },
-          );
-        }
-
-        if (!model) {
-          return Response.json(
-            {
-              error: "No AI provider configured",
             },
             { status: 500 },
           );

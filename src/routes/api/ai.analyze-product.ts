@@ -39,9 +39,9 @@ export const Route = createFileRoute("/api/ai/analyze-product")({
         }
 
         const resolved = await resolveActiveAIProvider();
-        if (!resolved) {
+        if (!resolved || !resolved.model) {
           return Response.json(
-            { error: "No AI provider configured in database or environment variables." },
+            { error: "No AI provider configured" },
             { status: 500 },
           );
         }
