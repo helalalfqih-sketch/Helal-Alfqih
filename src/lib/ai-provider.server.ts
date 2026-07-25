@@ -13,7 +13,7 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
-import { getAdminDb } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // ──────────────────────────────────────────────────────────────
 // Types & Schemas
@@ -149,8 +149,7 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     const tenantId = options?.tenantId || null;
 
     // Build query for tenant configs OR global configs (tenant_id IS NULL)
-    const adminDb = await getAdminDb();
-    let query = adminDb
+    let query = supabaseAdmin
       .from("ai_provider_configs" as any)
       .select("*")
       .eq("enabled", true)
@@ -305,8 +304,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
         }
       }
 
-      const adminDb = await getAdminDb();
-      const { data: updated, error } = await adminDb
+      const { data: updated, error } = await supabaseAdmin
         .from("ai_provider_configs" as any)
         .update({
           provider: data.provider,
@@ -324,8 +322,7 @@ export const saveAIProviderFn = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return updated;
     } else {
-      const adminDb = await getAdminDb();
-      const { data: inserted, error } = await adminDb
+      const { data: inserted, error } = await supabaseAdmin
         .from("ai_provider_configs" as any)
         .insert({
           tenant_id: tenantId,
@@ -348,8 +345,7 @@ export const deleteAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
-    const adminDb = await getAdminDb();
-    const { error } = await adminDb
+    const { error } = await supabaseAdmin
       .from("ai_provider_configs" as any)
       .delete()
       .eq("id", data.id);
@@ -361,8 +357,7 @@ export const toggleAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ id: z.string(), enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
-    const adminDb = await getAdminDb();
-    const { error } = await adminDb
+    const { error } = await supabaseAdmin
       .from("ai_provider_configs" as any)
       .update({ enabled: data.enabled, updated_at: new Date().toISOString() } as any)
       .eq("id", data.id);
@@ -387,8 +382,7 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
 
       // If masked or not provided, fetch from DB
       if ((!rawKey || rawKey.startsWith("••••")) && data.id) {
-        const adminDb = await getAdminDb();
-        const { data: existing } = await adminDb
+        const { data: existing } = await supabaseAdmin
           .from("ai_provider_configs" as any)
           .select("api_key")
           .eq("id", data.id)
