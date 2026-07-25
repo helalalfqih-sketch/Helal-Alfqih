@@ -69,9 +69,11 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
 import { Route as AdminBannersRouteImport } from './routes/admin.banners'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
+import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public.image-proxy'
 import { Route as ApiAiAnalyzeProductRouteImport } from './routes/api/ai.analyze-product'
+import { Route as ApiAiAgentRouteImport } from './routes/api/ai.agent'
 import { Route as AdminStoresTenantIdRouteImport } from './routes/admin.stores.$tenantId'
 import { Route as AdminProductIdRouteImport } from './routes/admin.product.$id'
 import { Route as AdminIntegrationsWhatsappRouteImport } from './routes/admin.integrations.whatsapp'
@@ -377,6 +379,11 @@ const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
+  id: '/ai-developer',
+  path: '/ai-developer',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
   id: '/api/webhooks/whatsapp',
   path: '/api/webhooks/whatsapp',
@@ -390,6 +397,11 @@ const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
 const ApiAiAnalyzeProductRoute = ApiAiAnalyzeProductRouteImport.update({
   id: '/api/ai/analyze-product',
   path: '/api/ai/analyze-product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiAgentRoute = ApiAiAgentRouteImport.update({
+  id: '/api/ai/agent',
+  path: '/api/ai/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStoresTenantIdRoute = AdminStoresTenantIdRouteImport.update({
@@ -431,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/store': typeof StoreRouteWithChildren
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -480,6 +493,7 @@ export interface FileRoutesByFullPath {
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
+  '/api/ai/agent': typeof ApiAiAgentRoute
   '/api/ai/analyze-product': typeof ApiAiAnalyzeProductRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -498,6 +512,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -547,6 +562,7 @@ export interface FileRoutesByTo {
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
+  '/api/ai/agent': typeof ApiAiAgentRoute
   '/api/ai/analyze-product': typeof ApiAiAnalyzeProductRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -568,6 +584,7 @@ export interface FileRoutesById {
   '/store': typeof StoreRouteWithChildren
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/appearance': typeof AdminAppearanceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
@@ -617,6 +634,7 @@ export interface FileRoutesById {
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
+  '/api/ai/agent': typeof ApiAiAgentRoute
   '/api/ai/analyze-product': typeof ApiAiAnalyzeProductRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -639,6 +657,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/terms'
     | '/track'
+    | '/admin/ai-developer'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -688,6 +707,7 @@ export interface FileRouteTypes {
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
+    | '/api/ai/agent'
     | '/api/ai/analyze-product'
     | '/api/public/image-proxy'
     | '/api/webhooks/whatsapp'
@@ -706,6 +726,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/terms'
     | '/track'
+    | '/admin/ai-developer'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -755,6 +776,7 @@ export interface FileRouteTypes {
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
+    | '/api/ai/agent'
     | '/api/ai/analyze-product'
     | '/api/public/image-proxy'
     | '/api/webhooks/whatsapp'
@@ -775,6 +797,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/terms'
     | '/track'
+    | '/admin/ai-developer'
     | '/admin/appearance'
     | '/admin/banners'
     | '/admin/branches'
@@ -824,6 +847,7 @@ export interface FileRouteTypes {
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
+    | '/api/ai/agent'
     | '/api/ai/analyze-product'
     | '/api/public/image-proxy'
     | '/api/webhooks/whatsapp'
@@ -854,6 +878,7 @@ export interface RootRouteChildren {
   SitemapXmlRoute: typeof SitemapXmlRoute
   VendorSlugRoute: typeof VendorSlugRoute
   VendorDashboardRoute: typeof VendorDashboardRoute
+  ApiAiAgentRoute: typeof ApiAiAgentRoute
   ApiAiAnalyzeProductRoute: typeof ApiAiAnalyzeProductRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
   ApiWebhooksWhatsappRoute: typeof ApiWebhooksWhatsappRoute
@@ -1281,6 +1306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAppearanceRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/ai-developer': {
+      id: '/admin/ai-developer'
+      path: '/ai-developer'
+      fullPath: '/admin/ai-developer'
+      preLoaderRoute: typeof AdminAiDeveloperRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/webhooks/whatsapp': {
       id: '/api/webhooks/whatsapp'
       path: '/api/webhooks/whatsapp'
@@ -1300,6 +1332,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ai/analyze-product'
       fullPath: '/api/ai/analyze-product'
       preLoaderRoute: typeof ApiAiAnalyzeProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/agent': {
+      id: '/api/ai/agent'
+      path: '/api/ai/agent'
+      fullPath: '/api/ai/agent'
+      preLoaderRoute: typeof ApiAiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/stores/$tenantId': {
@@ -1346,6 +1385,7 @@ const AdminStoresRouteWithChildren = AdminStoresRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAiDeveloperRoute: typeof AdminAiDeveloperRoute
   AdminAppearanceRoute: typeof AdminAppearanceRoute
   AdminBannersRoute: typeof AdminBannersRoute
   AdminBranchesRoute: typeof AdminBranchesRoute
@@ -1378,6 +1418,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAiDeveloperRoute: AdminAiDeveloperRoute,
   AdminAppearanceRoute: AdminAppearanceRoute,
   AdminBannersRoute: AdminBannersRoute,
   AdminBranchesRoute: AdminBranchesRoute,
@@ -1464,6 +1505,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapXmlRoute: SitemapXmlRoute,
   VendorSlugRoute: VendorSlugRoute,
   VendorDashboardRoute: VendorDashboardRoute,
+  ApiAiAgentRoute: ApiAiAgentRoute,
   ApiAiAnalyzeProductRoute: ApiAiAnalyzeProductRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
   ApiWebhooksWhatsappRoute: ApiWebhooksWhatsappRoute,

@@ -37,6 +37,7 @@ import {
   Brain,
   ShieldCheck,
   MessageSquare,
+  Code2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -313,6 +314,7 @@ function ShellInner() {
       label: "الذكاء الاصطناعي",
       emoji: "🤖",
       items: [
+        { to: "/admin/ai-developer", label: "مطوّر AI (Agent)", icon: Code2 },
         { to: "/admin/studio", label: t("nav.studio"), icon: Sparkles },
         { to: "/admin/insights", label: "رؤى AI", icon: Brain },
         { to: "/admin/studio", label: "مولّد المنتجات", icon: Wand2 },

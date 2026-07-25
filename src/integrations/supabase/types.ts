@@ -8,6 +8,192 @@ export type Database = {
   };
   public: {
     Tables: {
+      ai_agent_sessions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          user_id: string;
+          title: string;
+          status: string;
+          task_id: string | null;
+          task_status: string;
+          task_plan: Json | null;
+          task_report: Json | null;
+          affected_files: Json;
+          risk_level: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          user_id: string;
+          title?: string;
+          status?: string;
+          task_id?: string | null;
+          task_status?: string;
+          task_plan?: Json | null;
+          task_report?: Json | null;
+          affected_files?: Json;
+          risk_level?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          user_id?: string;
+          title?: string;
+          status?: string;
+          task_id?: string | null;
+          task_status?: string;
+          task_plan?: Json | null;
+          task_report?: Json | null;
+          affected_files?: Json;
+          risk_level?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_agent_messages: {
+        Row: {
+          id: string;
+          session_id: string;
+          tenant_id: string;
+          role: string;
+          content: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          tenant_id: string;
+          role: string;
+          content: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          tenant_id?: string;
+          role?: string;
+          content?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_agent_memory: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          category: string;
+          key: string;
+          value: string;
+          embedding: string | null;
+          embedding_model: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          category: string;
+          key: string;
+          value: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          category?: string;
+          key?: string;
+          value?: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_agent_audit_logs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          session_id: string | null;
+          user_id: string;
+          action: string;
+          details: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          session_id?: string | null;
+          user_id: string;
+          action: string;
+          details?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          session_id?: string | null;
+          user_id?: string;
+          action?: string;
+          details?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_agent_usage: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          session_id: string | null;
+          user_id: string;
+          model_name: string;
+          provider: string;
+          prompt_tokens: number;
+          completion_tokens: number;
+          total_tokens: number;
+          estimated_cost_usd: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          session_id?: string | null;
+          user_id: string;
+          model_name?: string;
+          provider?: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          session_id?: string | null;
+          user_id?: string;
+          model_name?: string;
+          provider?: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           color: string | null;
