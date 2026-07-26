@@ -467,10 +467,12 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
 
       const modelsToTry = Array.from(new Set([
         data.model,
-        "gemini-2.0-flash",
         "gemini-1.5-flash",
+        "gemini-2.0-flash-001",
+        "gemini-1.5-flash-002",
         "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
+        "gemini-2.0-flash",
       ]));
 
       let lastErr: any = null;
@@ -490,9 +492,9 @@ export const testAIConnectionFn = createServerFn({ method: "POST" })
           };
         } catch (err: any) {
           lastErr = err;
-          // If rate limit / quota / 429 error, continue to try next fallback model
-          if (/quota|rate|429|limit/i.test(err?.message || "")) {
-            console.warn(`[AI_TEST_FALLBACK] Model ${mName} hit quota/rate limit, trying next fallback...`);
+          // If rate limit / quota / 429 / 404 model not found error, try next fallback model
+          if (/quota|rate|429|limit|not found|was not found/i.test(err?.message || "")) {
+            console.warn(`[AI_TEST_FALLBACK] Model ${mName} failed (${err?.message}), trying next fallback...`);
             continue;
           }
           throw err;
