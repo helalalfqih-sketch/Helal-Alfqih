@@ -39,6 +39,8 @@ import {
   MessageSquare,
   Clipboard,
   Check,
+  MoreHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -626,8 +628,76 @@ function AIEngineeringAgentPage() {
               ))}
             </AnimatePresence>
 
-            {/* Streaming and Activity indicator */}
+            {/* Status Pill Indicator */}
             {isStreaming && (
+              <div className="flex justify-center my-3">
+                <div className="w-full text-center py-2 px-4 rounded-full border border-zinc-700/70 bg-zinc-900/60 text-xs text-zinc-300 font-mono tracking-wide shadow-sm flex items-center justify-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                  <span>{agentActivity?.label || "Action plan generated, awaiting user approval"}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Interactive Lovable/Bolt Style Plan Approval Card */}
+            {pendingTask && (
+              <div className="bg-[#1c1c1e] border border-zinc-800 p-4 rounded-2xl space-y-4 shadow-xl text-start">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-violet-400" />
+                      Plan ({pendingTask.taskId})
+                    </h3>
+                    <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300">
+                      الخطورة: {pendingTask.riskLevel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    خطة عمل مقترحة لتنفيذ التعديلات البرمجية وتحديث المكونات المتأثرة ({pendingTask.affectedFiles.length} ملفات).
+                  </p>
+                </div>
+
+                {pendingTask.affectedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {pendingTask.affectedFiles.map((file) => (
+                      <span key={file} className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg">
+                        {file}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => toast.info(`مراجعة تفاصيل ${pendingTask.taskId}`)}
+                    className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-medium"
+                  >
+                    Review
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={handleApproveTask}
+                      className="px-5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Approve
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleRejectTask}
+                      className="px-3.5 py-1.5 rounded-full text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Streaming Text Output */}
+            {isStreaming && streamingContent && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -637,68 +707,12 @@ function AIEngineeringAgentPage() {
                   <Bot className="h-4 w-4 animate-pulse" />
                 </div>
                 <div className="flex-1 max-w-[85%] space-y-3">
-                  {/* Activity Badge */}
-                  <div className="inline-flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 text-xs font-bold text-violet-400 shadow-xs animate-pulse">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-                    <span>{agentActivity?.label || "جاري معالجة الطلب وسياق المشروع..."}</span>
+                  <div className="rounded-2xl rounded-tl-sm bg-[#1c1c1e] border border-zinc-800 px-4 py-3 text-sm text-foreground shadow-xs">
+                    <div className="prose prose-sm prose-invert max-w-none [&_pre]:rounded-xl [&_pre]:bg-black/40 [&_code]:text-violet-400 [&_code]:text-xs">
+                      <MarkdownContent content={streamingContent} />
+                      <span className="inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm ms-0.5" />
+                    </div>
                   </div>
-
-                  {/* Interactive Approval Gate Card */}
-                  {pendingTask && (
-                    <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 space-y-3 shadow-md">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-5 w-5 text-amber-400" />
-                          <span className="font-bold text-sm text-amber-200">طلب اعتماد خطة التنفيذ ({pendingTask.taskId})</span>
-                        </div>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono">
-                          الخطورة: {pendingTask.riskLevel}
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-amber-200/80 leading-relaxed">
-                        الخطة تتضمن تعديل {pendingTask.affectedFiles.length} ملفات وتتطلب موافقتك الصريحة قبل إجراء أي تغييرات برمجية.
-                      </p>
-
-                      {pendingTask.affectedFiles.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {pendingTask.affectedFiles.map((file) => (
-                            <span key={file} className="text-[10px] font-mono bg-black/40 text-amber-300 px-2 py-1 rounded-md">
-                              {file}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 pt-2">
-                        <button
-                          type="button"
-                          onClick={handleApproveTask}
-                          className="flex-1 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          الموافقة وتنفيذ الخطة
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRejectTask}
-                          className="py-2 px-4 rounded-xl bg-destructive/80 hover:bg-destructive text-white font-bold text-xs flex items-center justify-center gap-1.5 transition"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          إلغاء الخطة
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {streamingContent && (
-                    <div className="rounded-2xl rounded-tl-sm bg-surface border border-border/60 px-4 py-3 text-sm text-foreground shadow-xs">
-                      <div className="prose prose-sm prose-invert max-w-none [&_pre]:rounded-xl [&_pre]:bg-black/40 [&_code]:text-violet-400 [&_code]:text-xs">
-                        <MarkdownContent content={streamingContent} />
-                        <span className="inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm ms-0.5" />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}
@@ -706,35 +720,75 @@ function AIEngineeringAgentPage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="border-t border-border/60 p-3">
-            <div className="flex items-end gap-2">
-              <textarea
-                ref={inputRef}
+          {/* 5. Bottom Input Section & Suggestion Pills */}
+          <footer className="p-3 bg-[#141414] space-y-3 border-t border-zinc-800">
+            {/* Scrollable Suggestion Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs">
+              {[
+                "شحن",
+                "تخطيط إعادة التخزين الذكي",
+                "لوحة تحكم الشحن والتوزيع",
+                "تصدر تقارير الطلبات",
+                "لوحة تقارير الدفع",
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setInputValue(item);
+                    inputRef.current?.focus();
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-[#1c1c1e] border border-zinc-800 text-zinc-300 hover:border-zinc-600 whitespace-nowrap transition flex-shrink-0 text-xs font-medium"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {/* Input Bar with Tools & Mode Selector */}
+            <div className="relative bg-[#1c1c1e] border border-zinc-800 rounded-2xl p-2 flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
+
+              <input
+                ref={inputRef as any}
+                type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={canSend ? "اكتب طلبك هنا... مثال: أريد تحسين سرعة تحميل الصور" : "ليس لديك صلاحية الإرسال"}
+                placeholder={canSend ? "Ask Lovable / Indexes AI..." : "ليس لديك صلاحية الإرسال"}
                 disabled={!canSend || isStreaming}
-                rows={1}
-                className="flex-1 rounded-2xl border border-border/60 bg-surface/80 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 ring-violet-500/30 resize-none disabled:opacity-50 min-h-[44px] max-h-[120px]"
-                style={{ height: "auto" }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "auto";
-                  target.style.height = Math.min(target.scrollHeight, 120) + "px";
-                }}
+                className="w-full bg-transparent border-none text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none px-3 text-right"
               />
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!inputValue.trim() || isStreaming || !canSend}
-                className="shrink-0 h-11 w-11 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-600 flex items-center justify-center text-white shadow-md hover:opacity-90 transition disabled:opacity-40"
-              >
-                {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700/50 text-[11px] text-zinc-300 cursor-pointer hover:border-zinc-500 font-medium">
+                  <span>Plan</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-400" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={!inputValue.trim() || isStreaming || !canSend}
+                  className="p-2 text-white bg-blue-600 hover:bg-blue-500 rounded-full transition disabled:opacity-40"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          </footer>
         </div>
 
         {/* ═══ Right: Context Panel ═══ */}
