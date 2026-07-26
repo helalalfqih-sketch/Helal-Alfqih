@@ -85,16 +85,22 @@ function buildSystemPrompt(
 == صلاحياتك ==
 ${roleDesc[agentRole]}
 
-== بنية التنفيذ الذاتي بموافقة واحدة (Single Approval → Autonomous Execution Architecture) ==
-1. خطة هندسية شاملة موحدة: قم بتحليل المشروع والاعتماديات والهيكلية والتأثير بالكامل، ثم أنشئ خطة هندسية متكاملة واحدة (Single Plan) تشمل جميع التعديلات المطلوبة (SQL Migrations, Server Functions, React UI, Components, Types).
-2. موافقة صريحة واحدة (Single Approval Gate): لا تطلب موافقات مجزأة لكل جدول أو Trigger أو ملف. اعرض الخطة الموحدة واطلب موافقة المالك الصريحة لـ (Approve & Execute) مرة واحدة فقط.
-3. تنفيذ آلي مستمر بعد الموافقة: بمجرد الضغط على Approve & Execute، قم بتطبيق جميع التعديلات وإنشاء الملفات والدوال وفحص البناء تلقائياً دون إعادة استئذان المستخدم على خطوات داخلية لنفس المهمة.
+== قواعد المعالجة والتنفيذ الذاتي الفوري (Autonomous Reasoning & Execution Rules) ==
+1. حظر تام للأسئلة التسويفية والوعود النصية: عندما يطلب المستخدم (إنشاء نظام، إصلاح، إضافة ميزة، أو تحسين)، يُحظر مطلقاً كتابة عبارات مثل: ("هل يمكنك تزويدي...", "ما هي المشكلة المحددة...", "سأبدأ بالبحث...", "سأحلل..."). قم بفحص المشروع والكود تلقائياً وتقديم الحل والتحليل فوراً.
+2. الفحص التلقائي الشامل للمستودع (Automatic Repository Inspection): قم بالتحليل المباشر عبر أدواتك دون انتظار رد من المستخدم:
+   - فحص وقراءة ملفات المشروع ذات الصلة (Search & Read files).
+   - فحص جداول قاعدة البيانات والسياسات (Inspect DB schema & RLS policies).
+   - فحص الخدمات والدوال السابقة (Inspect existing server functions & services).
+   - توليد الخطة الهندسية الشاملة الموحدة مع الكود والـ Diffs المطلوبة.
+3. الفصل التام بين وضع التخطيط ووضع التنفيذ:
+   - [وضع التخطيط - Planning Mode]: تحليل المستودع -> إنشاء الخطة الهندسية الموحدة الشاملة -> الانتقال التلقائي لحالة (waiting_approval).
+   - [وضع التنفيذ - Execution Mode]: بعد ضغط المالك على زر (Approve & Execute)، يتم تنفيذ جميع المراحل والخطوات داخلياً تحت (نفس الـ Task ID) دون إنشاء مهام جديدة أو طلب موافقات فرعية.
 4. التوقف الصارم متاح في 4 حالات فقط:
-   - قرار تصميم جوهري يتطلب اختيار المالك.
-   - مفتاح API أو سر أو صلاحية مفقودة (Missing Secret / API Key / RBAC).
+   - قرار تصميم جوهري يستدعي اختيار المالك.
+   - سر أو مفتاح API أو صلاحية مفقودة (Missing Secret / API Key / RBAC).
    - تعارض Git أو Merge لا يمكن حله تلقائياً.
-   - خطأ بناء غيير قابل للإصلاح تلقائياً بعد محاولات التصحيح الذاتي (Max 3 retries).
-5. شاشة العرض والتقدم الحي: يُعرض للعميل تقدم حي ومستمر لجميع المراحل المنجزة (✓ Reading files, ✓ Creating migration, ✓ Updating server functions, ✓ Updating React UI, ✓ Running Typecheck & Build, ✓ Finished).
+   - خطأ بناء غير قابل للإصلاح تلقائياً بعد محاولات التصحيح الذاتي (Max 3 retries).
+5. التقدم الحي: يُعرض للعميل تقدم حي ومستمر لجميع المراحل المنجزة (✓ Reading files, ✓ Creating migration, ✓ Updating functions, ✓ Testing, ✓ Build passed).
 6. حافظ على حماية RLS و Multi-Tenant Isolation في كل كود أو SQL مقترح.
 7. أجب بالعربية الهندسية الدقيقة. الكود والمسارات تظل بالإنجليزية.`.trim();
 }
@@ -302,11 +308,10 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
   } = input;
 
   // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine (Phase 7.5)
-  sendEvent(makeStatusEvent("searching_code", "✓ Searching routes & reading files..."));
+  sendEvent(makeStatusEvent("analyzing", "✓ Reading files & inspecting repo schema..."));
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
   const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
   
-  sendEvent(makeStatusEvent("analyzing", "✓ Analyzing modules & impact..."));
   const dynamicCodeIntel = await getProjectContextForAgent(tenantId, message);
   const baseContext = await buildProjectPromptContext(tenantId);
   const reasoningReport = await analyzeEngineeringRequest(message, []);
@@ -314,7 +319,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
 
   const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
-  sendEvent(makeStatusEvent("planning", "✓ Building implementation plan..."));
+  sendEvent(makeStatusEvent("planning", "✓ Generating complete engineering plan..."));
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");
   const pastMemories = await searchTaskMemory(tenantId, message, 3);
@@ -327,14 +332,6 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
       )
       .join("\n");
     memoryStr = memoryStr ? `${memoryStr}\n\n${pastStr}` : pastStr;
-    sendEvent(
-      makeStatusEvent(
-        "task_memory_recalled",
-        `🧬 تم استرجاع ${pastMemories.length} ذكريات سابقة ذات صلة من ai_task_memory...`,
-      ),
-    );
-  } else {
-    sendEvent(makeStatusEvent("project_context_ready", "✓ Project context ready"));
   }
 
   // 2. Build system prompt + tools
@@ -346,7 +343,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     { role: "user" as const, content: message },
   ];
 
-  sendEvent(makeStatusEvent("generating_response", "✓ Executing solution stream..."));
+  sendEvent(makeStatusEvent("waiting_approval", "✓ Engineering plan ready for approval"));
 
   // 3. Stream with model fallback
   const candidates = Array.from(new Set([resolved.modelName, ...MODEL_FALLBACKS]));

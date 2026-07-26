@@ -831,14 +831,22 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       const execAsync = promisify(execFile);
 
       let buildSuccess = true;
-      let buildOutput = "Typecheck Passed Cleanly ✅";
+      let buildOutput = "Typecheck & Build Passed Cleanly ✅";
 
       try {
-        const { stdout } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
-        buildOutput = stdout || buildOutput;
+        const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
+        
+        // Step 5: Production Build (Building phase)
+        await db
+          .from("ai_agent_tasks")
+          .update({ status: "building", updated_at: new Date().toISOString() })
+          .eq("id", data.taskId);
+
+        const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
+        buildOutput = `${tcOut}\n${bOut}` || buildOutput;
       } catch (err: any) {
         buildSuccess = false;
-        buildOutput = `Typecheck Error: ${err.message || String(err)}`;
+        buildOutput = `Verification Error: ${err.message || String(err)}`;
       }
 
       const executionTimeMs = Date.now() - startTime;
