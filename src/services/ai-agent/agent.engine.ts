@@ -306,6 +306,17 @@ function buildTools(
     };
   }
 
+  // ── Inspect Project Environment ──────────────────────────────
+  tools.inspect_project = {
+    description: "Inspect package manager, available scripts (typecheck, lint, build, test), and workspace configuration",
+    inputSchema: z.object({}),
+    execute: async () => {
+      sendEvent(makeToolCallEvent("inspect_project", {}));
+      const { inspectProjectEnvironment } = await import("./validation.resolver");
+      return inspectProjectEnvironment(process.cwd());
+    },
+  };
+
   // ── Approve Execution Plan ──────────────────────────────────
   tools.approve_execution_plan = {
     description: "Approve the current engineering plan and start execution",

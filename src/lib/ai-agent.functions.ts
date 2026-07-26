@@ -974,45 +974,22 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         }, db);
       }
 
-      // Step 4: Run Automated Verification (RUNNING_TESTS phase)
-      await db
-        .from("ai_agent_tasks")
-        .update({ status: "testing", updated_at: new Date().toISOString() })
-        .eq("id", data.taskId);
+      // Step 4: Run Automated Verification via Dynamic Validation Resolver
+      const { resolveValidationCommands } = await import("@/services/ai-agent/validation.resolver");
+      const validationTasks = resolveValidationCommands(process.cwd());
 
-      await savePersistentExecutionEvent({
-        sessionId: task.session_id || "default",
-        taskId: data.taskId,
-        tenantId,
-        eventType: "STATE_CHANGE",
-        state: AgentTaskState.RUNNING_TESTS,
-        message: "✓ Running TypeScript check...",
-        progress: 88,
-      }, db);
-
-      const { execFile } = await import("node:child_process");
+      const { exec } = await import("node:child_process");
       const { promisify } = await import("node:util");
-      const execAsync = promisify(execFile);
+      const execAsync = promisify(exec);
 
       let buildSuccess = true;
-      let buildOutput = "Typecheck & Build Passed Cleanly ✅";
+      let buildOutput = "Validation Pipeline Passed Cleanly ✅";
+      const outputs: string[] = [];
 
-      try {
-        const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
-        await logExecutionJournal({
-          taskId: data.taskId,
-          tenantId,
-          action: "TYPECHECK",
-          tool: "npm_typecheck",
-          input: { command: "npm run typecheck" },
-          output: { stdout: tcOut?.slice(0, 300) || "PASSED" },
-          status: "SUCCESS",
-        }, db);
-        
-        // Step 5: Production Build Validation (BUILD_VALIDATION phase)
+      for (const valTask of validationTasks) {
         await db
           .from("ai_agent_tasks")
-          .update({ status: "building", updated_at: new Date().toISOString() })
+          .update({ status: valTask.action.toLowerCase(), updated_at: new Date().toISOString() })
           .eq("id", data.taskId);
 
         await savePersistentExecutionEvent({
@@ -1020,46 +997,57 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           taskId: data.taskId,
           tenantId,
           eventType: "STATE_CHANGE",
-          state: AgentTaskState.BUILD_VALIDATION,
-          message: "✓ Running production build validation...",
-          progress: 95,
+          state: valTask.stateEnum || AgentTaskState.RUNNING_TESTS,
+          message: `✓ Running ${valTask.action} (${valTask.command})...`,
+          progress: 85 + valTask.order * 3,
         }, db);
 
-        const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
-        await logExecutionJournal({
-          taskId: data.taskId,
-          tenantId,
-          action: "BUILD_VALIDATION",
-          tool: "npm_build",
-          input: { command: "npm run build" },
-          output: { stdout: bOut?.slice(0, 500) || "PASSED" },
-          status: "SUCCESS",
-        }, db);
-        buildOutput = `${tcOut}\n${bOut}` || buildOutput;
-      } catch (err: any) {
-        buildSuccess = false;
-        const rawErrOutput = [err?.stdout, err?.stderr, err?.message].filter(Boolean).join("\n\n");
-        buildOutput = rawErrOutput || `Verification Error: ${err?.message || String(err)}`;
+        try {
+          const { stdout, stderr } = await execAsync(valTask.command, { cwd: process.cwd() });
+          const taskOut = stdout || stderr || "PASSED";
+          outputs.push(`[${valTask.action}] ${taskOut.slice(0, 300)}`);
 
-        await logExecutionJournal({
-          taskId: data.taskId,
-          tenantId,
-          action: "BUILD_VALIDATION",
-          tool: "npm_build",
-          input: { command: "npm run typecheck / build" },
-          output: { error: buildOutput.slice(0, 1000) },
-          status: "FAILED",
-        }, db);
+          await logExecutionJournal({
+            taskId: data.taskId,
+            tenantId,
+            action: valTask.action,
+            tool: valTask.tool,
+            input: { command: valTask.command },
+            output: { stdout: taskOut.slice(0, 500) },
+            status: "SUCCESS",
+          }, db);
+        } catch (err: any) {
+          buildSuccess = false;
+          const rawErrOutput = [err?.stdout, err?.stderr, err?.message].filter(Boolean).join("\n\n");
+          const taskErr = rawErrOutput || `Verification Error: ${err?.message || String(err)}`;
+          buildOutput = taskErr;
 
-        await savePersistentExecutionEvent({
-          sessionId: task.session_id || "default",
-          taskId: data.taskId,
-          tenantId,
-          eventType: "ERROR",
-          state: AgentTaskState.FAILED,
-          message: `❌ Build failed: ${buildOutput.slice(0, 150)}...`,
-          progress: 95,
-        }, db);
+          await logExecutionJournal({
+            taskId: data.taskId,
+            tenantId,
+            action: valTask.action,
+            tool: valTask.tool,
+            input: { command: valTask.command },
+            output: { error: taskErr.slice(0, 1000) },
+            status: "FAILED",
+          }, db);
+
+          await savePersistentExecutionEvent({
+            sessionId: task.session_id || "default",
+            taskId: data.taskId,
+            tenantId,
+            eventType: "ERROR",
+            state: AgentTaskState.FAILED,
+            message: `❌ ${valTask.action} failed: ${taskErr.slice(0, 150)}...`,
+            progress: 95,
+          }, db);
+
+          break; // Stop validation pipeline on first failing step
+        }
+      }
+
+      if (buildSuccess && outputs.length > 0) {
+        buildOutput = outputs.join("\n\n");
       }
 
       const executionTimeMs = Date.now() - startTime;
