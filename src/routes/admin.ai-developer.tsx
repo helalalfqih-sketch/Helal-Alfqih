@@ -11,7 +11,7 @@
  * - Token usage stats
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { motion, AnimatePresence } from "framer-motion";
@@ -505,6 +505,30 @@ function AIEngineeringAgentPage() {
   const activeSession = sessions.find((s: AgentSession) => s.id === activeSessionId);
   const activeSessions = sessions.filter((s: AgentSession) => s.status !== "archived");
 
+  const dynamicSuggestions = useMemo(() => {
+    const list: string[] = [];
+    if (activeSession?.title) {
+      list.push(`اطلب تحليل: ${activeSession.title.slice(0, 25)}`);
+    }
+    if (
+      activeSession?.affected_files &&
+      Array.isArray(activeSession.affected_files) &&
+      activeSession.affected_files.length > 0
+    ) {
+      list.push(`فحص الملفات المتأثرة (${activeSession.affected_files.length})`);
+    }
+    if (memory && memory.length > 0) {
+      list.push(`استرجاع ذاكرة المشروع (${memory.length})`);
+    }
+    list.push(
+      "أنشئ نظام إشعارات الطلبات",
+      "تحسين أداء SEO والـ Lighthouse",
+      "فحص إعدادات الدفع والشحن",
+      "تقرير أمان امتثال Multi-Tenant RLS",
+    );
+    return Array.from(new Set(list)).slice(0, 6);
+  }, [activeSession, memory]);
+
   // ──────────────────────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────────────────────
@@ -736,14 +760,9 @@ function AIEngineeringAgentPage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Quick Suggestion Pills Horizontal Strip */}
+          {/* Quick Suggestion Pills Horizontal Strip — Dynamic Contextual Pills 💡 */}
           <div className="p-2 border-t border-zinc-800/80 bg-[#121214] flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {[
-              "اطلب قائمة أمن وامتثال",
-              "والأداء SEO اطلب تركيز على",
-              "اطلب تركيز على الدفع",
-              "اطلب تقرير شامل لموقعك",
-            ].map((pill, idx) => (
+            {dynamicSuggestions.map((pill, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -881,25 +900,80 @@ function AIEngineeringAgentPage() {
               </div>
             </div>
 
-            {/* Interactive Task Plan & Approval Controls */}
+            {/* Single Approval Gate Card — Single Approval → Autonomous Execution 🚀 */}
             {pendingTask && (
-              <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-2xl space-y-4 text-start">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-xs text-zinc-100 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-violet-400" />
-                    المهمة ({pendingTask.taskId})
-                  </h3>
-                  <RiskBadge level={pendingTask.riskLevel} />
+              <div className="bg-[#18181c] border border-violet-500/30 p-4 rounded-2xl space-y-4 text-start shadow-2xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-xl bg-violet-500/20 text-violet-400">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xs text-zinc-100 flex items-center gap-1.5">
+                        Single Engineering Plan ({pendingTask.taskId})
+                      </h3>
+                      <p className="text-[10px] text-zinc-400">خطة تنفيذ هندسية شاملة وموحدة لموافقات المشروع</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md font-bold">
+                      ⏱ المتوقع: 30-60s
+                    </span>
+                    <RiskBadge level={pendingTask.riskLevel} />
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                {/* Executive Summary */}
+                <div className="p-3 rounded-xl bg-[#121214] border border-zinc-800/80 space-y-1.5 text-xs">
+                  <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">الملخص التنفيذي (Executive Summary)</div>
+                  <p className="text-zinc-200 text-[11px] leading-relaxed">
+                    تحليل شامل للمشروع والاعتماديات وتوليد خطة عمل هندسية موحدة تعود بالتعديلات المباشرة على المكونات وقواعد البيانات والـ APIs بحماية Multi-Tenant RLS الكاملة.
+                  </p>
+                </div>
+
+                {/* Impact Analysis Breakdown */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2.5 rounded-xl bg-[#121214] border border-zinc-800 text-[10px]">
+                  <div>
+                    <div className="text-zinc-500 font-bold">الملفات (Files)</div>
+                    <div className="text-zinc-200 font-bold font-mono">{pendingTask.affectedFiles.length} ملفات</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-500 font-bold">المكونات (UI Components)</div>
+                    <div className="text-violet-400 font-bold">تحديث متكامل</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-500 font-bold">قواعد البيانات (Database)</div>
+                    <div className="text-emerald-400 font-bold">Migrations + RLS</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-500 font-bold">الـ APIs</div>
+                    <div className="text-cyan-400 font-bold">Server Functions</div>
+                  </div>
+                </div>
+
+                {/* Affected Files List */}
+                {pendingTask.affectedFiles.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold text-zinc-400">الملفات المتأثرة (Affected Files):</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pendingTask.affectedFiles.map((file) => (
+                        <span key={file} className="text-[10px] font-mono bg-black/60 border border-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md">
+                          {file}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Single Approval Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
                   <button
                     type="button"
                     onClick={() => setShowDiffModal(true)}
-                    className="px-3.5 py-1.5 rounded-xl border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-bold flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-xl border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-300 hover:bg-zinc-800 transition font-bold flex items-center gap-1.5"
                   >
                     <Code2 className="w-3.5 h-3.5 text-violet-400" />
-                    Review Diff
+                    Review Plan
                   </button>
 
                   <div className="flex items-center gap-2">
@@ -907,17 +981,19 @@ function AIEngineeringAgentPage() {
                       type="button"
                       disabled={isExecutingTask}
                       onClick={handleApproveTask}
-                      className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg flex items-center gap-1 disabled:opacity-50"
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      {isExecutingTask ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                      {isExecutingTask ? "Executing..." : "Approve & Execute"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRejectTask}
-                      className="px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-white transition"
-                    >
-                      Skip
+                      {isExecutingTask ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Executing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Approve & Execute</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

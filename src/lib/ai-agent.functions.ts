@@ -794,10 +794,10 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       throw new Error(`لم يتم العثور على المهمة رقم ${data.taskId}`);
     }
 
-    // Step 1: Update status to 'running'
+    // Step 1: Update status to 'executing'
     await db
       .from("ai_agent_tasks")
-      .update({ status: "running", updated_at: new Date().toISOString() })
+      .update({ status: "executing", updated_at: new Date().toISOString() })
       .eq("id", data.taskId);
 
     try {
