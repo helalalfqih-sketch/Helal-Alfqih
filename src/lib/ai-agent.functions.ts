@@ -699,17 +699,28 @@ export const approveAgentTask = createServerFn({ method: "POST" })
     const ctx = context as any;
     const db = await getAdminDb(ctx);
 
+    const cleanSessionId = data.taskId.replace(/^task-/, "");
     try {
       await db.from("ai_agent_tasks").upsert({
         id: data.taskId,
-        session_id: data.taskId.replace(/^task-/, ""),
+        session_id: cleanSessionId,
         tenant_id: auth.tenantId,
         status: "executing",
         user_approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
+
+      await db.from("ai_agent_plans").upsert({
+        id: data.taskId,
+        session_id: cleanSessionId,
+        tenant_id: auth.tenantId,
+        objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
+        status: "APPROVED",
+        approved_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      }, { onConflict: "id" });
     } catch (err) {
-      console.warn("[approveAgentTask] Non-fatal RLS warning:", err);
+      console.warn("[approveAgentTask] Non-fatal RLS/Table warning:", err);
     }
 
     return { success: true, taskId: data.taskId, status: "executing", approvedBy: auth.userId };

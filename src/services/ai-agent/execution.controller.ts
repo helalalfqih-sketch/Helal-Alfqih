@@ -49,14 +49,28 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
 
   // Mandatory Plan Approval Guard
   const cleanSessionId = sessionId || taskId.replace(/^task-/, "");
-  const { data: approvedPlan } = await db
-    .from("ai_agent_plans")
-    .select("id, status")
-    .or(`id.eq.${taskId},session_id.eq.${cleanSessionId}`)
-    .eq("status", "APPROVED")
-    .maybeSingle();
 
-  if (!approvedPlan && !options.skipPlanCheck) {
+  let isApproved = false;
+  try {
+    const { data: approvedPlan } = await db
+      .from("ai_agent_plans")
+      .select("id, status")
+      .or(`id.eq.${taskId},session_id.eq.${cleanSessionId}`)
+      .eq("status", "APPROVED")
+      .maybeSingle();
+
+    const { data: approvedTask } = await db
+      .from("ai_agent_tasks")
+      .select("id, user_approved_at, status")
+      .eq("id", taskId)
+      .maybeSingle();
+
+    isApproved = Boolean(approvedPlan || approvedTask?.user_approved_at || approvedTask?.status === "executing");
+  } catch {
+    isApproved = false;
+  }
+
+  if (!isApproved && !options.skipPlanCheck) {
     console.warn("[EXECUTION_CONTROLLER] Execution blocked: Engineering plan approval required for task", taskId);
     return {
       success: false,
