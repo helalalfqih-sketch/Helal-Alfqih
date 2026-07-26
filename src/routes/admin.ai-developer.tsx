@@ -57,6 +57,7 @@ import {
   approveAgentTask,
   rejectAgentTask,
   executeApprovedTask,
+  listExecutionHistoryFn,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -141,6 +142,13 @@ function AIEngineeringAgentPage() {
   const { data: usageStats } = useQuery({
     queryKey: ["ai-agent-usage"],
     queryFn: () => getUsageFn(),
+  });
+
+  const getExecHistoryFn = useServerFn(listExecutionHistoryFn);
+
+  const { data: execHistory = [] } = useQuery({
+    queryKey: ["ai-execution-history"],
+    queryFn: () => getExecHistoryFn(),
   });
 
   const { data: providers = [] } = useQuery({
@@ -931,6 +939,33 @@ function AIEngineeringAgentPage() {
                     <div className="text-[9px] text-muted-foreground">+{memory.length - 8} إدخالات أخرى</div>
                   )}
                 </div>
+              </div>
+
+              {/* Execution History — Phase 7.2 */}
+              <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-emerald-500" /> سجل التنفيذ ({execHistory.length})
+                  </span>
+                </div>
+                {execHistory.length === 0 ? (
+                  <div className="text-[10px] text-muted-foreground italic">لا توجد عمليات تنفيذ سابقة</div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {execHistory.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="p-2 rounded-xl bg-background border border-border/50 text-[10px] space-y-1">
+                        <div className="flex items-center justify-between font-bold">
+                          <span className="font-mono text-violet-400">{item.task_id}</span>
+                          <TaskStatusBadge status={item.status} />
+                        </div>
+                        <div className="text-muted-foreground flex items-center justify-between text-[9px]">
+                          <span>{item.files_changed?.length || 0} ملفات</span>
+                          <span>{item.execution_time_ms || 0}ms</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Usage Stats */}

@@ -775,10 +775,12 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
     const ctx = context as any;
     const db = await getAdminDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+    const startTime = Date.now();
 
     // Enforce Owner permission
     const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
     const agentRole = await enforceAgentRole(ctx, "owner");
+    const { recordExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
 
     // Fetch Task
     const { data: task, error: fetchErr } = await db
@@ -839,6 +841,8 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         buildOutput = `Typecheck Error: ${err.message || String(err)}`;
       }
 
+      const executionTimeMs = Date.now() - startTime;
+
       if (!buildSuccess) {
         // Automatic Rollback to snapshot state upon verification failure
         await rollbackFileSnapshots(snapshots);
@@ -853,12 +857,27 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           })
           .eq("id", data.taskId);
 
+        await recordExecutionHistory({
+          tenant_id: tenantId,
+          task_id: data.taskId,
+          session_id: task.session_id,
+          user_id: ctx.userId,
+          status: "rolled_back",
+          files_changed: affectedFiles,
+          typecheck_passed: false,
+          build_passed: false,
+          build_output: buildOutput,
+          rollback_status: "automatic_rollback_success",
+          error_message: buildOutput,
+          execution_time_ms: executionTimeMs,
+        });
+
         await logAudit(db, tenantId, ctx.userId, "ai_task_execution_failed_rolled_back", task.session_id, {
           taskId: data.taskId,
           error: buildOutput,
         });
 
-        return { success: false, status: "rolled_back", buildOutput };
+        return { success: false, status: "rolled_back", buildOutput, executionTimeMs };
       }
 
       // Step 4: Task Success — Update Task & Save to Memory
@@ -873,11 +892,26 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         })
         .eq("id", data.taskId);
 
+      await recordExecutionHistory({
+        tenant_id: tenantId,
+        task_id: data.taskId,
+        session_id: task.session_id,
+        user_id: ctx.userId,
+        status: "success",
+        files_changed: affectedFiles,
+        typecheck_passed: true,
+        build_passed: true,
+        build_output: buildOutput,
+        rollback_status: "none",
+        execution_time_ms: executionTimeMs,
+      });
+
       // Audit Log
       await logAudit(db, tenantId, ctx.userId, "ai_task_executed_success", task.session_id, {
         taskId: data.taskId,
         affectedFiles: task.affected_files,
         executedByRole: agentRole,
+        executionTimeMs,
       });
 
       // Save into Long-Term AI Memory
@@ -886,13 +920,14 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         tenant_id: tenantId,
         task_id: data.taskId,
         problem: `تنفيذ مهمة هندسية ${data.taskId}: ${task.affected_files?.join(", ")}`,
-        solution: `تم تطبيق التعديلات بنجاح واجتياز فحص البناء البنائي 100%.`,
+        solution: `تم تطبيق التعديلات بنجاح واجتياز فحص البناء البنائي 100% في ${executionTimeMs}ms.`,
         category: "bug_fix",
         affected_files: task.affected_files,
       });
 
-      return { success: true, status: "success", buildOutput };
+      return { success: true, status: "success", buildOutput, executionTimeMs };
     } catch (e: any) {
+      const executionTimeMs = Date.now() - startTime;
       await db
         .from("ai_agent_tasks")
         .update({
@@ -903,7 +938,34 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         })
         .eq("id", data.taskId);
 
+      const { recordExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
+      await recordExecutionHistory({
+        tenant_id: tenantId,
+        task_id: data.taskId,
+        session_id: task.session_id,
+        user_id: ctx.userId,
+        status: "failed",
+        files_changed: (task.affected_files as string[]) || [],
+        typecheck_passed: false,
+        build_passed: false,
+        build_output: e.message || String(e),
+        error_message: e.message || String(e),
+        execution_time_ms: executionTimeMs,
+      });
+
       throw new Error(`فشل تنفيذ المهمة: ${e.message || String(e)}`);
     }
+  });
+
+/** List execution history entries */
+export const listExecutionHistoryFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { listExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
+    return listExecutionHistory(tenantId, 25);
   });
 
