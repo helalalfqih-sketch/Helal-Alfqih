@@ -7,6 +7,7 @@ export interface ExecutionControllerOptions {
   tenantId: string;
   sessionId: string;
   userId?: string;
+  skipPlanCheck?: boolean;
 }
 
 export async function approvePlan(options: ExecutionControllerOptions): Promise<{ success: boolean; taskId: string }> {
@@ -45,6 +46,27 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
   const { taskId, tenantId, sessionId } = options;
 
   console.log("[EXECUTION_CONTROLLER] START", { taskId, sessionId, tenantId });
+
+  // Mandatory Plan Approval Guard
+  const cleanSessionId = sessionId || taskId.replace(/^task-/, "");
+  const { data: approvedPlan } = await db
+    .from("ai_agent_plans")
+    .select("id, status")
+    .or(`id.eq.${taskId},session_id.eq.${cleanSessionId}`)
+    .eq("status", "APPROVED")
+    .maybeSingle();
+
+  if (!approvedPlan && !options.skipPlanCheck) {
+    console.warn("[EXECUTION_CONTROLLER] Execution blocked: Engineering plan approval required for task", taskId);
+    return {
+      success: false,
+      output: "Execution blocked: Engineering plan approval required",
+      failureDetails: {
+        reason: "Execution blocked: Engineering plan approval required",
+        errorType: "PLAN_REQUIRED",
+      },
+    };
+  }
 
   // 1. Deduplication guard — prevent duplicate EXECUTION_STARTED logs
   const alreadyStarted = await hasExecutionStartedLog(taskId, db);
