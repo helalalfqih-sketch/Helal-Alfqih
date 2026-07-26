@@ -862,7 +862,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       .eq("id", data.taskId);
 
     // Initial EXECUTION_STARTED journal entry with deduplication guard
-    const alreadyStarted = await hasExecutionStartedLog(data.taskId);
+    const alreadyStarted = await hasExecutionStartedLog(data.taskId, db);
     if (!alreadyStarted) {
       await logExecutionJournal({
         taskId: data.taskId,
@@ -872,7 +872,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         input: { taskId: data.taskId },
         output: { status: "started" },
         status: "PENDING",
-      });
+      }, db);
 
       await savePersistentExecutionEvent({
         sessionId: task.session_id || "default",
@@ -882,7 +882,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         state: AgentTaskState.EXECUTING,
         message: "⚙️ Starting task execution and file modifications...",
         progress: 60,
-      });
+      }, db);
     }
 
     try {
@@ -950,7 +950,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           input: { filePath },
           output: { status: "COMPLETED" },
           status: "SUCCESS",
-        });
+        }, db);
       }
 
       // Step 4: Run Automated Verification (RUNNING_TESTS phase)
@@ -967,7 +967,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         state: AgentTaskState.RUNNING_TESTS,
         message: "✓ Running TypeScript check...",
         progress: 88,
-      });
+      }, db);
 
       const { execFile } = await import("node:child_process");
       const { promisify } = await import("node:util");
@@ -986,7 +986,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           input: { command: "npm run typecheck" },
           output: { stdout: tcOut?.slice(0, 300) || "PASSED" },
           status: "SUCCESS",
-        });
+        }, db);
         
         // Step 5: Production Build Validation (BUILD_VALIDATION phase)
         await db
@@ -1002,7 +1002,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           state: AgentTaskState.BUILD_VALIDATION,
           message: "✓ Running production build validation...",
           progress: 95,
-        });
+        }, db);
 
         const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
         await logExecutionJournal({
@@ -1013,7 +1013,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           input: { command: "npm run build" },
           output: { stdout: bOut?.slice(0, 500) || "PASSED" },
           status: "SUCCESS",
-        });
+        }, db);
         buildOutput = `${tcOut}\n${bOut}` || buildOutput;
       } catch (err: any) {
         buildSuccess = false;
@@ -1028,7 +1028,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           input: { command: "npm run typecheck / build" },
           output: { error: buildOutput.slice(0, 1000) },
           status: "FAILED",
-        });
+        }, db);
 
         await savePersistentExecutionEvent({
           sessionId: task.session_id || "default",
@@ -1038,7 +1038,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           state: AgentTaskState.FAILED,
           message: `❌ Build failed: ${buildOutput.slice(0, 150)}...`,
           progress: 95,
-        });
+        }, db);
       }
 
       const executionTimeMs = Date.now() - startTime;
@@ -1196,7 +1196,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         input: { taskId: data.taskId },
         output: { error: errPayload, failureDetails },
         status: "FAILED",
-      });
+      }, db);
 
       await db
         .from("ai_agent_tasks")

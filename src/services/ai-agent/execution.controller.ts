@@ -41,10 +41,11 @@ export async function approvePlan(options: ExecutionControllerOptions): Promise<
 
 export async function startExecution(options: ExecutionControllerOptions): Promise<{ success: boolean; output?: string; failureDetails?: any }> {
   const { executeApprovedTask } = await import("@/lib/ai-agent.functions");
+  const db = await getAdminDb(options);
   const { taskId, tenantId, sessionId } = options;
 
   // 1. Deduplication guard — prevent duplicate EXECUTION_STARTED logs
-  const alreadyStarted = await hasExecutionStartedLog(taskId);
+  const alreadyStarted = await hasExecutionStartedLog(taskId, db);
   if (!alreadyStarted) {
     // 2. Atomic initialization: Log EXECUTION_STARTED as PENDING
     await logExecutionJournal({
@@ -55,7 +56,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       input: { taskId, sessionId },
       output: { status: "started" },
       status: "PENDING",
-    });
+    }, db);
 
     await savePersistentExecutionEvent({
       sessionId: sessionId || "default",
@@ -65,7 +66,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       state: AgentTaskState.EXECUTING,
       message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
       progress: 60,
-    });
+    }, db);
   }
 
   try {
@@ -80,7 +81,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         input: { taskId },
         output: { status: "all_steps_passed", output: res.buildOutput },
         status: "SUCCESS",
-      });
+      }, db);
 
       await savePersistentExecutionEvent({
         sessionId: sessionId || "default",
@@ -90,7 +91,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         state: AgentTaskState.COMPLETED,
         message: "🎉 All engineering steps applied & build validation passed cleanly!",
         progress: 100,
-      });
+      }, db);
 
       return { success: true, output: res.buildOutput };
     } else {
@@ -111,7 +112,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         input: { taskId },
         output: { status: "build_failed", failureDetails: errDetails },
         status: "FAILED",
-      });
+      }, db);
 
       await savePersistentExecutionEvent({
         sessionId: sessionId || "default",
@@ -121,7 +122,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         state: AgentTaskState.FAILED,
         message: `❌ Task execution failed: ${errDetails.message}`,
         progress: 95,
-      });
+      }, db);
 
       return { ...res, failureDetails: errDetails };
     }
@@ -143,7 +144,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       input: { taskId },
       output: { error: errDetails },
       status: "FAILED",
-    });
+    }, db);
 
     await savePersistentExecutionEvent({
       sessionId: sessionId || "default",
@@ -153,7 +154,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       state: AgentTaskState.FAILED,
       message: `❌ Execution orchestrator exception: ${errDetails.message}`,
       progress: 0,
-    });
+    }, db);
 
     throw err;
   }
