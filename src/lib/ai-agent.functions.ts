@@ -61,15 +61,16 @@ export type AgentRole = "owner" | "admin" | "developer" | "viewer";
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
-async function getAdminDb(ctx: any) {
-  let db = ctx?.supabase || supabase;
-  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+async function getAdminDb(ctx?: any) {
+  if (typeof process !== "undefined") {
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin) db = supabaseAdmin;
+      if (supabaseAdmin && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
+        return supabaseAdmin;
+      }
     } catch { /* fallback */ }
   }
-  return db;
+  return ctx?.supabase || supabase;
 }
 
 async function resolveAgentRole(db: any, userId: string, tenantId: string): Promise<AgentRole> {
