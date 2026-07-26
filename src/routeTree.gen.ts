@@ -45,6 +45,7 @@ import { Route as GoogleShoppingXmlRouteImport } from './routes/google-shopping.
 import { Route as Demo3dViewerRouteImport } from './routes/demo.3d-viewer'
 import { Route as CategoryIdRouteImport } from './routes/category.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSystemHealthRouteImport } from './routes/admin.system-health'
 import { Route as AdminStudioRouteImport } from './routes/admin.studio'
 import { Route as AdminStoresRouteImport } from './routes/admin.stores'
 import { Route as AdminStorefrontRouteImport } from './routes/admin.storefront'
@@ -260,6 +261,11 @@ const CategoryIdRoute = CategoryIdRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSystemHealthRoute = AdminSystemHealthRouteImport.update({
+  id: '/system-health',
+  path: '/system-health',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudioRoute = AdminStudioRouteImport.update({
@@ -488,6 +494,7 @@ export interface FileRoutesByFullPath {
   '/admin/storefront': typeof AdminStorefrontRoute
   '/admin/stores': typeof AdminStoresRouteWithChildren
   '/admin/studio': typeof AdminStudioRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/category/$id': typeof CategoryIdRoute
   '/demo/3d-viewer': typeof Demo3dViewerRoute
@@ -560,6 +567,7 @@ export interface FileRoutesByTo {
   '/admin/storefront': typeof AdminStorefrontRoute
   '/admin/stores': typeof AdminStoresRouteWithChildren
   '/admin/studio': typeof AdminStudioRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/category/$id': typeof CategoryIdRoute
   '/demo/3d-viewer': typeof Demo3dViewerRoute
@@ -635,6 +643,7 @@ export interface FileRoutesById {
   '/admin/storefront': typeof AdminStorefrontRoute
   '/admin/stores': typeof AdminStoresRouteWithChildren
   '/admin/studio': typeof AdminStudioRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/category/$id': typeof CategoryIdRoute
   '/demo/3d-viewer': typeof Demo3dViewerRoute
@@ -711,6 +720,7 @@ export interface FileRouteTypes {
     | '/admin/storefront'
     | '/admin/stores'
     | '/admin/studio'
+    | '/admin/system-health'
     | '/admin/users'
     | '/category/$id'
     | '/demo/3d-viewer'
@@ -783,6 +793,7 @@ export interface FileRouteTypes {
     | '/admin/storefront'
     | '/admin/stores'
     | '/admin/studio'
+    | '/admin/system-health'
     | '/admin/users'
     | '/category/$id'
     | '/demo/3d-viewer'
@@ -857,6 +868,7 @@ export interface FileRouteTypes {
     | '/admin/storefront'
     | '/admin/stores'
     | '/admin/studio'
+    | '/admin/system-health'
     | '/admin/users'
     | '/category/$id'
     | '/demo/3d-viewer'
@@ -1175,6 +1187,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/system-health': {
+      id: '/admin/system-health'
+      path: '/system-health'
+      fullPath: '/admin/system-health'
+      preLoaderRoute: typeof AdminSystemHealthRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/studio': {
       id: '/admin/studio'
       path: '/studio'
@@ -1470,6 +1489,7 @@ interface AdminRouteChildren {
   AdminStorefrontRoute: typeof AdminStorefrontRoute
   AdminStoresRoute: typeof AdminStoresRouteWithChildren
   AdminStudioRoute: typeof AdminStudioRoute
+  AdminSystemHealthRoute: typeof AdminSystemHealthRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminDiagnosticsWhatsappRoute: typeof AdminDiagnosticsWhatsappRoute
@@ -1505,6 +1525,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStorefrontRoute: AdminStorefrontRoute,
   AdminStoresRoute: AdminStoresRouteWithChildren,
   AdminStudioRoute: AdminStudioRoute,
+  AdminSystemHealthRoute: AdminSystemHealthRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminDiagnosticsWhatsappRoute: AdminDiagnosticsWhatsappRoute,

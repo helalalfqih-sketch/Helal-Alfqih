@@ -97,17 +97,17 @@ export async function enforcePermission(
     .select("role")
     .eq("user_id", userId);
 
-  const roles = ((roleRows ?? []) as { role: string }[]).map((r) => r.role.toLowerCase() as RoleType);
+  const rawRoles: string[] = ((roleRows ?? []) as { role: string }[]).map((r) => r.role.toLowerCase());
 
   // Default role resolution
   let userRole: RoleType = "customer";
-  if (roles.includes("admin") || roles.includes("owner")) {
+  if (rawRoles.includes("admin") || rawRoles.includes("owner")) {
     userRole = "admin";
-  } else if (roles.includes("manager")) {
+  } else if (rawRoles.includes("manager")) {
     userRole = "manager";
-  } else if (roles.includes("staff") || roles.includes("employee")) {
+  } else if (rawRoles.includes("staff") || rawRoles.includes("employee")) {
     userRole = "staff";
-  } else if (roles.includes("viewer")) {
+  } else if (rawRoles.includes("viewer")) {
     userRole = "viewer";
   }
 

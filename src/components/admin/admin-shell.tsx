@@ -333,6 +333,7 @@ function ShellInner() {
       items: [
         { to: "/admin/stores", label: "المتاجر", icon: Store },
         { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: ShieldCheck },
+        { to: "/admin/system-health", label: "حالة النظام والأداء", icon: Activity },
         { to: "/admin/integrations/whatsapp", label: "WhatsApp Media Sync", icon: MessageSquare },
         { to: "/admin/platform", label: "التكاملات (SaaS)", icon: Globe },
         { to: "/admin/settings", label: t("nav.settings"), icon: Settings },
