@@ -1,8 +1,7 @@
 /**
  * Indexes Store — AI Provider Management & Resolver Service
  *
- * Manages AI provider configurations in database (SaaS Multi-Tenant & Global)
- * with encryption, connection testing, priority resolution, and fallback to env vars.
+ * Billed Project: smartcontentcreator-d49f2 (Vertex AI Enterprise & Direct Gemini)
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
