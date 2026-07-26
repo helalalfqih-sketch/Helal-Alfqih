@@ -843,7 +843,14 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
 
       const executionTimeMs = Date.now() - startTime;
 
+      const { analyzeExecutionFailure } = await import("@/services/ai-agent/failure-analysis.engine");
+      const { executeSelfHealingLoop } = await import("@/services/ai-agent/retry.controller");
+
       if (!buildSuccess) {
+        // Run Failure Analysis & Recovery Timeline Loop (Phase 8 🛠️)
+        const failureAnalysis = analyzeExecutionFailure(buildOutput, affectedFiles);
+        const retryResult = await executeSelfHealingLoop(buildOutput, affectedFiles);
+
         // Automatic Rollback to snapshot state upon verification failure
         await rollbackFileSnapshots(snapshots);
 
@@ -868,16 +875,25 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           build_passed: false,
           build_output: buildOutput,
           rollback_status: "automatic_rollback_success",
-          error_message: buildOutput,
+          error_message: failureAnalysis.problem,
           execution_time_ms: executionTimeMs,
         });
 
         await logAudit(db, tenantId, ctx.userId, "ai_task_execution_failed_rolled_back", task.session_id, {
           taskId: data.taskId,
           error: buildOutput,
+          failureAnalysis,
+          retryAttempts: retryResult.attemptsCount,
         });
 
-        return { success: false, status: "rolled_back", buildOutput, executionTimeMs };
+        return {
+          success: false,
+          status: "rolled_back",
+          buildOutput,
+          executionTimeMs,
+          failureAnalysis,
+          recoveryTimeline: retryResult.timeline,
+        };
       }
 
       // Step 4: Task Success — Update Task & Save to Memory

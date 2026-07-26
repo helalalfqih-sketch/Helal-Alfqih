@@ -41,6 +41,7 @@ import {
   Check,
   MoreHorizontal,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -109,6 +110,7 @@ function AIEngineeringAgentPage() {
   const [showSessions, setShowSessions] = useState(true);
   const [showContext, setShowContext] = useState(true);
   const [showDiffModal, setShowDiffModal] = useState(false);
+  const [recoveryTimeline, setRecoveryTimeline] = useState<any[]>([]);
   const [pendingTask, setPendingTask] = useState<{
     taskId: string;
     plan: any[];
@@ -400,7 +402,10 @@ function AIEngineeringAgentPage() {
         setPendingTask(null);
         queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
       } else if (res?.status === "rolled_back") {
-        toast.error(`فشل فحص البناء! تم إلغاء التعديلات والتراجع تلقائياً 🔄`, { id: "task-exec" });
+        if (res?.recoveryTimeline) {
+          setRecoveryTimeline(res.recoveryTimeline);
+        }
+        toast.error(`فشل فحص البناء! تم إلغاء التعديلات والتراجع تلقائياً (محاولات التصحيح الذاتي: ${res?.recoveryTimeline?.length || 1}) 🔄`, { id: "task-exec" });
       } else {
         toast.error(`فشل تنفيذ المهمة: ${res?.buildOutput || "خطأ غير معروف"}`, { id: "task-exec" });
       }
@@ -988,6 +993,28 @@ function AIEngineeringAgentPage() {
                   )}
                 </div>
               </div>
+
+              {/* Recovery Timeline — Phase 8 🛠️ */}
+              {recoveryTimeline.length > 0 && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-3 space-y-2">
+                  <div className="text-[10px] font-bold text-amber-400 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin text-amber-400" /> Recovery Timeline ({recoveryTimeline.length})
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {recoveryTimeline.map((item, idx) => (
+                      <div key={idx} className="p-2 rounded-xl bg-black/40 border border-amber-500/20 text-[10px] space-y-1">
+                        <div className="flex items-center justify-between font-mono font-bold text-amber-300">
+                          <span>Attempt #{item.attempt}</span>
+                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-amber-500/20">{item.status}</span>
+                        </div>
+                        <p className="text-[9px] text-zinc-400 line-clamp-2">{item.fixPlan || item.errorOutput}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Execution History — Phase 7.2 */}
               <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
