@@ -18,8 +18,22 @@ export type AgentMode =
   | "auto";    // 🤖 تنفيذ كامل ضمن الصلاحيات (لاحق)
 
 // ─────────────────────────────────────────────────
-// Task Status
+// Task Status & Real Execution State Machine Enum
 // ─────────────────────────────────────────────────
+
+export enum AgentTaskState {
+  IDLE = "IDLE",
+  ANALYZING_REPOSITORY = "ANALYZING_REPOSITORY",
+  CREATING_PLAN = "CREATING_PLAN",
+  WAITING_APPROVAL = "WAITING_APPROVAL",
+  EXECUTING = "EXECUTING",
+  MODIFYING_FILES = "MODIFYING_FILES",
+  RUNNING_DATABASE_CHANGES = "RUNNING_DATABASE_CHANGES",
+  RUNNING_TESTS = "RUNNING_TESTS",
+  BUILD_VALIDATION = "BUILD_VALIDATION",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+}
 
 export type TaskStatus =
   | "analyzing"

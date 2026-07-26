@@ -794,7 +794,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       throw new Error(`لم يتم العثور على المهمة رقم ${data.taskId}`);
     }
 
-    // Step 1: Update status to 'executing'
+    // Step 1: Update status to 'executing' (EXECUTING phase)
     await db
       .from("ai_agent_tasks")
       .update({ status: "executing", updated_at: new Date().toISOString() })
@@ -808,7 +808,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       const affectedFiles = (task.affected_files as string[]) || [];
       const snapshots = await createFileSnapshots(affectedFiles);
 
-      // Step 3: Apply file mutations
+      // Step 3: Apply file mutations (MODIFYING_FILES phase)
       const diffs = (task.diffs as Record<string, string>) || {};
       for (const [filePath, newContent] of Object.entries(diffs)) {
         await applyEditFile({
@@ -820,7 +820,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         });
       }
 
-      // Step 4: Run Automated Verification (Testing phase)
+      // Step 4: Run Automated Verification (RUNNING_TESTS phase)
       await db
         .from("ai_agent_tasks")
         .update({ status: "testing", updated_at: new Date().toISOString() })
@@ -836,7 +836,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       try {
         const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
         
-        // Step 5: Production Build (Building phase)
+        // Step 5: Production Build Validation (BUILD_VALIDATION phase)
         await db
           .from("ai_agent_tasks")
           .update({ status: "building", updated_at: new Date().toISOString() })

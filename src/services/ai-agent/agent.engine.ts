@@ -307,8 +307,11 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     sendEvent,
   } = input;
 
-  // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine (Phase 7.5)
-  sendEvent(makeStatusEvent("analyzing", "✓ Reading files & inspecting repo schema..."));
+  // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine
+  const { AgentTaskState } = await import("./agent.state");
+  const { makeProgressEvent } = await import("./agent.events");
+
+  sendEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, "✓ Inspecting routes, services & DB migrations...", 20));
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
   const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
   
@@ -319,7 +322,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
 
   const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
-  sendEvent(makeStatusEvent("planning", "✓ Generating complete engineering plan..."));
+  sendEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, "✓ Generating complete engineering plan...", 45));
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");
   const pastMemories = await searchTaskMemory(tenantId, message, 3);
@@ -343,7 +346,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     { role: "user" as const, content: message },
   ];
 
-  sendEvent(makeStatusEvent("waiting_approval", "✓ Engineering plan ready for approval"));
+  sendEvent(makeProgressEvent(AgentTaskState.WAITING_APPROVAL, "✓ Engineering plan ready for approval", 50));
 
   // 3. Stream with model fallback
   const candidates = Array.from(new Set([resolved.modelName, ...MODEL_FALLBACKS]));

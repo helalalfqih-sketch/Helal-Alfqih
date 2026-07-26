@@ -46,10 +46,34 @@ export interface AgentEvent {
 // Specialized Event Subtypes
 // ─────────────────────────────────────────────────
 
+import { AgentTaskState } from "./agent.state";
+
 export interface AgentStatusEvent extends AgentEvent {
   type: "status";
   status: string;
   label: string;
+  state?: AgentTaskState;
+  progress?: number;
+  taskId?: string;
+}
+
+export function makeProgressEvent(
+  state: AgentTaskState,
+  message: string,
+  progress: number,
+  taskId?: string,
+): AgentStatusEvent {
+  return {
+    type: "status",
+    status: state.toLowerCase(),
+    state,
+    progress,
+    label: message,
+    message,
+    timestamp: Date.now(),
+    taskId,
+    metadata: { state, progress, taskId },
+  };
 }
 
 export interface AgentTextEvent {
