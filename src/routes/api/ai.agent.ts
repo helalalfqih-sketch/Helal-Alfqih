@@ -1,16 +1,14 @@
 /**
- * Indexes AI Engineering Agent — Streaming API Endpoint
+ * Indexes AI Engineering Agent — Streaming API Endpoint with Activity Events
  *
  * POST /api/ai/agent
  *
- * Direct match with src/routes/api/ai.analyze-product.ts AI Client initialization.
+ * Provides real-time SSE streaming, agent status events, project context loading,
+ * and integration with resolved active AI provider (Vertex AI / Gemini).
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { streamText } from "ai";
 import { z } from "zod";
-import { createLovableGateway } from "@/lib/ai-gateway.server";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createVertex } from "@ai-sdk/google-vertex";
 import { resolveActiveAIProvider } from "@/lib/ai-provider.server";
 import {
   PROJECT_FILE_STRUCTURE,
@@ -27,7 +25,7 @@ const InputSchema = z.object({
         content: z.string(),
       }),
     )
-    .max(40)
+    .max(50)
     .default([]),
   projectMemory: z.string().default(""),
   agentRole: z.enum(["owner", "admin", "developer", "viewer"]).default("owner"),
@@ -49,50 +47,37 @@ function buildSystemPrompt(projectMemory: string, agentRole: string) {
 == دورك ==
 ${roleDesc}
 
-== بيانات المشروع ==
-- الاسم: Indexes Store — منصة تجارة إلكترونية SaaS متعددة المتاجر
-- Frontend: TanStack Start + React 19 + TypeScript + TailwindCSS 4 + Shadcn UI + Framer Motion
-- Backend: Supabase + PostgreSQL + Server Functions (createServerFn)
-- Architecture: Multi-Tenant SaaS مع RLS
-- AI: Google Vertex AI + Gemini Models + Vercel AI SDK
-- Integrations: WhatsApp Business API, Meta Catalog, Google Merchant, Sitemap, JSON-LD
+== بيانات وحالة المشروع ==
+- المنصة: Indexes Store — منصة تجارة إلكترونية SaaS متعددة المتاجر (Multi-Tenant)
+- Frontend Stack: TanStack Start + React 19 + TypeScript + TailwindCSS 4 + Shadcn UI + Framer Motion
+- Backend Stack: Supabase PostgreSQL + RLS + Server Functions (createServerFn + requireSupabaseAuth)
+- Architecture: SaaS Multi-tenant (كل جدول يتضمن tenant_id وتطبيق RLS)
+- AI Engine: Google Vertex AI (Enterprise Project: smartcontentcreator-d49f2) + Gemini Models + Vercel AI SDK
+- Integrations: WhatsApp Business API, Meta Commerce Catalog, Google Merchant RSS Feed, Sitemap, JSON-LD
 
-== ذاكرة المشروع ==
+== ذاكرة سياق المشروع ==
 ${projectMemory || "(لا توجد ذاكرة محفوظة بعد)"}
 
-== هيكل ملفات المشروع ==
+== هيكل ملفات المشروع الأساسية ==
 ${PROJECT_FILE_STRUCTURE}
 
-== Schema قاعدة البيانات ==
+== Schema قاعدة البيانات والحقول ==
 ${DB_SCHEMA_SUMMARY}
 
-== قواعد إلزامية ==
-1. لا تعدل ملفات بدون خطة معتمدة من المستخدم
-2. لا تحذف ملفات أبداً
-3. لا تغير التصميم العام أو الهوية البصرية بدون موافقة صريحة
-4. حافظ على RTL (اتجاه من اليمين لليسار) في كل الواجهات
-5. حافظ على Multi-Tenant isolation — كل استعلام يجب أن يتضمن tenant_id
-6. استخدم Tailwind tokens (لا hex ثابت) و design tokens المعرّفة
-7. التزم بنمط createServerFn + requireSupabaseAuth + validator
-8. Storage bucket = "product-images" فقط
-9. لا تكشف مفاتيح API أو بيانات حساسة
+== قواعد هندسية صارمة ==
+1. التزم باللغة العربية الواضحة في الشرح والتحليل.
+2. الكود والمسارات تترك بالإنجليزية كما هي في المشروع.
+3. التزم دائماً بأنماط التكوين المعمول بها في المشروع: createServerFn مع requireSupabaseAuth والمحققات (zod validator).
+4. حافظ على عزل البيانات (Multi-Tenant isolation) بتنسيق tenant_id.
+5. لا تكشف أي مفاتيح حساسة أو بيانات توثيق.
+6. قدم دائماً إجابات واضحة ومباشرة بدون إظهار التفكير الداخلي أو سلسلة الأفكار الخام (Chain of thought).
 
-== طريقة الرد ==
-عند تحليل طلب:
-1. حدد المشكلة أو الهدف بوضوح
-2. اذكر الملفات المتأثرة مع مساراتها الكاملة
-3. ضع خطة مرقمة خطوة بخطوة
-4. حدد درجة الخطورة: 🟢 Low | 🟡 Medium | 🟠 High | 🔴 Critical
-5. اذكر التأثيرات المحتملة على باقي النظام
-
-عند كتابة الكود:
-- استخدم TypeScript مع أنواع صريحة
-- اتبع أنماط المشروع الحالية
-- أضف تعليقات بالعربية للتوضيح
-- لا تكرر كود موجود
-
-أجب دائماً بالعربية إلا عند كتابة الكود أو المصطلحات التقنية.
-استخدم Markdown و code blocks مع syntax highlighting.`;
+== نمط الإجابة المطلوب ==
+- ملخص الهدف والمشكلة
+- الخطة والخطوات المرقمة
+- الملفات المعنية مع مساراتها الكاملة (مثل [ai-provider.server.ts](file:///d:/web/indexes_store/src/lib/ai-provider.server.ts))
+- مستوى الخطورة: 🟢 Low | 🟡 Medium | 🟠 High | 🔴 Critical
+- الكود والتنفيذ في code blocks مخصصة ومحددة اللغة.`;
 }
 
 export const Route = createFileRoute("/api/ai/agent")({
@@ -104,7 +89,7 @@ export const Route = createFileRoute("/api/ai/agent")({
           payload = InputSchema.parse(await request.json());
         } catch (e) {
           return Response.json(
-            { error: "Invalid input payload", detail: String(e) },
+            { error: "بيانات الطلب غير صالحة", detail: String(e) },
             { status: 400 },
           );
         }
@@ -116,103 +101,131 @@ export const Route = createFileRoute("/api/ai/agent")({
           );
         }
 
-        console.log("[ENV_DEBUG]", {
-          LOVABLE_API_KEY: Boolean(process.env.LOVABLE_API_KEY),
-          GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
-          GOOGLE_VERTEX_PROJECT: Boolean(process.env.GOOGLE_VERTEX_PROJECT),
-          VERTEX_PROJECT_ID: Boolean(process.env.VERTEX_PROJECT_ID),
-          NODE_ENV: process.env.NODE_ENV,
-          VERCEL_ENV: process.env.VERCEL_ENV,
+        // Create stream with SSE activity status events
+        const encoder = new TextEncoder();
+        const customStream = new ReadableStream({
+          async start(controller) {
+            const sendEvent = (data: object) => {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+              );
+            };
+
+            try {
+              // Status 1: Receiving request
+              sendEvent({
+                type: "status",
+                status: "receiving_request",
+                label: "جاري استقبال طلبك...",
+              });
+              await new Promise((r) => setTimeout(r, 60));
+
+              // Status 2: Analyzing context
+              sendEvent({
+                type: "status",
+                status: "analyzing_context",
+                label: "أحلل طلبك وسياق المشروع...",
+              });
+              await new Promise((r) => setTimeout(r, 60));
+
+              // Status 3: Searching project
+              sendEvent({
+                type: "status",
+                status: "searching_project",
+                label: "أراجع هيكل وملفات المشروع...",
+              });
+
+              // Resolve Active Provider dynamically
+              const resolved = await resolveActiveAIProvider({
+                providerId: payload.providerId,
+              });
+
+              if (!resolved || !resolved.model) {
+                sendEvent({
+                  type: "error",
+                  error:
+                    "لم يتم العثور على مزود AI مفعل، جاري المحاولة...",
+                  detail: "No active AI provider found",
+                });
+                controller.close();
+                return;
+              }
+
+              console.log("[AI_AGENT_RESOLVED]", {
+                provider: resolved.provider,
+                modelName: resolved.modelName,
+                source: resolved.source,
+              });
+
+              // Status 4: Generating response
+              sendEvent({
+                type: "status",
+                status: "generating_response",
+                label: `أكتب الإجابة الفنية (${resolved.provider} / ${resolved.modelName})...`,
+                provider: resolved.provider,
+                model: resolved.modelName,
+              });
+
+              const systemPrompt = buildSystemPrompt(
+                payload.projectMemory,
+                payload.agentRole,
+              );
+
+              // Format messages history
+              const formattedMessages = [
+                ...payload.history.map((m) => ({
+                  role: m.role as "user" | "assistant" | "system",
+                  content: m.content,
+                })),
+                { role: "user" as const, content: payload.message },
+              ];
+
+              // Execute AI stream
+              const result = streamText({
+                model: resolved.model,
+                system: systemPrompt,
+                messages: formattedMessages,
+                temperature: 0.3,
+              });
+
+              for await (const chunk of result.textStream) {
+                if (chunk) {
+                  sendEvent({ type: "text", content: chunk });
+                }
+              }
+
+              // Status 5: Completed
+              sendEvent({
+                type: "status",
+                status: "completed",
+                label: "اكتملت المعالجة بنجاح",
+              });
+              controller.close();
+            } catch (err: any) {
+              console.error("[AI_AGENT_STREAM_ERROR]", err);
+              const errMsg = err?.message || String(err);
+              const userFriendlyErr = /rate|quota|429/i.test(errMsg)
+                ? "تم تجاوز حد الطلبات مؤقتاً، جاري المحاولة..."
+                : "حدث خطأ في مزود AI، جاري إعادة المحاولة...";
+
+              sendEvent({
+                type: "error",
+                error: userFriendlyErr,
+                detail: errMsg,
+              });
+              controller.close();
+            }
+          },
         });
 
-        let model;
-        let provider = "";
-        let modelName = "";
-
-        try {
-          const resolved = await resolveActiveAIProvider({ providerId: payload.providerId });
-          console.log("[AI_AGENT_RESOLVED]", {
-            found: Boolean(resolved),
-            provider: resolved?.provider,
-            modelName: resolved?.modelName,
-            source: resolved?.source,
-          });
-
-          if (!resolved || !resolved.model) {
-            return Response.json(
-              { error: "No AI provider configured" },
-              { status: 500 },
-            );
-          }
-
-          model = resolved.model;
-          provider = String(resolved.provider);
-          modelName = resolved.modelName;
-        } catch (error: any) {
-          console.error("[AI_AGENT_INIT_ERROR]", error);
-          return Response.json(
-            {
-              error: "AI Provider initialization failed",
-              reason: error?.message || String(error),
-              stack: error?.stack,
-            },
-            { status: 500 },
-          );
-        }
-
-        console.log("[AI_AGENT_PROVIDER_SELECTED]", {
-          provider,
-          model: modelName,
+        return new Response(customStream, {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
+          },
         });
-
-        const systemPrompt = buildSystemPrompt(
-          payload.projectMemory,
-          payload.agentRole,
-        );
-
-        try {
-          const result = streamText({
-            model,
-            system: systemPrompt,
-            messages: [
-              ...payload.history.map((m) => ({
-                role: m.role as "user" | "assistant" | "system",
-                content: m.content,
-              })),
-              { role: "user" as const, content: payload.message },
-            ],
-            temperature: 0.4,
-          });
-
-          const response = result.toTextStreamResponse();
-
-          const headers = new Headers(response.headers);
-          headers.set("X-AI-Provider", provider);
-          headers.set("X-AI-Model", modelName);
-          headers.set("X-AI-Session", payload.sessionId);
-
-          return new Response(response.body, {
-            status: response.status,
-            headers,
-          });
-        } catch (error: any) {
-          console.error("[AI_AGENT_EXECUTION_ERROR]", error);
-          const message = error instanceof Error ? error.message : String(error);
-          const status = /rate|429/i.test(message)
-            ? 429
-            : /402|credit/i.test(message)
-              ? 402
-              : 500;
-          return Response.json(
-            {
-              error: "AI execution failed",
-              message: error?.message || String(error),
-              provider: provider,
-              model: modelName,
-            },
-            { status },
-          );
-        }
       },
     },
   },

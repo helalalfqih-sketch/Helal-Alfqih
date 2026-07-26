@@ -71,6 +71,7 @@ import { Route as AdminBannersRouteImport } from './routes/admin.banners'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
 import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
+import { Route as AdminAiAgentRouteImport } from './routes/admin.ai-agent'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public.image-proxy'
 import { Route as ApiAiDebugRouteImport } from './routes/api/ai.debug'
@@ -391,6 +392,11 @@ const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
   path: '/ai-developer',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAiAgentRoute = AdminAiAgentRouteImport.update({
+  id: '/ai-agent',
+  path: '/ai-agent',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
   id: '/api/webhooks/whatsapp',
   path: '/api/webhooks/whatsapp',
@@ -455,6 +461,7 @@ export interface FileRoutesByFullPath {
   '/store': typeof StoreRouteWithChildren
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
@@ -526,6 +533,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
@@ -600,6 +608,7 @@ export interface FileRoutesById {
   '/store': typeof StoreRouteWithChildren
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
@@ -675,6 +684,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/terms'
     | '/track'
+    | '/admin/ai-agent'
     | '/admin/ai-developer'
     | '/admin/ai-settings'
     | '/admin/appearance'
@@ -746,6 +756,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/terms'
     | '/track'
+    | '/admin/ai-agent'
     | '/admin/ai-developer'
     | '/admin/ai-settings'
     | '/admin/appearance'
@@ -819,6 +830,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/terms'
     | '/track'
+    | '/admin/ai-agent'
     | '/admin/ai-developer'
     | '/admin/ai-settings'
     | '/admin/appearance'
@@ -1345,6 +1357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiDeveloperRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/ai-agent': {
+      id: '/admin/ai-agent'
+      path: '/ai-agent'
+      fullPath: '/admin/ai-agent'
+      preLoaderRoute: typeof AdminAiAgentRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/webhooks/whatsapp': {
       id: '/api/webhooks/whatsapp'
       path: '/api/webhooks/whatsapp'
@@ -1424,6 +1443,7 @@ const AdminStoresRouteWithChildren = AdminStoresRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAiAgentRoute: typeof AdminAiAgentRoute
   AdminAiDeveloperRoute: typeof AdminAiDeveloperRoute
   AdminAiSettingsRoute: typeof AdminAiSettingsRoute
   AdminAppearanceRoute: typeof AdminAppearanceRoute
@@ -1458,6 +1478,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAiAgentRoute: AdminAiAgentRoute,
   AdminAiDeveloperRoute: AdminAiDeveloperRoute,
   AdminAiSettingsRoute: AdminAiSettingsRoute,
   AdminAppearanceRoute: AdminAppearanceRoute,

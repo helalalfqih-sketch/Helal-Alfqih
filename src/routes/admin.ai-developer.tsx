@@ -97,6 +97,12 @@ function AIEngineeringAgentPage() {
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [agentActivity, setAgentActivity] = useState<{
+    status: string;
+    label: string;
+    provider?: string;
+    model?: string;
+  } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Queries
@@ -222,8 +228,9 @@ function AIEngineeringAgentPage() {
       content: m.content,
     }));
 
-    // Stream AI response
+    // Stream AI response with Activity Events
     try {
+      setAgentActivity({ status: "receiving_request", label: "جاري استقبال طلبك..." });
       const base = (typeof window !== "undefined" ? window.location.origin : "") || "";
       const res = await fetch(`${base}/api/ai/agent`, {
         method: "POST",
@@ -245,55 +252,75 @@ function AIEngineeringAgentPage() {
       }
 
       const reader = res.body?.getReader();
-      if (!reader) throw new Error("No reader available");
+      if (!reader) throw new Error("تعذر فتح مجرى البيانات مع الذكاء الاصطناعي");
 
       const decoder = new TextDecoder();
       let fullContent = "";
+      let sseBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) {
-          const lines = chunk.split("\n");
-          let hasFormattedLine = false;
-          for (const line of lines) {
-            if (line.startsWith("0:")) {
-              hasFormattedLine = true;
-              try {
-                const text = JSON.parse(line.slice(2));
-                fullContent += text;
-              } catch { /* skip */ }
+        sseBuffer += decoder.decode(value, { stream: true });
+        const events = sseBuffer.split("\n\n");
+        sseBuffer = events.pop() || "";
+
+        for (const rawEvt of events) {
+          const trimmed = rawEvt.trim();
+          if (!trimmed) continue;
+
+          const dataLine = trimmed.split("\n").find((l) => l.startsWith("data:"));
+          if (dataLine) {
+            try {
+              const json = JSON.parse(dataLine.replace(/^data:\s*/, ""));
+              if (json.type === "status") {
+                setAgentActivity({
+                  status: json.status,
+                  label: json.label,
+                  provider: json.provider,
+                  model: json.model,
+                });
+              } else if (json.type === "text") {
+                fullContent += json.content;
+                setStreamingContent(cleanThoughtContent(fullContent));
+              } else if (json.type === "error") {
+                toast.error(json.error || "حدث خطأ في مزود AI، جاري المحاولة...");
+              }
+            } catch {
+              fullContent += trimmed;
+              setStreamingContent(cleanThoughtContent(fullContent));
             }
+          } else {
+            fullContent += trimmed;
+            setStreamingContent(cleanThoughtContent(fullContent));
           }
-          if (!hasFormattedLine) {
-            fullContent += chunk;
-          }
-          setStreamingContent(fullContent);
         }
       }
 
       // Save assistant message
-      if (fullContent) {
+      const cleanedMessage = cleanThoughtContent(fullContent);
+      if (cleanedMessage) {
         const saved = await saveMessageFn({
           data: {
             sessionId,
             role: "assistant",
-            content: fullContent,
+            content: cleanedMessage,
           },
         });
         setMessages((prev) => [...prev, saved]);
       }
 
       setStreamingContent("");
+      setAgentActivity(null);
       queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["ai-agent-usage"] });
     } catch (e: any) {
-      toast.error(e.message || "حدث خطأ في الاتصال بالذكاء الاصطناعي");
+      toast.error(e.message || "حدث خطأ في مزود AI، جاري المحاولة...");
     } finally {
       setIsStreaming(false);
       setStreamingContent("");
+      setAgentActivity(null);
     }
   };
 
@@ -543,7 +570,7 @@ function AIEngineeringAgentPage() {
               ))}
             </AnimatePresence>
 
-            {/* Streaming indicator */}
+            {/* Streaming and Activity indicator */}
             {isStreaming && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -553,20 +580,21 @@ function AIEngineeringAgentPage() {
                 <div className="shrink-0 h-8 w-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center text-cyan-500">
                   <Bot className="h-4 w-4 animate-pulse" />
                 </div>
-                <div className="flex-1 max-w-[85%]">
-                  <div className="rounded-2xl rounded-tl-sm bg-surface border border-border/60 px-4 py-3 text-sm text-foreground">
-                    {streamingContent ? (
+                <div className="flex-1 max-w-[85%] space-y-2">
+                  {/* Activity Badge */}
+                  <div className="inline-flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 text-xs font-bold text-violet-400 shadow-xs animate-pulse">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                    <span>{agentActivity?.label || "جاري معالجة الطلب وسياق المشروع..."}</span>
+                  </div>
+
+                  {streamingContent && (
+                    <div className="rounded-2xl rounded-tl-sm bg-surface border border-border/60 px-4 py-3 text-sm text-foreground shadow-xs">
                       <div className="prose prose-sm prose-invert max-w-none [&_pre]:rounded-xl [&_pre]:bg-black/40 [&_code]:text-violet-400 [&_code]:text-xs">
                         <MarkdownContent content={streamingContent} />
                         <span className="inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm ms-0.5" />
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-xs font-bold">المهندس يفكر...</span>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -736,10 +764,21 @@ function RiskBadge({ level }: { level: string }) {
   );
 }
 
+/** Clean reasoning / chain of thought tags from text */
+function cleanThoughtContent(content: string): string {
+  if (!content) return "";
+  return content
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*/gi, "")
+    .replace(/^Thinking Process:[\s\S]*?\n\n/gi, "")
+    .trim();
+}
+
 /** Simple markdown-to-HTML renderer for AI responses */
 function MarkdownContent({ content }: { content: string }) {
+  const cleaned = cleanThoughtContent(content);
   // Simple markdown rendering — handle code blocks, bold, lists
-  const html = content
+  const html = cleaned
     // Code blocks
     .replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) =>
       `<pre><code class="language-${lang || "text"}">${escapeHtml(code.trim())}</code></pre>`
