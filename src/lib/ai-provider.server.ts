@@ -142,7 +142,7 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
 
   if (provider === "vertex") {
     let raw = apiKey || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
-    let project = "gemini-api-project-475420";
+    let project = "smartcontentcreator-d49f2";
     let credentials: any = undefined;
 
     if (raw) {
@@ -256,7 +256,7 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
   if (gcpCredentialsJson) {
     try {
       const creds = JSON.parse(gcpCredentialsJson);
-      const project = creds.project_id || vertexProject || "gemini-api-project-475420";
+      const project = creds.project_id || vertexProject || "smartcontentcreator-d49f2";
       const googleAuthOptions = creds.client_email && creds.private_key
         ? { credentials: { client_email: creds.client_email, private_key: creds.private_key } }
         : undefined;
