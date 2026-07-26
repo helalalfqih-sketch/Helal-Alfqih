@@ -52,6 +52,8 @@ import {
   seedProjectMemory,
   getAgentUsageStats,
   getAgentRole,
+  approveAgentTask,
+  rejectAgentTask,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -89,6 +91,8 @@ function AIEngineeringAgentPage() {
   const getUsageFn = useServerFn(getAgentUsageStats);
   const getRoleFn = useServerFn(getAgentRole);
   const listProvidersFn = useServerFn(listAIProvidersFn);
+  const approveTaskFn = useServerFn(approveAgentTask);
+  const rejectTaskFn = useServerFn(rejectAgentTask);
 
   // State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -97,6 +101,12 @@ function AIEngineeringAgentPage() {
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [pendingTask, setPendingTask] = useState<{
+    taskId: string;
+    plan: any[];
+    affectedFiles: string[];
+    riskLevel: string;
+  } | null>(null);
   const [agentActivity, setAgentActivity] = useState<{
     status: string;
     label: string;
@@ -167,6 +177,31 @@ function AIEngineeringAgentPage() {
       inputRef.current?.focus();
     } catch (e: any) {
       toast.error(e.message || "فشل إنشاء الجلسة");
+    }
+  };
+
+  // Approval Gate Handlers
+  const handleApproveTask = async () => {
+    if (!pendingTask) return;
+    try {
+      await approveTaskFn({ data: { taskId: pendingTask.taskId } });
+      toast.success(`تمت الموافقة على ${pendingTask.taskId}! جاري تنفيذ التعديلات...`);
+      setPendingTask(null);
+      setAgentActivity({ status: "executing", label: "⚙️ جاري تنفيذ التعديلات المعتمدة..." });
+    } catch (e: any) {
+      toast.error(e.message || "فشل إرسال الموافقة");
+    }
+  };
+
+  const handleRejectTask = async () => {
+    if (!pendingTask) return;
+    try {
+      await rejectTaskFn({ data: { taskId: pendingTask.taskId, reason: "رُفض من المستخدم" } });
+      toast.info(`تم إلغاء المهمة ${pendingTask.taskId}.`);
+      setPendingTask(null);
+      setAgentActivity(null);
+    } catch (e: any) {
+      toast.error(e.message || "فشل إلغاء المهمة");
     }
   };
 
@@ -280,6 +315,27 @@ function AIEngineeringAgentPage() {
                   label: json.label,
                   provider: json.provider,
                   model: json.model,
+                });
+              } else if (
+                json.type === "reading_file" ||
+                json.type === "searching_code" ||
+                json.type === "inspecting_db" ||
+                json.type === "tool_call"
+              ) {
+                setAgentActivity({
+                  status: json.type,
+                  label: json.message || "جاري استخدام أداة التطوير...",
+                });
+              } else if (json.type === "approval_required" || json.type === "plan_ready") {
+                setPendingTask({
+                  taskId: json.taskId || `task-${Date.now()}`,
+                  plan: json.plan || [],
+                  affectedFiles: json.affectedFiles || [],
+                  riskLevel: json.riskLevel || "low",
+                });
+                setAgentActivity({
+                  status: "approval_required",
+                  label: "⏸ في انتظار موافقتك الصريحة للتنفيذ...",
                 });
               } else if (json.type === "text") {
                 fullContent += json.content;
@@ -580,12 +636,60 @@ function AIEngineeringAgentPage() {
                 <div className="shrink-0 h-8 w-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center text-cyan-500">
                   <Bot className="h-4 w-4 animate-pulse" />
                 </div>
-                <div className="flex-1 max-w-[85%] space-y-2">
+                <div className="flex-1 max-w-[85%] space-y-3">
                   {/* Activity Badge */}
                   <div className="inline-flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 text-xs font-bold text-violet-400 shadow-xs animate-pulse">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
                     <span>{agentActivity?.label || "جاري معالجة الطلب وسياق المشروع..."}</span>
                   </div>
+
+                  {/* Interactive Approval Gate Card */}
+                  {pendingTask && (
+                    <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 space-y-3 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-5 w-5 text-amber-400" />
+                          <span className="font-bold text-sm text-amber-200">طلب اعتماد خطة التنفيذ ({pendingTask.taskId})</span>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono">
+                          الخطورة: {pendingTask.riskLevel}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-amber-200/80 leading-relaxed">
+                        الخطة تتضمن تعديل {pendingTask.affectedFiles.length} ملفات وتتطلب موافقتك الصريحة قبل إجراء أي تغييرات برمجية.
+                      </p>
+
+                      {pendingTask.affectedFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {pendingTask.affectedFiles.map((file) => (
+                            <span key={file} className="text-[10px] font-mono bg-black/40 text-amber-300 px-2 py-1 rounded-md">
+                              {file}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleApproveTask}
+                          className="flex-1 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          الموافقة وتنفيذ الخطة
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRejectTask}
+                          className="py-2 px-4 rounded-xl bg-destructive/80 hover:bg-destructive text-white font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          إلغاء الخطة
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {streamingContent && (
                     <div className="rounded-2xl rounded-tl-sm bg-surface border border-border/60 px-4 py-3 text-sm text-foreground shadow-xs">
