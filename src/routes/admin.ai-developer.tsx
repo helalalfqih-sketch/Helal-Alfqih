@@ -486,27 +486,31 @@ function AIEngineeringAgentPage() {
   const approveTaskServerFn = useServerFn(approveAgentTask);
 
   const handleApproveTask = async () => {
-    if (!pendingTask) return;
-    if (agentRole !== "owner") {
-      toast.error("مرفوض: الاعتماد والتنفيذ الفعلي متاح فقط لرتبة المالك (Owner) 👑");
+    let taskIdToRun = pendingTask?.taskId;
+    if (!taskIdToRun && activeSessionId) {
+      taskIdToRun = `task-${activeSessionId}`;
+    }
+    if (!taskIdToRun) {
+      toast.error("لا يوجد مهمة نشطة لبدء عملية البناء والتنفيذ");
       return;
     }
 
     setIsExecutingTask(true);
-    toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${pendingTask.taskId}...`, { id: "task-exec" });
+    toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${taskIdToRun}...`, { id: "task-exec" });
 
     try {
       // 1. approvePlan(taskId)
-      await approveTaskServerFn({ data: { taskId: pendingTask.taskId } });
+      await approveTaskServerFn({ data: { taskId: taskIdToRun } });
       
       // 2. startExecution(taskId)
-      const res = (await executeApprovedFn({ data: { taskId: pendingTask.taskId } })) as any;
+      const res = (await executeApprovedFn({ data: { taskId: taskIdToRun } })) as any;
       if (res?.success) {
         toast.success(`تم تطبيق جميع الخطوات والتعديلات واجتياز فحص البناء بنجاح! ✨`, { id: "task-exec" });
         setPendingTask(null);
         setFailureExplanation(null);
         queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
         queryClient.invalidateQueries({ queryKey: ["ai-execution-journal"] });
+        queryClient.invalidateQueries({ queryKey: ["ai-session-events", activeSessionId] });
       } else {
         if (res?.failureDetails) {
           setFailureExplanation(res.failureDetails);
@@ -879,10 +883,24 @@ function AIEngineeringAgentPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#222226] border border-zinc-800 text-[11px] text-zinc-300 font-bold cursor-pointer hover:border-zinc-700">
-                    <span>Build</span>
-                    <ChevronDown className="w-3 h-3 text-zinc-400" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApproveTask}
+                    disabled={isExecutingTask}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold cursor-pointer shadow-lg shadow-violet-600/20 transition disabled:opacity-50"
+                  >
+                    {isExecutingTask ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Executing Build...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 text-white fill-current" />
+                        <span>Build & Execute</span>
+                      </>
+                    )}
+                  </button>
 
                   <button type="button" className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
                     <Mic className="w-4 h-4" />
