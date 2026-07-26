@@ -15,6 +15,7 @@ export interface FailureResponseDetails {
   riskLevel: "low" | "medium" | "high" | "critical";
   suggestedFix: string;
   requiredAction: string;
+  errorLog?: string;
 }
 
 /**

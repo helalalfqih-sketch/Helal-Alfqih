@@ -1,5 +1,5 @@
 import { getAdminDb } from "@/lib/ai-agent.functions";
-import { savePersistentExecutionEvent, logExecutionJournal } from "./journal.service";
+import { savePersistentExecutionEvent, logExecutionJournal, hasExecutionStartedLog, type AgentExecutionError } from "./journal.service";
 import { AgentTaskState } from "./agent.state";
 
 export interface ExecutionControllerOptions {
@@ -43,25 +43,30 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
   const { executeApprovedTask } = await import("@/lib/ai-agent.functions");
   const { taskId, tenantId, sessionId } = options;
 
-  await logExecutionJournal({
-    taskId,
-    tenantId: tenantId || "default",
-    action: "EXECUTION_STARTED",
-    tool: "startExecution",
-    input: { taskId, sessionId },
-    output: { status: "started" },
-    status: "PENDING",
-  });
+  // 1. Deduplication guard — prevent duplicate EXECUTION_STARTED logs
+  const alreadyStarted = await hasExecutionStartedLog(taskId);
+  if (!alreadyStarted) {
+    // 2. Atomic initialization: Log EXECUTION_STARTED as PENDING
+    await logExecutionJournal({
+      taskId,
+      tenantId: tenantId || "default",
+      action: "EXECUTION_STARTED",
+      tool: "startExecution",
+      input: { taskId, sessionId },
+      output: { status: "started" },
+      status: "PENDING",
+    });
 
-  await savePersistentExecutionEvent({
-    sessionId: sessionId || "default",
-    taskId,
-    tenantId: tenantId || "default",
-    eventType: "STATE_CHANGE",
-    state: AgentTaskState.EXECUTING,
-    message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
-    progress: 60,
-  });
+    await savePersistentExecutionEvent({
+      sessionId: sessionId || "default",
+      taskId,
+      tenantId: tenantId || "default",
+      eventType: "STATE_CHANGE",
+      state: AgentTaskState.EXECUTING,
+      message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
+      progress: 60,
+    });
+  }
 
   try {
     const res = (await executeApprovedTask({ data: { taskId } })) as any;
@@ -89,13 +94,22 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
 
       return { success: true, output: res.buildOutput };
     } else {
+      const errDetails: AgentExecutionError = {
+        message: res?.failureDetails?.reason || res?.buildOutput || "Verification / Build Error",
+        stack: res?.failureDetails?.stack,
+        stdout: res?.failureDetails?.stdout,
+        stderr: res?.failureDetails?.stderr,
+        failed_step: res?.failureDetails?.failed_step || "BUILD_VALIDATION",
+        tool_name: res?.failureDetails?.tool_name || "npm_build",
+      };
+
       await logExecutionJournal({
         taskId,
         tenantId: tenantId || "default",
         action: "EXECUTION_FAILED",
         tool: "startExecution",
         input: { taskId },
-        output: { status: "build_failed", failureDetails: res?.failureDetails },
+        output: { status: "build_failed", failureDetails: errDetails },
         status: "FAILED",
       });
 
@@ -105,21 +119,29 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         tenantId: tenantId || "default",
         eventType: "ERROR",
         state: AgentTaskState.FAILED,
-        message: `❌ Task execution failed: ${res?.failureDetails?.reason || "Verification error"}`,
+        message: `❌ Task execution failed: ${errDetails.message}`,
         progress: 95,
       });
 
-      return res;
+      return { ...res, failureDetails: errDetails };
     }
   } catch (err: any) {
-    const errorMsg = err.message || String(err);
+    const errDetails: AgentExecutionError = {
+      message: err.message || String(err),
+      stack: err.stack,
+      stdout: err.stdout,
+      stderr: err.stderr,
+      failed_step: err.failed_step || "startExecution",
+      tool_name: err.tool_name || "startExecution",
+    };
+
     await logExecutionJournal({
       taskId,
       tenantId: tenantId || "default",
       action: "EXECUTION_FAILED",
       tool: "startExecution",
       input: { taskId },
-      output: { error: errorMsg },
+      output: { error: errDetails },
       status: "FAILED",
     });
 
@@ -129,7 +151,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       tenantId: tenantId || "default",
       eventType: "ERROR",
       state: AgentTaskState.FAILED,
-      message: `❌ Execution orchestrator exception: ${errorMsg}`,
+      message: `❌ Execution orchestrator exception: ${errDetails.message}`,
       progress: 0,
     });
 

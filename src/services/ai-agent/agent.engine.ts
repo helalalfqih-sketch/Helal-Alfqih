@@ -323,8 +323,50 @@ function buildTools(
     inputSchema: ExecuteTaskSchema,
     execute: async (input: z.infer<typeof ExecuteTaskSchema>) => {
       sendEvent(makeToolCallEvent("execute_task", { task_id: input.task_id }));
-      const { startExecution } = await import("./execution.controller");
-      return startExecution({ taskId: input.task_id, tenantId, sessionId: "" });
+      const { logExecutionJournal } = await import("./journal.service");
+      await logExecutionJournal({
+        taskId: input.task_id,
+        tenantId,
+        action: "TOOL_STARTED",
+        tool: "execute_task",
+        input: { task_id: input.task_id },
+        output: { status: "running" },
+        status: "PENDING",
+      });
+
+      try {
+        const { startExecution } = await import("./execution.controller");
+        const res = await startExecution({ taskId: input.task_id, tenantId, sessionId: "" });
+        await logExecutionJournal({
+          taskId: input.task_id,
+          tenantId,
+          action: "TOOL_COMPLETED",
+          tool: "execute_task",
+          input: { task_id: input.task_id },
+          output: { res },
+          status: res.success ? "SUCCESS" : "FAILED",
+        });
+        return res;
+      } catch (err: any) {
+        const errPayload = {
+          message: err.message || String(err),
+          stack: err.stack,
+          stdout: err.stdout,
+          stderr: err.stderr,
+          failed_step: "execute_task",
+          tool_name: "execute_task",
+        };
+        await logExecutionJournal({
+          taskId: input.task_id,
+          tenantId,
+          action: "TOOL_FAILED",
+          tool: "execute_task",
+          input: { task_id: input.task_id },
+          output: errPayload,
+          status: "FAILED",
+        });
+        throw err;
+      }
     },
   };
 
@@ -336,19 +378,39 @@ function buildTools(
       sendEvent(makeToolCallEvent("create_migration", { migration_name: input.migration_name }));
       const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
       const filePath = `supabase/migrations/${timestamp}_${input.migration_name}.sql`;
-      const proposal = await proposeCreateFile(filePath, input.sql);
       
       const { logExecutionJournal } = await import("./journal.service");
       await logExecutionJournal({
         tenantId,
-        action: "CREATE_MIGRATION",
+        action: "TOOL_STARTED",
         tool: "create_migration",
         input: { filePath, migration_name: input.migration_name },
-        output: { success: true },
-        status: "SUCCESS",
+        output: { status: "creating" },
+        status: "PENDING",
       });
 
-      return { status: "created", filePath, diff: proposal.diff };
+      try {
+        const proposal = await proposeCreateFile(filePath, input.sql);
+        await logExecutionJournal({
+          tenantId,
+          action: "CREATE_MIGRATION",
+          tool: "create_migration",
+          input: { filePath, migration_name: input.migration_name },
+          output: { success: true, filePath },
+          status: "SUCCESS",
+        });
+        return { status: "created", filePath, diff: proposal.diff };
+      } catch (err: any) {
+        await logExecutionJournal({
+          tenantId,
+          action: "TOOL_FAILED",
+          tool: "create_migration",
+          input: { filePath, migration_name: input.migration_name },
+          output: { message: err.message || String(err), stack: err.stack, failed_step: "create_migration" },
+          status: "FAILED",
+        });
+        throw err;
+      }
     },
   };
 
@@ -358,6 +420,16 @@ function buildTools(
     inputSchema: RunValidationSchema,
     execute: async (input: z.infer<typeof RunValidationSchema>) => {
       sendEvent(makeToolCallEvent("run_validation", { check_type: input.check_type }));
+      const { logExecutionJournal } = await import("./journal.service");
+      await logExecutionJournal({
+        tenantId,
+        action: "TOOL_STARTED",
+        tool: "run_validation",
+        input: { check_type: input.check_type },
+        output: { status: "running" },
+        status: "PENDING",
+      });
+
       const { execFile } = await import("node:child_process");
       const { promisify } = await import("node:util");
       const execAsync = promisify(execFile);
@@ -366,19 +438,34 @@ function buildTools(
         const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
         const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
         
-        const { logExecutionJournal } = await import("./journal.service");
         await logExecutionJournal({
           tenantId,
           action: "RUN_VALIDATION",
           tool: "run_validation",
           input: { check_type: input.check_type },
-          output: { stdout: "Passed Cleanly ✅" },
+          output: { stdout: "Passed Cleanly ✅", typecheck: tcOut, build: bOut },
           status: "SUCCESS",
         });
 
         return { status: "success", message: "TypeScript check & Build passed cleanly ✅" };
       } catch (err: any) {
-        return { status: "failed", error: err.message || String(err) };
+        const errPayload = {
+          message: err.message || String(err),
+          stack: err.stack,
+          stdout: err.stdout,
+          stderr: err.stderr,
+          failed_step: "RUN_VALIDATION",
+          tool_name: "run_validation",
+        };
+        await logExecutionJournal({
+          tenantId,
+          action: "TOOL_FAILED",
+          tool: "run_validation",
+          input: { check_type: input.check_type },
+          output: errPayload,
+          status: "FAILED",
+        });
+        return { status: "failed", error: errPayload };
       }
     },
   };

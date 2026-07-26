@@ -498,6 +498,10 @@ function AIEngineeringAgentPage() {
     setIsExecutingTask(true);
     toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${taskIdToRun}...`, { id: "task-exec" });
 
+    // Instantly invalidate queries so EXECUTION_STARTED appears immediately
+    queryClient.invalidateQueries({ queryKey: ["ai-execution-journal"] });
+    queryClient.invalidateQueries({ queryKey: ["ai-session-events", activeSessionId] });
+
     try {
       // 1. approvePlan(taskId)
       await approveTaskServerFn({ data: { taskId: taskIdToRun } });
@@ -518,9 +522,13 @@ function AIEngineeringAgentPage() {
         if (res?.recoveryTimeline) {
           setRecoveryTimeline(res.recoveryTimeline);
         }
-        toast.error(`فشل التنفيذ/فحص البناء! (${res?.failureDetails?.reason || "تم التراجع تلقائياً"}) 🔄`, { id: "task-exec" });
+        queryClient.invalidateQueries({ queryKey: ["ai-execution-journal"] });
+        queryClient.invalidateQueries({ queryKey: ["ai-session-events", activeSessionId] });
+        toast.error(`فشل التنفيذ/فحص البناء! (${res?.failureDetails?.reason || res?.failureDetails?.message || "تم التراجع تلقائياً"}) 🔄`, { id: "task-exec" });
       }
     } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["ai-execution-journal"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-session-events", activeSessionId] });
       toast.error(err.message || "حدث خطأ أثناء التنفيذ", { id: "task-exec" });
     } finally {
       setIsExecutingTask(false);
@@ -1109,11 +1117,17 @@ function AIEngineeringAgentPage() {
                     const timeStr = log.createdAt
                       ? new Date(log.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
                       : "--:--:--";
+                    const isPending = log.status === "PENDING";
+                    const isSuccess = log.status === "SUCCESS";
                     return (
                       <div key={log.id || log.createdAt} className="p-2.5 rounded-xl bg-[#121214] border border-zinc-800/80 flex items-center justify-between text-xs font-mono">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                            log.status === "SUCCESS" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                            isSuccess
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : isPending
+                                ? "bg-amber-500/20 text-amber-400"
+                                : "bg-red-500/20 text-red-400"
                           }`}>
                             {log.status}
                           </span>
@@ -1138,22 +1152,44 @@ function AIEngineeringAgentPage() {
                 <div className="flex items-center justify-between border-b border-red-500/20 pb-2">
                   <h3 className="font-bold text-xs text-red-400 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-red-400" />
-                    Failure Explanation Panel ({failureExplanation.errorType})
+                    Failure Explanation Panel ({failureExplanation.errorType || failureExplanation.failed_step || "Build Failure"})
                   </h3>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 uppercase">
-                    {failureExplanation.riskLevel} RISK
+                    {failureExplanation.riskLevel || "HIGH"} RISK
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                   <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
                     <div className="text-[10px] font-bold text-zinc-400">السبب (Reason):</div>
-                    <div className="text-zinc-200 font-semibold">{failureExplanation.reason}</div>
+                    <div className="text-zinc-200 font-semibold">{failureExplanation.reason || failureExplanation.message}</div>
                   </div>
                   <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
-                    <div className="text-[10px] font-bold text-zinc-400">النظام المتأثر:</div>
-                    <div className="text-cyan-400 font-semibold">{failureExplanation.affectedSystem}</div>
+                    <div className="text-[10px] font-bold text-zinc-400">النظام المتأثر / الأداة:</div>
+                    <div className="text-cyan-400 font-semibold">{failureExplanation.affectedSystem || failureExplanation.tool_name || "Engine Pipeline"}</div>
                   </div>
                 </div>
+
+                {/* Additional rich error details: stdout, stderr, stack */}
+                {(failureExplanation.stdout || failureExplanation.stderr || failureExplanation.stack) && (
+                  <div className="p-2.5 rounded-xl bg-black/60 border border-zinc-800 space-y-1 font-mono text-[10px] dir-ltr text-start">
+                    <div className="text-zinc-400 font-bold">Terminal / Error Log Output:</div>
+                    {failureExplanation.stdout && (
+                      <pre className="text-zinc-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-zinc-900 leading-tight">
+                        {failureExplanation.stdout.slice(0, 1500)}
+                      </pre>
+                    )}
+                    {failureExplanation.stderr && (
+                      <pre className="text-red-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-red-950 leading-tight">
+                        {failureExplanation.stderr.slice(0, 1500)}
+                      </pre>
+                    )}
+                    {failureExplanation.stack && !failureExplanation.stdout && !failureExplanation.stderr && (
+                      <pre className="text-amber-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-amber-950 leading-tight">
+                        {failureExplanation.stack.slice(0, 1000)}
+                      </pre>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

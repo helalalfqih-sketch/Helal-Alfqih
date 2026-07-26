@@ -1,5 +1,14 @@
 import { getAdminDb } from "@/lib/ai-agent.functions";
 
+export interface AgentExecutionError {
+  message: string;
+  stack?: string;
+  stdout?: string;
+  stderr?: string;
+  failed_step?: string;
+  tool_name?: string;
+}
+
 export interface ExecutionJournalLog {
   id?: string;
   taskId?: string;
@@ -11,6 +20,22 @@ export interface ExecutionJournalLog {
   status: "SUCCESS" | "FAILED" | "PENDING";
   createdAt?: string;
 }
+
+export async function hasExecutionStartedLog(taskId: string): Promise<boolean> {
+  if (!taskId) return false;
+  try {
+    const db = await getAdminDb({});
+    const { count } = await db
+      .from("agent_execution_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .eq("action", "EXECUTION_STARTED");
+    return (count || 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 
 export async function logExecutionJournal(log: ExecutionJournalLog): Promise<void> {
   try {

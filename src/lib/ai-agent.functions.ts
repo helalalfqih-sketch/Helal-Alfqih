@@ -853,7 +853,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
     }
 
     // Step 1: Update status to 'executing' (EXECUTION_STARTED phase)
-    const { logExecutionJournal, savePersistentExecutionEvent } = await import("@/services/ai-agent/journal.service");
+    const { logExecutionJournal, savePersistentExecutionEvent, hasExecutionStartedLog } = await import("@/services/ai-agent/journal.service");
     const { AgentTaskState } = await import("@/services/ai-agent/agent.state");
 
     await db
@@ -861,26 +861,29 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       .update({ status: "executing", updated_at: new Date().toISOString() })
       .eq("id", data.taskId);
 
-    // Initial EXECUTION_STARTED journal entry
-    await logExecutionJournal({
-      taskId: data.taskId,
-      tenantId,
-      action: "EXECUTION_STARTED",
-      tool: "execute_approved_task",
-      input: { taskId: data.taskId },
-      output: { status: "started" },
-      status: "SUCCESS",
-    });
+    // Initial EXECUTION_STARTED journal entry with deduplication guard
+    const alreadyStarted = await hasExecutionStartedLog(data.taskId);
+    if (!alreadyStarted) {
+      await logExecutionJournal({
+        taskId: data.taskId,
+        tenantId,
+        action: "EXECUTION_STARTED",
+        tool: "execute_approved_task",
+        input: { taskId: data.taskId },
+        output: { status: "started" },
+        status: "PENDING",
+      });
 
-    await savePersistentExecutionEvent({
-      sessionId: task.session_id || "default",
-      taskId: data.taskId,
-      tenantId,
-      eventType: "STATE_CHANGE",
-      state: AgentTaskState.EXECUTING,
-      message: "⚙️ Starting task execution and file modifications...",
-      progress: 60,
-    });
+      await savePersistentExecutionEvent({
+        sessionId: task.session_id || "default",
+        taskId: data.taskId,
+        tenantId,
+        eventType: "STATE_CHANGE",
+        state: AgentTaskState.EXECUTING,
+        message: "⚙️ Starting task execution and file modifications...",
+        progress: 60,
+      });
+    }
 
     try {
       // Step 2: Sandbox Layer — Create snapshot of original files before applying edits
@@ -1172,8 +1175,27 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       const executionTimeMs = Date.now() - startTime;
       const { analyzeAndFormatFailure } = await import("@/services/ai-agent/failure-response.engine");
       const failureDetails = analyzeAndFormatFailure(e, {
-        affectedFiles: (task.affected_files as string[]) || [],
+        affectedFiles: (task?.affected_files as string[]) || [],
         taskId: data.taskId,
+      });
+
+      const errPayload = {
+        message: e.message || String(e),
+        stack: e.stack,
+        stdout: e.stdout,
+        stderr: e.stderr,
+        failed_step: failureDetails.errorType || "EXECUTION_FAILED",
+        tool_name: "executeApprovedTask",
+      };
+
+      await logExecutionJournal({
+        taskId: data.taskId,
+        tenantId,
+        action: "EXECUTION_FAILED",
+        tool: "executeApprovedTask",
+        input: { taskId: data.taskId },
+        output: { error: errPayload, failureDetails },
+        status: "FAILED",
       });
 
       await db
@@ -1190,10 +1212,10 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       await recordExecutionHistory({
         tenant_id: tenantId,
         task_id: data.taskId,
-        session_id: task.session_id,
+        session_id: task?.session_id || "default",
         user_id: ctx.userId,
         status: failureDetails.errorType,
-        files_changed: (task.affected_files as string[]) || [],
+        files_changed: (task?.affected_files as string[]) || [],
         typecheck_passed: false,
         build_passed: false,
         build_output: e.message || String(e),
@@ -1206,7 +1228,10 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         status: failureDetails.errorType,
         buildOutput: e.message || String(e),
         executionTimeMs,
-        failureDetails,
+        failureDetails: {
+          ...failureDetails,
+          ...errPayload,
+        },
       };
     }
   });
