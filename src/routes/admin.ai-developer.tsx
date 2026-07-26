@@ -770,7 +770,7 @@ function AIEngineeringAgentPage() {
                         className="w-full flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#1a1a1e] border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition group"
                       >
                         <span className="font-semibold text-zinc-200">
-                          {pendingTask ? `Plan (${pendingTask.taskId})` : "Skipped creating plan"}
+                          {pendingTask ? `Plan (${pendingTask.taskId})` : "Engineering Plan Required"}
                         </span>
                         <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition" />
                       </button>
@@ -975,7 +975,7 @@ function AIEngineeringAgentPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-violet-400" />
-                  {pendingTask ? "Plan" : "Skipped creating plan"}
+                  {pendingTask ? "Plan" : "Architectural Plan Required"}
                 </span>
               </div>
 

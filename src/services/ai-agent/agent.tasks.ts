@@ -75,6 +75,59 @@ export interface TaskMemoryEntry {
   tags?: string[];
 }
 
+export interface AgentPlan {
+  id?: string;
+  sessionId: string;
+  tenantId: string;
+  objective: string;
+  affectedFiles: string[];
+  affectedTables: string[];
+  implementationSteps: Array<{ step: number; action: string; description: string; file?: string }>;
+  risks: Array<{ risk: string; mitigation: string }>;
+  validationCommands: string[];
+  status: "PLAN_CREATED" | "WAITING_APPROVAL" | "APPROVED" | "EXECUTING" | "VALIDATING" | "COMPLETED" | "FAILED";
+  approvedAt?: string;
+  createdAt?: string;
+}
+
+export async function saveArchitecturalPlan(plan: AgentPlan): Promise<AgentPlan> {
+  try {
+    const db = await getAdminDb({});
+    const payload = {
+      session_id: plan.sessionId,
+      tenant_id: plan.tenantId || "default",
+      objective: plan.objective,
+      affected_files: plan.affectedFiles || [],
+      affected_tables: plan.affectedTables || [],
+      implementation_steps: plan.implementationSteps || [],
+      risks: plan.risks || [],
+      validation_commands: plan.validationCommands || [],
+      status: plan.status || "PLAN_CREATED",
+      created_at: new Date().toISOString(),
+    };
+
+    const { data } = await (db as any).from("ai_agent_plans").insert(payload).select("*").single();
+    if (data) {
+      return {
+        id: data.id,
+        sessionId: data.session_id,
+        tenantId: data.tenant_id,
+        objective: data.objective,
+        affectedFiles: data.affected_files,
+        affectedTables: data.affected_tables,
+        implementationSteps: data.implementation_steps,
+        risks: data.risks,
+        validationCommands: data.validation_commands,
+        status: data.status,
+        createdAt: data.created_at,
+      };
+    }
+  } catch (err) {
+    console.warn("[AgentPlan] Save plan notice:", err);
+  }
+  return plan;
+}
+
 // ─────────────────────────────────────────────────
 // ID Generator
 // ─────────────────────────────────────────────────
