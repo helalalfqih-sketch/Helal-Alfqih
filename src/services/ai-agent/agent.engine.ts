@@ -150,6 +150,15 @@ const ExecuteTaskSchema = z.object({
   task_id: z.string().describe("معرف المهمة المراد تفعيل خطواتها الميدانية والفحص البنائي لها"),
 });
 
+const CreateMigrationSchema = z.object({
+  migration_name: z.string().describe("اسم الـ Migration بالإنجليزية مثل order_notifications_system"),
+  sql: z.string().describe("محتوى كود الـ SQL المراد إنشاؤه"),
+});
+
+const RunValidationSchema = z.object({
+  check_type: z.enum(["typecheck", "build", "all"]).optional().default("all"),
+});
+
 // ─────────────────────────────────────────────────
 // Build ToolSet for ai SDK v7
 // ─────────────────────────────────────────────────
@@ -316,6 +325,61 @@ function buildTools(
       sendEvent(makeToolCallEvent("execute_task", { task_id: input.task_id }));
       const { startExecution } = await import("./execution.controller");
       return startExecution({ taskId: input.task_id, tenantId, sessionId: "" });
+    },
+  };
+
+  // ── Create Migration ────────────────────────────────────────
+  tools.create_migration = {
+    description: "إنشاء ملف SQL Migration جديد في مجلد supabase/migrations/",
+    inputSchema: CreateMigrationSchema,
+    execute: async (input: z.infer<typeof CreateMigrationSchema>) => {
+      sendEvent(makeToolCallEvent("create_migration", { migration_name: input.migration_name }));
+      const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+      const filePath = `supabase/migrations/${timestamp}_${input.migration_name}.sql`;
+      const proposal = await proposeCreateFile(filePath, input.sql);
+      
+      const { logExecutionJournal } = await import("./journal.service");
+      await logExecutionJournal({
+        tenantId,
+        action: "CREATE_MIGRATION",
+        tool: "create_migration",
+        input: { filePath, migration_name: input.migration_name },
+        output: { success: true },
+        status: "SUCCESS",
+      });
+
+      return { status: "created", filePath, diff: proposal.diff };
+    },
+  };
+
+  // ── Run Validation ──────────────────────────────────────────
+  tools.run_validation = {
+    description: "تشغيل فحص الأخطاء والتجميع البرمجي npm run typecheck و npm run build",
+    inputSchema: RunValidationSchema,
+    execute: async (input: z.infer<typeof RunValidationSchema>) => {
+      sendEvent(makeToolCallEvent("run_validation", { check_type: input.check_type }));
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(execFile);
+
+      try {
+        const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
+        const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
+        
+        const { logExecutionJournal } = await import("./journal.service");
+        await logExecutionJournal({
+          tenantId,
+          action: "RUN_VALIDATION",
+          tool: "run_validation",
+          input: { check_type: input.check_type },
+          output: { stdout: "Passed Cleanly ✅" },
+          status: "SUCCESS",
+        });
+
+        return { status: "success", message: "TypeScript check & Build passed cleanly ✅" };
+      } catch (err: any) {
+        return { status: "failed", error: err.message || String(err) };
+      }
     },
   };
 

@@ -849,21 +849,34 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
     }
 
-    // Step 1: Update status to 'executing' (EXECUTION_PREPARING phase)
-    const { logExecutionJournal } = await import("@/services/ai-agent/journal.service");
+    // Step 1: Update status to 'executing' (EXECUTION_STARTED phase)
+    const { logExecutionJournal, savePersistentExecutionEvent } = await import("@/services/ai-agent/journal.service");
+    const { AgentTaskState } = await import("@/services/ai-agent/agent.state");
+
     await db
       .from("ai_agent_tasks")
       .update({ status: "executing", updated_at: new Date().toISOString() })
       .eq("id", data.taskId);
 
+    // Initial EXECUTION_STARTED journal entry
     await logExecutionJournal({
       taskId: data.taskId,
       tenantId,
-      action: "EXECUTION_PREPARING",
+      action: "EXECUTION_STARTED",
       tool: "execute_approved_task",
       input: { taskId: data.taskId },
-      output: { status: "Preparing Execution Dispatcher" },
+      output: { status: "started" },
       status: "SUCCESS",
+    });
+
+    await savePersistentExecutionEvent({
+      sessionId: task.session_id || "default",
+      taskId: data.taskId,
+      tenantId,
+      eventType: "STATE_CHANGE",
+      state: AgentTaskState.EXECUTING,
+      message: "⚙️ Starting task execution and file modifications...",
+      progress: 60,
     });
 
     try {
@@ -883,6 +896,17 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         const filePath = filePaths[i];
         const isSql = filePath.endsWith(".sql");
         const actionType = isSql ? "RUNNING_DATABASE_CHANGES" : "MODIFYING_FILES";
+        const stateEnum = isSql ? AgentTaskState.RUNNING_DATABASE_CHANGES : AgentTaskState.MODIFYING_FILES;
+
+        await savePersistentExecutionEvent({
+          sessionId: task.session_id || "default",
+          taskId: data.taskId,
+          tenantId,
+          eventType: "STATE_CHANGE",
+          state: stateEnum,
+          message: `✓ Applying changes to ${filePath}`,
+          progress: 70 + Math.floor((i / (filePaths.length || 1)) * 15),
+        });
 
         await db.from("agent_execution_steps").insert({
           task_id: data.taskId,
@@ -929,6 +953,16 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         .update({ status: "testing", updated_at: new Date().toISOString() })
         .eq("id", data.taskId);
 
+      await savePersistentExecutionEvent({
+        sessionId: task.session_id || "default",
+        taskId: data.taskId,
+        tenantId,
+        eventType: "STATE_CHANGE",
+        state: AgentTaskState.RUNNING_TESTS,
+        message: "✓ Running TypeScript check...",
+        progress: 88,
+      });
+
       const { execFile } = await import("node:child_process");
       const { promisify } = await import("node:util");
       const execAsync = promisify(execFile);
@@ -953,6 +987,16 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           .from("ai_agent_tasks")
           .update({ status: "building", updated_at: new Date().toISOString() })
           .eq("id", data.taskId);
+
+        await savePersistentExecutionEvent({
+          sessionId: task.session_id || "default",
+          taskId: data.taskId,
+          tenantId,
+          eventType: "STATE_CHANGE",
+          state: AgentTaskState.BUILD_VALIDATION,
+          message: "✓ Running production build validation...",
+          progress: 95,
+        });
 
         const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
         await logExecutionJournal({
