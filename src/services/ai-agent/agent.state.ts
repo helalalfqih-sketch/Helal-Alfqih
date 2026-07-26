@@ -29,7 +29,12 @@ export type TaskStatus =
   | "testing"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "blocked"
+  | "permission_error"
+  | "validation_error"
+  | "build_error"
+  | "database_error";
 
 // ─────────────────────────────────────────────────
 // Active Task

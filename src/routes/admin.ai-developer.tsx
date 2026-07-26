@@ -26,6 +26,7 @@ import {
   Archive,
   ChevronRight,
   FileCode,
+  FileText,
   Shield,
   Brain,
   Zap,
@@ -42,6 +43,15 @@ import {
   MoreHorizontal,
   ChevronDown,
   RefreshCw,
+  ThumbsUp,
+  ThumbsDown,
+  RotateCcw,
+  Mic,
+  History,
+  Layers,
+  Eye,
+  ArrowLeft,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -93,6 +103,7 @@ function AIEngineeringAgentPage() {
   const saveMessageFn = useServerFn(saveAgentMessage);
   const updateTaskFn = useServerFn(updateSessionTask);
   const archiveSessionFn = useServerFn(archiveSession);
+  const updateSessionTaskFn = useServerFn(updateSessionTask);
   const getMemoryFn = useServerFn(getProjectMemory);
   const seedMemoryFn = useServerFn(seedProjectMemory);
   const getUsageFn = useServerFn(getAgentUsageStats);
@@ -112,6 +123,7 @@ function AIEngineeringAgentPage() {
   const [showContext, setShowContext] = useState(true);
   const [showDiffModal, setShowDiffModal] = useState(false);
   const [recoveryTimeline, setRecoveryTimeline] = useState<any[]>([]);
+  const [failureExplanation, setFailureExplanation] = useState<any | null>(null);
   const [pendingTask, setPendingTask] = useState<{
     taskId: string;
     plan: any[];
@@ -187,8 +199,24 @@ function AIEngineeringAgentPage() {
     try {
       const res = await getSessionFn({ data: { sessionId } });
       setMessages(res.messages);
+      const sess = res.session;
+      if (
+        sess &&
+        (sess.task_status === "waiting_approval" || sess.task_status === "planning") &&
+        (sess.affected_files?.length > 0 || sess.task_plan?.length > 0)
+      ) {
+        setPendingTask({
+          taskId: sess.task_id || "TASK-001",
+          plan: sess.task_plan || [],
+          affectedFiles: sess.affected_files || [],
+          riskLevel: sess.risk_level || "low",
+        });
+      } else {
+        setPendingTask(null);
+      }
     } catch {
       setMessages([]);
+      setPendingTask(null);
     }
   }, [getSessionFn]);
 
@@ -329,12 +357,30 @@ function AIEngineeringAgentPage() {
                   label: json.message || "جاري استخدام أداة التطوير...",
                 });
               } else if (json.type === "approval_required" || json.type === "plan_ready") {
+                const planTaskId = json.taskId || `task-${Date.now()}`;
+                const planSteps = json.plan || [];
+                const planFiles = json.affectedFiles || [];
+                const planRisk = json.riskLevel || "low";
+
                 setPendingTask({
-                  taskId: json.taskId || `task-${Date.now()}`,
-                  plan: json.plan || [],
-                  affectedFiles: json.affectedFiles || [],
-                  riskLevel: json.riskLevel || "low",
+                  taskId: planTaskId,
+                  plan: planSteps,
+                  affectedFiles: planFiles,
+                  riskLevel: planRisk,
                 });
+
+                if (sessionId) {
+                  updateSessionTaskFn({
+                    data: {
+                      sessionId,
+                      taskStatus: "waiting_approval",
+                      taskPlan: planSteps,
+                      affectedFiles: planFiles,
+                      riskLevel: planRisk,
+                    },
+                  }).catch(() => {});
+                }
+
                 setAgentActivity({
                   status: "approval_required",
                   label: "⏸ في انتظار موافقتك الصريحة للتنفيذ...",
@@ -407,14 +453,16 @@ function AIEngineeringAgentPage() {
       if (res?.success) {
         toast.success(`تم تنفيذ المهمة ${pendingTask.taskId} بنجاح واجتياز الفحص! ✨`, { id: "task-exec" });
         setPendingTask(null);
+        setFailureExplanation(null);
         queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
-      } else if (res?.status === "rolled_back") {
+      } else {
+        if (res?.failureDetails) {
+          setFailureExplanation(res.failureDetails);
+        }
         if (res?.recoveryTimeline) {
           setRecoveryTimeline(res.recoveryTimeline);
         }
-        toast.error(`فشل فحص البناء! تم إلغاء التعديلات والتراجع تلقائياً (محاولات التصحيح الذاتي: ${res?.recoveryTimeline?.length || 1}) 🔄`, { id: "task-exec" });
-      } else {
-        toast.error(`فشل تنفيذ المهمة: ${res?.buildOutput || "خطأ غير معروف"}`, { id: "task-exec" });
+        toast.error(`فشل التنفيذ/فحص البناء! (${res?.failureDetails?.reason || "تم إيقاف العملية والتراجع تلقائياً"}) 🔄`, { id: "task-exec" });
       }
     } catch (err: any) {
       toast.error(err.message || "حدث خطأ أثناء التنفيذ", { id: "task-exec" });
@@ -462,28 +510,51 @@ function AIEngineeringAgentPage() {
   // ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="font-sans pb-6 bg-[#09090b] text-zinc-100 min-h-screen p-4 rounded-3xl border border-zinc-800/80 shadow-2xl space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-zinc-800/80 pb-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2.5 text-zinc-100">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-violet-400 shadow-xs border border-violet-500/30">
-              <Code2 className="h-5 w-5" />
-            </div>
-            Indexes AI Engineering Agent
-          </h1>
-          <p className="mt-1 text-xs font-medium text-zinc-400">
-            مساعد تطوير ذكي متخصص بمشروع Indexes Store — يحلل ويقترح وينفذ كمهندس Senior.
-          </p>
+    <div className="font-sans pb-6 bg-[#0c0c0e] text-zinc-100 min-h-screen p-3 rounded-3xl border border-zinc-800/80 shadow-2xl space-y-3" dir="rtl">
+      {/* Top Navigation Bar — Lovable IDE Style Header */}
+      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 px-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-[#18181c] border border-zinc-800 px-3 py-1.5 rounded-xl font-bold text-xs text-zinc-200 cursor-pointer hover:bg-zinc-800 transition">
+            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-amber-500 to-violet-500" />
+            <span>Noqta Commerce Hub</span>
+            <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowSessions((prev) => !prev)}
+              className={`p-2 rounded-xl border transition ${
+                showSessions
+                  ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                  : "bg-[#141417] border-zinc-800 text-zinc-400 hover:text-white"
+              }`}
+              title="سجل الجلسات (History)"
+            >
+              <History className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowContext((prev) => !prev)}
+              className={`p-2 rounded-xl border transition ${
+                showContext
+                  ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                  : "bg-[#141417] border-zinc-800 text-zinc-400 hover:text-white"
+              }`}
+              title="لوحة التفاصيل (Details Panel)"
+            >
+              <Layers className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Provider Select */}
+        {/* Center / Right controls */}
+        <div className="flex items-center gap-2">
           {providers.length > 0 && (
             <select
               value={selectedProviderId}
               onChange={(e) => setSelectedProviderId(e.target.value)}
-              className="rounded-xl border border-zinc-800 bg-[#141417] px-3 py-1.5 text-[11px] font-bold text-zinc-200 outline-none focus:border-violet-500/50 focus:ring-1 ring-violet-500/30 transition-all cursor-pointer hover:bg-zinc-800"
+              className="rounded-xl border border-zinc-800 bg-[#141417] px-3 py-1.5 text-[11px] font-bold text-zinc-200 outline-none focus:border-violet-500/50 transition cursor-pointer"
             >
               <option value="">✨ تلقائي (حسب الأولوية)</option>
               {providers.map((p: any) => (
@@ -494,173 +565,95 @@ function AIEngineeringAgentPage() {
             </select>
           )}
 
-          {/* Role Badge */}
           <div className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold border ${
             agentRole === "owner"
               ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
               : agentRole === "admin"
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : agentRole === "developer"
-                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                  : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                : "bg-zinc-800 text-zinc-400 border-zinc-700"
           }`}>
             <Shield className="h-3 w-3" />
-            {agentRole === "owner" ? "Owner — تنفيذ كامل" : agentRole === "admin" ? "Admin — تنفيذ محدود" : agentRole === "developer" ? "Developer — اقتراح فقط" : "Viewer — قراءة فقط"}
+            {agentRole === "owner" ? "Owner — كامل" : agentRole === "admin" ? "Admin" : "Developer"}
           </div>
-
-          {/* Usage Stats */}
-          {usageStats && usageStats.requests > 0 && (
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-[#141417] border border-zinc-800 px-3 py-1.5 text-[11px] font-bold text-zinc-400">
-              <Cpu className="h-3 w-3 text-violet-400" />
-              {usageStats.totalTokens.toLocaleString()} tokens · ${usageStats.totalCost.toFixed(4)}
-            </div>
-          )}
-
-          {/* Sidebar Toggles */}
-          <button
-            type="button"
-            onClick={() => setShowSessions((prev) => !prev)}
-            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition ${
-              showSessions
-                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                : "bg-surface border-border text-muted-foreground hover:text-foreground"
-            }`}
-            title="إخفاء/إظهار شريط الجلسات"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            الجلسات
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowContext((prev) => !prev)}
-            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition ${
-              showContext
-                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                : "bg-surface border-border text-muted-foreground hover:text-foreground"
-            }`}
-            title="إخفاء/إظهار سياق المشروع"
-          >
-            <FileCode className="h-3.5 w-3.5" />
-            السياق
-          </button>
 
           <button
             type="button"
             onClick={handleNewSession}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:opacity-90 transition"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             جلسة جديدة
           </button>
         </div>
       </div>
 
-      {/* Main Responsive Layout: min-w-0 prevents grid column shrinking */}
-      <div
-        className={`grid grid-cols-1 ${
-          showSessions && showContext
-            ? "xl:grid-cols-[220px_minmax(0,1fr)_240px]"
-            : showSessions
-              ? "xl:grid-cols-[240px_minmax(0,1fr)]"
-              : showContext
-                ? "xl:grid-cols-[minmax(0,1fr)_260px]"
-                : "grid-cols-1"
-        } gap-4 min-h-[calc(100vh-200px)] w-full items-start`}
-      >
-        {/* ═══ Left: Session Timeline ═══ */}
+      {/* Main 2-Column IDE Split View Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-[calc(100vh-140px)] w-full items-start">
+        
+        {/* Optional Session Sidebar */}
         {showSessions && (
-          <div className="min-w-0 rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
+          <div className="lg:col-span-2 min-w-0 rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-160px)]">
             <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
               <h2 className="text-xs font-black text-zinc-400 flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-violet-400" /> الجلسات ({activeSessions.length})
+                <History className="h-3.5 w-3.5 text-violet-400" /> الجلسات ({activeSessions.length})
               </h2>
             </div>
-
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {loadingSessions ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
-              </div>
-            ) : activeSessions.length === 0 ? (
-              <div className="text-center py-8 text-xs text-zinc-500">
-                لا توجد جلسات بعد
-              </div>
-            ) : (
-              activeSessions.map((session: AgentSession) => (
-                <motion.button
-                  key={session.id}
-                  type="button"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  onClick={() => loadSession(session.id)}
-                  className={`w-full text-start rounded-2xl p-3 transition group ${
-                    activeSessionId === session.id
-                      ? "bg-violet-500/10 border border-violet-500/30 text-zinc-100"
-                      : "hover:bg-zinc-800/60 border border-transparent text-zinc-300"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="text-[11px] font-bold text-zinc-200 line-clamp-2">
-                      {session.title}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleArchive(session.id); }}
-                      className="opacity-0 group-hover:opacity-100 transition shrink-0"
-                    >
-                      <Archive className="h-3 w-3 text-zinc-500 hover:text-red-400" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    {session.task_id && (
-                      <span className="text-[9px] font-mono font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded-md px-1.5 py-0.5">
-                        {session.task_id}
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {loadingSessions ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+                </div>
+              ) : activeSessions.length === 0 ? (
+                <div className="text-center py-8 text-xs text-zinc-500">لا توجد جلسات بعد</div>
+              ) : (
+                activeSessions.map((session: AgentSession) => (
+                  <motion.button
+                    key={session.id}
+                    type="button"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    onClick={() => loadSession(session.id)}
+                    className={`w-full text-start rounded-xl p-2.5 transition group ${
+                      activeSessionId === session.id
+                        ? "bg-violet-500/10 border border-violet-500/30 text-zinc-100"
+                        : "hover:bg-zinc-800/60 border border-transparent text-zinc-400"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <span className="text-[11px] font-bold text-zinc-200 line-clamp-1">
+                        {session.title}
                       </span>
-                    )}
-                    <TaskStatusBadge status={session.task_status} />
-                  </div>
-                  <span className="text-[9px] text-zinc-500 mt-1 block">
-                    {new Date(session.updated_at).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </motion.button>
-              ))
-            )}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleArchive(session.id); }}
+                        className="opacity-0 group-hover:opacity-100 transition shrink-0"
+                      >
+                        <Archive className="h-3 w-3 text-zinc-500 hover:text-red-400" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <TaskStatusBadge status={session.task_status} />
+                    </div>
+                  </motion.button>
+                ))
+              )}
+            </div>
           </div>
-        </div>
         )}
 
-        {/* ═══ Center: Chat Window ═══ */}
-        <div className="rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden">
-          {/* Chat Messages */}
+        {/* ═══ Left Column: Stream & Prompts Console Panel ═══ */}
+        <div className={`${showSessions ? "lg:col-span-5" : "lg:col-span-6"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)]`}>
+          {/* Message Stream */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && !streamingContent && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center mb-4">
-                  <Bot className="h-10 w-10 text-violet-500" />
+              <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-3">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center">
+                  <Bot className="h-8 w-8 text-violet-400" />
                 </div>
-                <h3 className="text-lg font-black text-foreground mb-2">مرحباً بك في Indexes AI Engineering Agent</h3>
-                <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
-                  أنا مساعدك الذكي المتخصص بمشروع Indexes Store. أستطيع تحليل الكود، اقتراح التحسينات، وإنشاء خطط التنفيذ.
+                <h3 className="text-base font-black text-zinc-100">Noqta AI Engineering Agent</h3>
+                <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+                  اكتب أي استفسار أو طلب هندسي لتحليل الموقع وإنشاء خطة تطوير متكاملة.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-lg">
-                  {[
-                    "أريد تحسين سرعة تحميل الصور",
-                    "أضف زر فيديو توضيحي للمنتج",
-                    "حسّن أداء صفحة البحث",
-                    "أنشئ نظام إشعارات الطلبات",
-                  ].map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => { setInputValue(suggestion); inputRef.current?.focus(); }}
-                      className="rounded-2xl border border-border/60 bg-surface/80 p-3 text-start text-[11px] font-bold text-muted-foreground hover:text-foreground hover:border-violet-500/30 hover:bg-violet-500/5 transition"
-                    >
-                      <Sparkles className="h-3 w-3 text-violet-500 mb-1" />
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -668,165 +661,241 @@ function AIEngineeringAgentPage() {
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                  className="space-y-2"
                 >
-                  {/* Avatar */}
-                  <div className={`shrink-0 h-8 w-8 rounded-xl flex items-center justify-center ${
-                    msg.role === "user"
-                      ? "bg-violet-500/10 text-violet-500"
-                      : "bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-cyan-500"
-                  }`}>
-                    {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div className={`flex-1 max-w-[85%] ${msg.role === "user" ? "text-end" : ""}`}>
-                    <div className={`inline-block rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-violet-600 text-white rounded-tr-sm"
-                        : "bg-[#1c1c1e] border border-zinc-800 text-zinc-100 rounded-tl-sm shadow-md"
-                    }`}>
-                      {msg.role === "assistant" ? (
-                        <div className="max-w-none text-zinc-100">
-                          <MarkdownContent content={msg.content} />
-                        </div>
-                      ) : (
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
-                      )}
+                  {msg.role === "user" ? (
+                    <div className="flex justify-start">
+                      <div className="bg-[#242429] border border-zinc-800 text-zinc-100 rounded-2xl px-4 py-3 text-sm max-w-[90%] font-medium shadow-sm">
+                        {msg.content}
+                      </div>
                     </div>
-
-                    {/* Copy button for assistant messages */}
-                    {msg.role === "assistant" && (
+                  ) : (
+                    <div className="space-y-2 text-start">
+                      {/* Action Plan Pill inside chat stream matching image */}
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(msg.content, msg.id)}
-                        className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition"
+                        onClick={() => setShowContext(true)}
+                        className="w-full flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#1a1a1e] border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition group"
                       >
-                        {copiedId === msg.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Clipboard className="h-3 w-3" />}
-                        {copiedId === msg.id ? "تم النسخ" : "نسخ"}
+                        <span className="font-semibold text-zinc-200">
+                          {pendingTask ? `Plan (${pendingTask.taskId})` : "Skipped creating plan"}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition" />
                       </button>
-                    )}
-                  </div>
+
+                      {/* AI Response Text */}
+                      <div className="text-sm text-zinc-200 leading-relaxed bg-transparent px-1">
+                        <MarkdownContent content={msg.content} />
+                      </div>
+
+                      {/* Message Action Toolbar (Reply, ThumbsUp, ThumbsDown, Copy, More) */}
+                      <div className="flex items-center gap-3 pt-1 text-zinc-500 text-xs px-1">
+                        <button type="button" className="hover:text-zinc-300 transition"><RotateCcw className="w-3.5 h-3.5" /></button>
+                        <button type="button" className="hover:text-zinc-300 transition"><ThumbsUp className="w-3.5 h-3.5" /></button>
+                        <button type="button" className="hover:text-zinc-300 transition"><ThumbsDown className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => copyToClipboard(msg.content, msg.id)} className="hover:text-zinc-300 transition">
+                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Clipboard className="w-3.5 h-3.5" />}
+                        </button>
+                        <button type="button" className="hover:text-zinc-300 transition"><MoreHorizontal className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
 
-            {/* Status Pill Indicator */}
             {isStreaming && (
-              <div className="flex justify-center my-3">
-                <div className="w-full text-center py-2 px-4 rounded-full border border-zinc-700/70 bg-zinc-900/60 text-xs text-zinc-300 font-mono tracking-wide shadow-sm flex items-center justify-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
-                  <span>{agentActivity?.label || "Action plan generated, awaiting user approval"}</span>
-                </div>
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-[#1c1c1e] border border-zinc-800 text-xs text-zinc-300">
+                <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+                <span>{agentActivity?.label || "جاري التحليل والتطوير..."}</span>
               </div>
             )}
+            <div ref={chatEndRef} />
+          </div>
 
-            {/* Interactive Lovable/Bolt Style Plan Approval Card */}
-            {pendingTask && (
-              <div className="bg-[#1c1c1e] border border-zinc-800 p-4 rounded-2xl space-y-4 shadow-xl text-start">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-violet-400" />
-                      Plan ({pendingTask.taskId})
-                    </h3>
-                    <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300">
-                      الخطورة: {pendingTask.riskLevel}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    خطة عمل مقترحة لتنفيذ التعديلات البرمجية وتحديث المكونات المتأثرة ({pendingTask.affectedFiles.length} ملفات).
-                  </p>
+          {/* Quick Suggestion Pills Horizontal Strip */}
+          <div className="p-2 border-t border-zinc-800/80 bg-[#121214] flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {[
+              "اطلب قائمة أمن وامتثال",
+              "والأداء SEO اطلب تركيز على",
+              "اطلب تركيز على الدفع",
+              "اطلب تقرير شامل لموقعك",
+            ].map((pill, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => { setInputValue(pill); inputRef.current?.focus(); }}
+                className="px-3 py-1.5 rounded-full bg-[#1e1e22] border border-zinc-800 text-zinc-300 hover:border-zinc-600 whitespace-nowrap text-[11px] font-medium transition shrink-0"
+              >
+                {pill}
+              </button>
+            ))}
+          </div>
+
+          {/* Console Input Container — Exact Lovable IDE Style */}
+          <div className="p-3 bg-[#121214] border-t border-zinc-800/80">
+            <div className="bg-[#18181c] border border-zinc-800 rounded-2xl p-3 space-y-2 shadow-2xl">
+              {/* Top Tag inside Input Box */}
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-semibold">
+                  Details
+                </span>
+              </div>
+
+              {/* Textarea Input */}
+              <textarea
+                ref={inputRef as any}
+                rows={2}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={canSend ? "Ask Lovable / Indexes AI..." : "ليس لديك صلاحية الإرسال"}
+                disabled={!canSend || isStreaming}
+                className="w-full bg-transparent border-none text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed text-right"
+              />
+
+              {/* Bottom Toolbar inside Input Box */}
+              <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
+                <div className="flex items-center gap-1.5">
+                  <button type="button" className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {pendingTask.affectedFiles.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex flex-wrap gap-1.5">
-                      {pendingTask.affectedFiles.map((file) => (
-                        <span key={file} className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg">
-                          {file}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Semantic Brain Affected Area Breakdown — Phase 7.4 🧠 */}
-                    <div className="grid grid-cols-4 gap-2 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/80 text-[10px]">
-                      <div>
-                        <div className="text-zinc-500 font-bold">الملفات (Files)</div>
-                        <div className="text-zinc-200 font-bold">{pendingTask.affectedFiles.length}</div>
-                      </div>
-                      <div>
-                        <div className="text-zinc-500 font-bold">المكونات (Components)</div>
-                        <div className="text-violet-400 font-bold">تأثير شامل</div>
-                      </div>
-                      <div>
-                        <div className="text-zinc-500 font-bold">قواعد البيانات (Database)</div>
-                        <div className="text-emerald-400 font-bold">محمي بـ RLS</div>
-                      </div>
-                      <div>
-                        <div className="text-zinc-500 font-bold">الـ APIs</div>
-                        <div className="text-cyan-400 font-bold">Auth Guarded</div>
-                      </div>
-                    </div>
-
-                    {/* Agent Reasoning Layer — Phase 7.5 🧠⚡ */}
-                    <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800/90 text-xs space-y-2 text-start">
-                      <div className="text-[11px] font-bold text-violet-400 flex items-center gap-1.5 border-b border-zinc-800 pb-1.5">
-                        <Brain className="w-3.5 h-3.5" /> Engineering Analysis
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <div>
-                          <span className="text-zinc-500 font-bold">Problem: </span>
-                          <span className="text-zinc-300">تحسين هندسي على المكونات الخادمية والواجهة.</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 font-bold">Root Cause: </span>
-                          <span className="text-zinc-300">تحديث الهيكلية وإدارة الحالة البرمجية.</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 font-bold">Risk: </span>
-                          <span className="text-amber-400 font-bold">{pendingTask.riskLevel.toUpperCase()} (Sandbox Guarded)</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 font-bold">Solution: </span>
-                          <span className="text-emerald-400 font-bold">Snapshots + Auto-Rollback</span>
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#222226] border border-zinc-800 text-[11px] text-zinc-300 font-bold cursor-pointer hover:border-zinc-700">
+                    <span>Build</span>
+                    <ChevronDown className="w-3 h-3 text-zinc-400" />
                   </div>
-                )}
 
-                <div className="flex items-center justify-between pt-2">
-                  <button 
+                  <button type="button" className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                    <Mic className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!inputValue.trim() || isStreaming || !canSend}
+                    className="p-2 text-white bg-zinc-200 hover:bg-white text-zinc-950 rounded-full transition disabled:opacity-30 shadow-md"
+                  >
+                    <Send className="w-3.5 h-3.5 text-zinc-950" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ Right Column: "Details" Execution, Thought Engine & Plan View Panel ═══ */}
+        <div className={`${showSessions ? "lg:col-span-5" : "lg:col-span-6"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)]`}>
+          {/* Header over Details Panel matching image */}
+          <div className="p-3 border-b border-zinc-800 flex items-center justify-between bg-[#16161a]">
+            <div className="flex items-center gap-2 text-xs">
+              <button type="button" className="flex items-center gap-1 text-zinc-400 hover:text-white transition font-medium">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to latest
+              </button>
+              <span className="text-zinc-600">|</span>
+              <span className="flex items-center gap-1 text-zinc-400 text-[11px]">
+                <Clock className="w-3 h-3 text-zinc-500" /> 1m 57s
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-xs text-zinc-100">Details</span>
+              <div className="flex items-center gap-1">
+                <button type="button" className="px-2.5 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-semibold hover:bg-zinc-700 flex items-center gap-1">
+                  <History className="w-3 h-3" /> Timeline
+                </button>
+                <button type="button" onClick={() => setShowDiffModal(true)} className="px-2.5 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-semibold hover:bg-zinc-700 flex items-center gap-1">
+                  <Code2 className="w-3 h-3" /> Changes
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            
+            {/* Thought Engine Accordion matching image (e.g. "Thought for 47s") */}
+            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-zinc-300 cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-violet-400" />
+                  Thought for 47s
+                </span>
+                <ChevronDown className="w-4 h-4 text-zinc-500" />
+              </div>
+            </div>
+
+            {/* Plan Card Panel matching image */}
+            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-violet-400" />
+                  {pendingTask ? "Plan" : "Skipped creating plan"}
+                </span>
+              </div>
+
+              <div className="bg-[#121214] border border-zinc-800/80 rounded-xl p-3 space-y-3 text-right">
+                <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                  تقرير شامل بالفجوات والتحسينات المطلوبة لموقعك ليصبح متجراً إلكترونياً حديثاً متكاملاً
+                </p>
+
+                <div className="flex justify-end">
+                  <button
                     type="button"
                     onClick={() => setShowDiffModal(true)}
-                    className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-medium flex items-center gap-1"
+                    className="px-4 py-1 rounded-xl bg-[#242429] border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-200 font-bold transition shadow-sm"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Task Plan & Approval Controls */}
+            {pendingTask && (
+              <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-2xl space-y-4 text-start">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-xs text-zinc-100 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                    المهمة ({pendingTask.taskId})
+                  </h3>
+                  <RiskBadge level={pendingTask.riskLevel} />
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDiffModal(true)}
+                    className="px-3.5 py-1.5 rounded-xl border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-bold flex items-center gap-1.5"
                   >
                     <Code2 className="w-3.5 h-3.5 text-violet-400" />
                     Review Diff
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       type="button"
                       disabled={isExecutingTask}
                       onClick={handleApproveTask}
-                      className="px-5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1 disabled:opacity-50"
+                      className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg flex items-center gap-1 disabled:opacity-50"
                     >
-                      {isExecutingTask ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-3.5 h-3.5" />
-                      )}
+                      {isExecutingTask ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       {isExecutingTask ? "Executing..." : "Approve & Execute"}
                     </button>
-                    <button 
+                    <button
                       type="button"
                       onClick={handleRejectTask}
-                      className="px-3.5 py-1.5 rounded-full text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                      className="px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-white transition"
                     >
                       Skip
                     </button>
@@ -835,272 +904,45 @@ function AIEngineeringAgentPage() {
               </div>
             )}
 
-            {/* Real Diff Preview Modal — Phase 7.1 🧬 */}
-            {showDiffModal && pendingTask && (
-              <DiffPreviewModal
-                task={pendingTask}
-                onClose={() => setShowDiffModal(false)}
-                onApprove={handleApproveTask}
-                isExecuting={isExecutingTask}
-              />
-            )}
-
-            {/* Streaming Text Output */}
-            {isStreaming && streamingContent && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex gap-3"
-              >
-                <div className="shrink-0 h-8 w-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center text-cyan-500">
-                  <Bot className="h-4 w-4 animate-pulse" />
-                </div>
-                <div className="flex-1 max-w-[85%] space-y-3">
-                  <div className="rounded-2xl rounded-tl-sm bg-[#1c1c1e] border border-zinc-800 px-4 py-3 text-sm text-foreground shadow-xs">
-                    <div className="max-w-none text-zinc-100">
-                      <MarkdownContent content={streamingContent} />
-                      <span className="inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm ms-0.5" />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* 5. Bottom Input Section & Suggestion Pills */}
-          <footer className="p-3 bg-[#141414] space-y-3 border-t border-zinc-800">
-            {/* Scrollable Suggestion Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs">
-              {[
-                "شحن",
-                "تخطيط إعادة التخزين الذكي",
-                "لوحة تحكم الشحن والتوزيع",
-                "تصدر تقارير الطلبات",
-                "لوحة تقارير الدفع",
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setInputValue(item);
-                    inputRef.current?.focus();
-                  }}
-                  className="px-3.5 py-1.5 rounded-full bg-[#1c1c1e] border border-zinc-800 text-zinc-300 hover:border-zinc-600 whitespace-nowrap transition flex-shrink-0 text-xs font-medium"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            {/* Input Bar with Tools & Mode Selector */}
-            <div className="relative bg-[#1c1c1e] border border-zinc-800 rounded-2xl p-2 flex items-center justify-between shadow-inner">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-              </div>
-
-              <input
-                ref={inputRef as any}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={canSend ? "Ask Lovable / Indexes AI..." : "ليس لديك صلاحية الإرسال"}
-                disabled={!canSend || isStreaming}
-                className="w-full bg-transparent border-none text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none px-3 text-right"
-              />
-
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700/50 text-[11px] text-zinc-300 cursor-pointer hover:border-zinc-500 font-medium">
-                  <span>Plan</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-400" />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!inputValue.trim() || isStreaming || !canSend}
-                  className="p-2 text-white bg-blue-600 hover:bg-blue-500 rounded-full transition disabled:opacity-40"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </footer>
-        </div>
-
-        {/* ═══ Right: Context Panel ═══ */}
-        {showContext && (
-          <div className="min-w-0 rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
-            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="text-xs font-black text-zinc-400 flex items-center gap-1.5">
-                <FileCode className="h-3.5 w-3.5 text-violet-400" /> سياق المشروع
-              </h2>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              {/* Active Task */}
-              {activeSession && (
-                <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
-                  <div className="text-[10px] font-bold text-zinc-400 mb-1.5">المهمة الحالية</div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono font-bold text-violet-400">{activeSession.task_id}</span>
-                    <TaskStatusBadge status={activeSession.task_status} />
-                  </div>
-                  <div className="text-[11px] font-bold text-zinc-200 line-clamp-2">{activeSession.title}</div>
-
-                  {/* Risk Level */}
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <span className="text-[10px] font-bold text-zinc-400">الخطورة:</span>
-                    <RiskBadge level={activeSession.risk_level} />
-                  </div>
-                </div>
-              )}
-
-              {/* Affected Files */}
-              {activeSession?.affected_files && Array.isArray(activeSession.affected_files) && (activeSession.affected_files as string[]).length > 0 && (
-                <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
-                  <div className="text-[10px] font-bold text-zinc-400 mb-2">الملفات المتأثرة</div>
-                  <div className="space-y-1">
-                    {(activeSession.affected_files as string[]).map((file: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-300">
-                        <FileCode className="h-3 w-3 text-violet-400 shrink-0" />
-                        <span className="truncate">{file}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Project Memory */}
-              <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
-                <div className="text-[10px] font-bold text-zinc-400 mb-2 flex items-center gap-1">
-                  <Brain className="h-3 w-3 text-violet-400" /> ذاكرة المشروع ({memory.length})
-                </div>
-                <div className="space-y-1.5">
-                  {memory.slice(0, 8).map((m: AgentMemoryEntry) => (
-                    <div key={m.id} className="text-[10px]">
-                      <span className="font-bold text-violet-400">{m.category}/{m.key}:</span>
-                      <span className="text-zinc-400 ms-1 line-clamp-1">{m.value}</span>
-                    </div>
-                  ))}
-                  {memory.length > 8 && (
-                    <div className="text-[9px] text-zinc-500">+{memory.length - 8} إدخالات أخرى</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recovery Timeline — Phase 8 🛠️ */}
-              {recoveryTimeline.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-3 space-y-2">
-                  <div className="text-[10px] font-bold text-amber-400 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <RefreshCw className="h-3 w-3 animate-spin text-amber-400" /> Recovery Timeline ({recoveryTimeline.length})
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {recoveryTimeline.map((item, idx) => (
-                      <div key={idx} className="p-2 rounded-xl bg-black/40 border border-amber-500/20 text-[10px] space-y-1">
-                        <div className="flex items-center justify-between font-mono font-bold text-amber-300">
-                          <span>Attempt #{item.attempt}</span>
-                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-amber-500/20">{item.status}</span>
-                        </div>
-                        <p className="text-[9px] text-zinc-400 line-clamp-2">{item.fixPlan || item.errorOutput}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Agent Performance & Quality Intelligence — Phase 9 📊 */}
-              {perfOverview && (
-                <div className="rounded-2xl border border-violet-500/30 bg-violet-950/20 p-3 space-y-2">
-                  <div className="text-[10px] font-bold text-violet-400 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="h-3 w-3 text-violet-400" /> أداء الجودة (Agent Performance)
-                    </span>
-                    <span className="font-mono text-emerald-400 font-bold">{perfOverview.successRate}% نجاح</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
-                      <div className="text-zinc-500 text-[9px]">المهام</div>
-                      <div className="font-bold text-zinc-200">{perfOverview.totalTasks}</div>
-                    </div>
-                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
-                      <div className="text-zinc-500 text-[9px]">التراجع</div>
-                      <div className="font-bold text-amber-400">{perfOverview.rollbackCount}</div>
-                    </div>
-                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
-                      <div className="text-zinc-500 text-[9px]">التقييم</div>
-                      <div className="font-bold text-emerald-400">{perfOverview.averageScore}/100</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Execution History — Phase 7.2 */}
-              <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
-                <div className="text-[10px] font-bold text-zinc-400 mb-2 flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-emerald-400" /> سجل التنفيذ ({execHistory.length})
+            {/* Failure Explanation Panel */}
+            {failureExplanation && (
+              <div className="bg-[#1c1c1e] border border-red-500/30 bg-red-950/20 p-4 rounded-2xl space-y-3 text-start">
+                <div className="flex items-center justify-between border-b border-red-500/20 pb-2">
+                  <h3 className="font-bold text-xs text-red-400 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    Failure Explanation Panel ({failureExplanation.errorType})
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 uppercase">
+                    {failureExplanation.riskLevel} RISK
                   </span>
                 </div>
-                {execHistory.length === 0 ? (
-                  <div className="text-[10px] text-zinc-500 italic">لا توجد عمليات تنفيذ سابقة</div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {execHistory.slice(0, 5).map((item: any) => (
-                      <div key={item.id} className="p-2 rounded-xl bg-[#121214] border border-zinc-800 text-[10px] space-y-1">
-                        <div className="flex items-center justify-between font-bold">
-                          <span className="font-mono text-violet-400">{item.task_id}</span>
-                          <TaskStatusBadge status={item.status} />
-                        </div>
-                        <div className="text-zinc-400 flex items-center justify-between text-[9px]">
-                          <span>{item.files_changed?.length || 0} ملفات</span>
-                          <span>{item.execution_time_ms || 0}ms</span>
-                        </div>
-                      </div>
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
+                    <div className="text-[10px] font-bold text-zinc-400">السبب (Reason):</div>
+                    <div className="text-zinc-200 font-semibold">{failureExplanation.reason}</div>
                   </div>
-                )}
-              </div>
-
-              {/* Usage Stats */}
-              {usageStats && usageStats.requests > 0 && (
-                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                  <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-1">
-                    <BarChart3 className="h-3 w-3" /> استهلاك AI
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="text-[9px] text-muted-foreground">الطلبات</div>
-                      <div className="text-xs font-black text-foreground">{usageStats.requests}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-muted-foreground">Tokens</div>
-                      <div className="text-xs font-black text-foreground">{usageStats.totalTokens.toLocaleString()}</div>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="text-[9px] text-muted-foreground">التكلفة التقديرية</div>
-                      <div className="text-xs font-black text-emerald-500">${usageStats.totalCost.toFixed(4)} USD</div>
-                    </div>
+                  <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
+                    <div className="text-[10px] font-bold text-zinc-400">النظام المتأثر:</div>
+                    <div className="text-cyan-400 font-semibold">{failureExplanation.affectedSystem}</div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Active Session Context */}
+            {activeSession && (
+              <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-3 space-y-2 text-start">
+                <div className="text-[11px] font-bold text-zinc-400 flex items-center justify-between">
+                  <span>سياق الجلسة الحالية</span>
+                  <TaskStatusBadge status={activeSession.task_status} />
+                </div>
+                <div className="text-xs font-bold text-zinc-200">{activeSession.title}</div>
+              </div>
+            )}
+
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );
@@ -1114,6 +956,8 @@ function TaskStatusBadge({ status }: { status: string }) {
   const config: Record<string, { icon: typeof Clock; color: string; label: string }> = {
     idle: { icon: Clock, color: "text-muted-foreground bg-muted", label: "جديد" },
     planning: { icon: Sparkles, color: "text-violet-500 bg-violet-500/10", label: "تخطيط" },
+    waiting_approval: { icon: Shield, color: "text-amber-400 bg-amber-500/20 border border-amber-500/30", label: "في انتظار الموافقة ⏸" },
+    executing: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري التنفيذ" },
     queued: { icon: Clock, color: "text-blue-500 bg-blue-500/10", label: "في الطابور" },
     running: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري التنفيذ" },
     testing: { icon: Zap, color: "text-cyan-500 bg-cyan-500/10", label: "فحص البناء" },
@@ -1121,6 +965,11 @@ function TaskStatusBadge({ status }: { status: string }) {
     completed: { icon: CheckCircle, color: "text-emerald-600 bg-emerald-500/10", label: "مكتمل" },
     failed: { icon: XCircle, color: "text-destructive bg-destructive/10", label: "فشل" },
     rolled_back: { icon: AlertTriangle, color: "text-orange-500 bg-orange-500/10", label: "تم التراجع 🔄" },
+    blocked: { icon: Shield, color: "text-red-400 bg-red-500/20 border border-red-500/30", label: "محظور 🛑" },
+    permission_error: { icon: Shield, color: "text-orange-400 bg-orange-500/20", label: "خطأ صلاحيات ⛔" },
+    validation_error: { icon: AlertTriangle, color: "text-amber-400 bg-amber-500/20", label: "خطأ تفعيل ⚠️" },
+    build_error: { icon: XCircle, color: "text-red-400 bg-red-500/20", label: "فشل البناء 🛠️" },
+    database_error: { icon: AlertTriangle, color: "text-purple-400 bg-purple-500/20", label: "خطأ داتا بيز 🗄️" },
   };
 
   const c = config[status] || config.idle;

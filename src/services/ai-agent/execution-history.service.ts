@@ -18,7 +18,7 @@ export interface ExecutionHistoryRecord {
   task_id: string;
   session_id?: string | null;
   user_id?: string | null;
-  status: "success" | "failed" | "rolled_back" | "running" | "testing";
+  status: "success" | "failed" | "rolled_back" | "running" | "testing" | string;
   files_changed: string[];
   typecheck_passed: boolean;
   build_passed: boolean;

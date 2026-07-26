@@ -886,6 +886,9 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           retryAttempts: retryResult.attemptsCount,
         });
 
+        const { analyzeAndFormatFailure } = await import("@/services/ai-agent/failure-response.engine");
+        const failureDetails = analyzeAndFormatFailure(buildOutput, { affectedFiles, taskId: data.taskId });
+
         // Evaluate Failure & Penalty (Phase 9 📊)
         const { evaluateTaskExecution } = await import("@/services/ai-agent/evaluation.engine");
         const evalReport = await evaluateTaskExecution({
@@ -900,10 +903,11 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
 
         return {
           success: false,
-          status: "rolled_back",
+          status: failureDetails.errorType,
           buildOutput,
           executionTimeMs,
           failureAnalysis,
+          failureDetails,
           recoveryTimeline: retryResult.timeline,
           evaluation: evalReport,
         };
@@ -969,10 +973,16 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       return { success: true, status: "success", buildOutput, executionTimeMs, evaluation: evalReport };
     } catch (e: any) {
       const executionTimeMs = Date.now() - startTime;
+      const { analyzeAndFormatFailure } = await import("@/services/ai-agent/failure-response.engine");
+      const failureDetails = analyzeAndFormatFailure(e, {
+        affectedFiles: (task.affected_files as string[]) || [],
+        taskId: data.taskId,
+      });
+
       await db
         .from("ai_agent_tasks")
         .update({
-          status: "failed",
+          status: failureDetails.errorType,
           build_success: false,
           build_output: e.message || String(e),
           updated_at: new Date().toISOString(),
@@ -985,16 +995,22 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         task_id: data.taskId,
         session_id: task.session_id,
         user_id: ctx.userId,
-        status: "failed",
+        status: failureDetails.errorType,
         files_changed: (task.affected_files as string[]) || [],
         typecheck_passed: false,
         build_passed: false,
         build_output: e.message || String(e),
-        error_message: e.message || String(e),
+        error_message: failureDetails.reason,
         execution_time_ms: executionTimeMs,
       });
 
-      throw new Error(`فشل تنفيذ المهمة: ${e.message || String(e)}`);
+      return {
+        success: false,
+        status: failureDetails.errorType,
+        buildOutput: e.message || String(e),
+        executionTimeMs,
+        failureDetails,
+      };
     }
   });
 

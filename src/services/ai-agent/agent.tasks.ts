@@ -26,7 +26,12 @@ export type TaskStatus =
   | "completed"
   | "failed"
   | "rolled_back"
-  | "cancelled";
+  | "cancelled"
+  | "blocked"
+  | "permission_error"
+  | "validation_error"
+  | "build_error"
+  | "database_error";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
@@ -102,7 +107,7 @@ export async function createAgentTask(params: {
     session_id: params.sessionId,
     tenant_id: params.tenantId,
     user_id: params.userId,
-    status: "planning",
+    status: (params.plan?.length > 0 || params.affectedFiles?.length > 0) ? "waiting_approval" : "planning",
     plan: params.plan,
     affected_files: params.affectedFiles,
     risk_level: params.riskLevel ?? "low",
