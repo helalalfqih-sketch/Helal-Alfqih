@@ -383,15 +383,15 @@ function AIEngineeringAgentPage() {
     toast.loading(`جاري تنفيذ وإجراء الفحص الآلي للمهمة ${pendingTask.taskId}...`, { id: "task-exec" });
 
     try {
-      const res = await executeApprovedFn({ data: { taskId: pendingTask.taskId } });
-      if (res.success) {
+      const res = (await executeApprovedFn({ data: { taskId: pendingTask.taskId } })) as any;
+      if (res?.success) {
         toast.success(`تم تنفيذ المهمة ${pendingTask.taskId} بنجاح واجتياز الفحص! ✨`, { id: "task-exec" });
         setPendingTask(null);
         queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
-      } else if (res.status === "rolled_back") {
+      } else if (res?.status === "rolled_back") {
         toast.error(`فشل فحص البناء! تم إلغاء التعديلات والتراجع تلقائياً 🔄`, { id: "task-exec" });
       } else {
-        toast.error(`فشل تنفيذ المهمة: ${res.buildOutput}`, { id: "task-exec" });
+        toast.error(`فشل تنفيذ المهمة: ${res?.buildOutput || "خطأ غير معروف"}`, { id: "task-exec" });
       }
     } catch (err: any) {
       toast.error(err.message || "حدث خطأ أثناء التنفيذ", { id: "task-exec" });
