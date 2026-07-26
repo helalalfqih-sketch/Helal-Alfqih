@@ -239,33 +239,13 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     console.warn("[AI_PROVIDER_DB_ERROR] Falling back to env vars:", dbErr);
   }
 
-  // 2. Fallback to Environment Variables (Direct Gemini, Vertex, or Lovable)
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const vertexProject = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+  // 2. Fallback to Environment Variables (Vertex AI Billed Project -> Direct Gemini -> Lovable)
   const gcpCredentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const vertexProject = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_VERTEX_PROJECT;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const lovableKey = process.env.LOVABLE_API_KEY;
 
-  if (lovableKey) {
-    const gateway = createLovableGateway(lovableKey);
-    return {
-      model: gateway("google/gemini-3-flash-preview"),
-      provider: "lovable",
-      modelName: "google/gemini-3-flash-preview",
-      source: "env",
-    };
-  }
-
-  if (geminiKey) {
-    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    return {
-      model: google("gemini-2.0-flash"),
-      provider: "gemini",
-      modelName: "gemini-2.0-flash",
-      source: "env",
-    };
-  }
-
-  // Full JSON service account credentials (best for Vercel)
+  // Full JSON service account credentials (Billed Google Cloud Vertex AI - Best priority)
   if (gcpCredentialsJson) {
     try {
       const creds = JSON.parse(gcpCredentialsJson);
@@ -288,6 +268,26 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     } catch (e) {
       console.warn("[AI_PROVIDER_ENV] Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:", e);
     }
+  }
+
+  if (geminiKey) {
+    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
+    return {
+      model: google("gemini-2.0-flash"),
+      provider: "gemini",
+      modelName: "gemini-2.0-flash",
+      source: "env",
+    };
+  }
+
+  if (lovableKey) {
+    const gateway = createLovableGateway(lovableKey);
+    return {
+      model: gateway("google/gemini-3-flash-preview"),
+      provider: "lovable",
+      modelName: "google/gemini-3-flash-preview",
+      source: "env",
+    };
   }
 
   if (vertexProject) {
