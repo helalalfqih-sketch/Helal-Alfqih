@@ -163,6 +163,20 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
       }
     }
 
+    if (!credentials && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      try {
+        const parsedEnv = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        if (parsedEnv.client_email && parsedEnv.private_key) {
+          credentials = {
+            client_email: parsedEnv.client_email,
+            private_key: parsedEnv.private_key,
+          };
+        }
+      } catch (e) {
+        console.warn("[VERTEX_ENV_JSON_PARSE_ERROR]", e);
+      }
+    }
+
     const vertex = createVertex({
       location: process.env.VERTEX_LOCATION || "us-central1",
       project,
