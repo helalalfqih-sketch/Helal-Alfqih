@@ -90,6 +90,11 @@ export function analyzeAndFormatFailure(
     requiredAction = "السماح بالترقيع التلقائي لملفات الأنواع.";
   }
 
+  const rawLog = errorMsg.slice(0, 1000);
+  if (rawLog.trim().length > 0) {
+    suggestedFix = `${suggestedFix}\n\n📋 نص وتفاصيل السجل البرمجي للخطأ:\n${rawLog}`;
+  }
+
   return {
     errorType,
     reason,
@@ -98,5 +103,6 @@ export function analyzeAndFormatFailure(
     riskLevel,
     suggestedFix,
     requiredAction,
+    errorLog: rawLog,
   };
 }

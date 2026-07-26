@@ -1008,13 +1008,34 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           action: "BUILD_VALIDATION",
           tool: "npm_build",
           input: { command: "npm run build" },
-          output: { stdout: bOut?.slice(0, 300) || "PASSED" },
+          output: { stdout: bOut?.slice(0, 500) || "PASSED" },
           status: "SUCCESS",
         });
         buildOutput = `${tcOut}\n${bOut}` || buildOutput;
       } catch (err: any) {
         buildSuccess = false;
-        buildOutput = `Verification Error: ${err.message || String(err)}`;
+        const rawErrOutput = [err?.stdout, err?.stderr, err?.message].filter(Boolean).join("\n\n");
+        buildOutput = rawErrOutput || `Verification Error: ${err?.message || String(err)}`;
+
+        await logExecutionJournal({
+          taskId: data.taskId,
+          tenantId,
+          action: "BUILD_VALIDATION",
+          tool: "npm_build",
+          input: { command: "npm run typecheck / build" },
+          output: { error: buildOutput.slice(0, 1000) },
+          status: "FAILED",
+        });
+
+        await savePersistentExecutionEvent({
+          sessionId: task.session_id || "default",
+          taskId: data.taskId,
+          tenantId,
+          eventType: "ERROR",
+          state: AgentTaskState.FAILED,
+          message: `❌ Build failed: ${buildOutput.slice(0, 150)}...`,
+          progress: 95,
+        });
       }
 
       const executionTimeMs = Date.now() - startTime;
