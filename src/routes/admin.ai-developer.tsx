@@ -103,6 +103,8 @@ function AIEngineeringAgentPage() {
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [showSessions, setShowSessions] = useState(true);
+  const [showContext, setShowContext] = useState(true);
   const [pendingTask, setPendingTask] = useState<{
     taskId: string;
     plan: any[];
@@ -471,6 +473,35 @@ function AIEngineeringAgentPage() {
             </div>
           )}
 
+          {/* Sidebar Toggles */}
+          <button
+            type="button"
+            onClick={() => setShowSessions((prev) => !prev)}
+            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition ${
+              showSessions
+                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                : "bg-surface border-border text-muted-foreground hover:text-foreground"
+            }`}
+            title="إخفاء/إظهار شريط الجلسات"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            الجلسات
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowContext((prev) => !prev)}
+            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition ${
+              showContext
+                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                : "bg-surface border-border text-muted-foreground hover:text-foreground"
+            }`}
+            title="إخفاء/إظهار سياق المشروع"
+          >
+            <FileCode className="h-3.5 w-3.5" />
+            السياق
+          </button>
+
           <button
             type="button"
             onClick={handleNewSession}
@@ -482,15 +513,26 @@ function AIEngineeringAgentPage() {
         </div>
       </div>
 
-      {/* Main Layout: 3-column on large screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-4 min-h-[calc(100vh-200px)]">
+      {/* Main Responsive Layout: min-w-0 prevents grid column shrinking */}
+      <div
+        className={`grid grid-cols-1 ${
+          showSessions && showContext
+            ? "xl:grid-cols-[220px_minmax(0,1fr)_240px]"
+            : showSessions
+              ? "xl:grid-cols-[240px_minmax(0,1fr)]"
+              : showContext
+                ? "xl:grid-cols-[minmax(0,1fr)_260px]"
+                : "grid-cols-1"
+        } gap-4 min-h-[calc(100vh-200px)] w-full items-start`}
+      >
         {/* ═══ Left: Session Timeline ═══ */}
-        <div className="rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-border/60">
-            <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" /> الجلسات ({activeSessions.length})
-            </h2>
-          </div>
+        {showSessions && (
+          <div className="min-w-0 rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
+            <div className="p-3 border-b border-border/60 flex items-center justify-between">
+              <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> الجلسات ({activeSessions.length})
+              </h2>
+            </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loadingSessions ? (
@@ -543,6 +585,7 @@ function AIEngineeringAgentPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* ═══ Center: Chat Window ═══ */}
         <div className="rounded-3xl border border-border/80 bg-surface/40 backdrop-blur-sm shadow-xs flex flex-col overflow-hidden">
@@ -792,89 +835,91 @@ function AIEngineeringAgentPage() {
         </div>
 
         {/* ═══ Right: Context Panel ═══ */}
-        <div className="rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-border/60">
-            <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
-              <FileCode className="h-3.5 w-3.5" /> سياق المشروع
-            </h2>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            {/* Active Task */}
-            {activeSession && (
-              <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                <div className="text-[10px] font-bold text-muted-foreground mb-1.5">المهمة الحالية</div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-mono font-bold text-violet-500">{activeSession.task_id}</span>
-                  <TaskStatusBadge status={activeSession.task_status} />
-                </div>
-                <div className="text-[11px] font-bold text-foreground line-clamp-2">{activeSession.title}</div>
-
-                {/* Risk Level */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] font-bold text-muted-foreground">الخطورة:</span>
-                  <RiskBadge level={activeSession.risk_level} />
-                </div>
-              </div>
-            )}
-
-            {/* Affected Files */}
-            {activeSession?.affected_files && Array.isArray(activeSession.affected_files) && (activeSession.affected_files as string[]).length > 0 && (
-              <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                <div className="text-[10px] font-bold text-muted-foreground mb-2">الملفات المتأثرة</div>
-                <div className="space-y-1">
-                  {(activeSession.affected_files as string[]).map((file: string, i: number) => (
-                    <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-foreground">
-                      <FileCode className="h-3 w-3 text-violet-500 shrink-0" />
-                      <span className="truncate">{file}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Project Memory */}
-            <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-              <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-1">
-                <Brain className="h-3 w-3" /> ذاكرة المشروع ({memory.length})
-              </div>
-              <div className="space-y-1.5">
-                {memory.slice(0, 8).map((m: AgentMemoryEntry) => (
-                  <div key={m.id} className="text-[10px]">
-                    <span className="font-bold text-violet-400">{m.category}/{m.key}:</span>
-                    <span className="text-muted-foreground ms-1 line-clamp-1">{m.value}</span>
-                  </div>
-                ))}
-                {memory.length > 8 && (
-                  <div className="text-[9px] text-muted-foreground">+{memory.length - 8} إدخالات أخرى</div>
-                )}
-              </div>
+        {showContext && (
+          <div className="min-w-0 rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
+            <div className="p-3 border-b border-border/60 flex items-center justify-between">
+              <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
+                <FileCode className="h-3.5 w-3.5" /> سياق المشروع
+              </h2>
             </div>
 
-            {/* Usage Stats */}
-            {usageStats && usageStats.requests > 0 && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              {/* Active Task */}
+              {activeSession && (
+                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
+                  <div className="text-[10px] font-bold text-muted-foreground mb-1.5">المهمة الحالية</div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-mono font-bold text-violet-500">{activeSession.task_id}</span>
+                    <TaskStatusBadge status={activeSession.task_status} />
+                  </div>
+                  <div className="text-[11px] font-bold text-foreground line-clamp-2">{activeSession.title}</div>
+
+                  {/* Risk Level */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className="text-[10px] font-bold text-muted-foreground">الخطورة:</span>
+                    <RiskBadge level={activeSession.risk_level} />
+                  </div>
+                </div>
+              )}
+
+              {/* Affected Files */}
+              {activeSession?.affected_files && Array.isArray(activeSession.affected_files) && (activeSession.affected_files as string[]).length > 0 && (
+                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
+                  <div className="text-[10px] font-bold text-muted-foreground mb-2">الملفات المتأثرة</div>
+                  <div className="space-y-1">
+                    {(activeSession.affected_files as string[]).map((file: string, i: number) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-foreground">
+                        <FileCode className="h-3 w-3 text-violet-500 shrink-0" />
+                        <span className="truncate">{file}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Project Memory */}
               <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
                 <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-1">
-                  <BarChart3 className="h-3 w-3" /> استهلاك AI
+                  <Brain className="h-3 w-3" /> ذاكرة المشروع ({memory.length})
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[9px] text-muted-foreground">الطلبات</div>
-                    <div className="text-xs font-black text-foreground">{usageStats.requests}</div>
-                  </div>
-                  <div>
-                    <div className="text-[9px] text-muted-foreground">Tokens</div>
-                    <div className="text-xs font-black text-foreground">{usageStats.totalTokens.toLocaleString()}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-[9px] text-muted-foreground">التكلفة التقديرية</div>
-                    <div className="text-xs font-black text-emerald-500">${usageStats.totalCost.toFixed(4)} USD</div>
-                  </div>
+                <div className="space-y-1.5">
+                  {memory.slice(0, 8).map((m: AgentMemoryEntry) => (
+                    <div key={m.id} className="text-[10px]">
+                      <span className="font-bold text-violet-400">{m.category}/{m.key}:</span>
+                      <span className="text-muted-foreground ms-1 line-clamp-1">{m.value}</span>
+                    </div>
+                  ))}
+                  {memory.length > 8 && (
+                    <div className="text-[9px] text-muted-foreground">+{memory.length - 8} إدخالات أخرى</div>
+                  )}
                 </div>
               </div>
-            )}
+
+              {/* Usage Stats */}
+              {usageStats && usageStats.requests > 0 && (
+                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
+                  <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-1">
+                    <BarChart3 className="h-3 w-3" /> استهلاك AI
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-[9px] text-muted-foreground">الطلبات</div>
+                      <div className="text-xs font-black text-foreground">{usageStats.requests}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-muted-foreground">Tokens</div>
+                      <div className="text-xs font-black text-foreground">{usageStats.totalTokens.toLocaleString()}</div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-[9px] text-muted-foreground">التكلفة التقديرية</div>
+                      <div className="text-xs font-black text-emerald-500">${usageStats.totalCost.toFixed(4)} USD</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
