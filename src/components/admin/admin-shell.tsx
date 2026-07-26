@@ -44,7 +44,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { getSessionUser } from "@/lib/auth.functions";
+import { getSessionUser, logUnauthorizedAccess } from "@/lib/auth.functions";
 import { claimFirstAdmin } from "@/lib/admin-bootstrap.functions";
 import noqtaLogo from "@/assets/noqta-logo.png";
 
@@ -89,6 +89,8 @@ function AdminGate({ children }: { children: React.ReactNode }) {
     }
   }, [status, navigate]);
 
+  const logUnauthorizedFn = useServerFn(logUnauthorizedAccess);
+
   useEffect(() => {
     if (isLoading) return;
     if (isError) {
@@ -98,13 +100,17 @@ function AdminGate({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!sessionUser) return;
-    if (sessionUser.roles.includes("admin")) {
+    const allowedAdminRoles = ["admin", "owner", "manager", "staff"];
+    const hasRole = sessionUser.roles.some((r) => allowedAdminRoles.includes(r.toLowerCase()));
+
+    if (hasRole) {
       setQueryError(null);
       setStatus("ok");
     } else {
       setStatus("no-role");
+      logUnauthorizedFn({ data: { path: typeof window !== "undefined" ? window.location.pathname : "/admin" } }).catch(() => {});
     }
-  }, [sessionUser, isLoading, isError, error]);
+  }, [sessionUser, isLoading, isError, error, logUnauthorizedFn]);
 
   if (status === "ok") return <>{children}</>;
 
