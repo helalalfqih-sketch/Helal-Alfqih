@@ -487,28 +487,31 @@ function AIEngineeringAgentPage() {
   const startExecutionFn = useServerFn(startExecutionTask);
   const [isExecutingTask, setIsExecutingTask] = useState(false);
 
-  // Real backend execution stage resolver (Inspecting -> Generating -> Plan Ready -> Approved -> Executing -> Completed/Failed)
+  // Real backend execution stage resolver (PROJECT_ANALYSIS, GENERATING_PLAN, PLAN_READY, WAITING_APPROVAL, APPROVED, EXECUTING, COMPLETED, FAILED)
   const executionStageInfo = useMemo(() => {
+    // 8. FAILED
     if (failureExplanation) {
       return {
         stage: "FAILED",
-        label: "فشل التنفيذ (Failed)",
-        badgeColor: "bg-red-500/20 text-red-400 border-red-500/40",
+        label: "❌ فشل التنفيذ",
+        badgeColor: "bg-red-500/20 text-red-400 border-red-500/40 font-bold",
         canExecute: false,
         helperMsg: failureExplanation.reason || "حدث خطأ أثناء فحص البناء أو التنفيذ.",
       };
     }
 
+    // 6. EXECUTING
     if (isExecutingTask) {
       return {
         stage: "EXECUTING",
-        label: "جاري التنفيذ (Executing)",
-        badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-mono font-bold animate-pulse",
+        label: "⚙️ جاري تنفيذ التغييرات",
+        badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-bold animate-pulse",
         canExecute: false,
         helperMsg: "جاري تطبيق التعديلات وفحص البناء التجميعي...",
       };
     }
 
+    // 1 & 2: STREAMING / ANALYSIS & GENERATING PLAN
     if (isStreaming) {
       const latestEvent = persistentEvents.length > 0
         ? persistentEvents[persistentEvents.length - 1]
@@ -518,59 +521,77 @@ function AIEngineeringAgentPage() {
 
       const evtMsg = (latestEvent?.message || latestEvent?.label || "").toLowerCase();
 
-      if (evtMsg.includes("inspecting") || evtMsg.includes("فحص") || evtMsg.includes("inspect_project")) {
+      // 1. PROJECT_ANALYSIS
+      if (evtMsg.includes("inspecting") || evtMsg.includes("فحص") || evtMsg.includes("inspect_project") || evtMsg.includes("analysis")) {
         return {
-          stage: "INSPECTING_PROJECT",
-          label: "فحص بنية المشروع (Inspecting project)",
-          badgeColor: "bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-mono font-bold animate-pulse",
+          stage: "PROJECT_ANALYSIS",
+          label: "🔍 جاري تحليل المشروع",
+          badgeColor: "bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-bold animate-pulse",
           canExecute: false,
           helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
         };
       }
 
+      // 2. GENERATING_PLAN
       return {
         stage: "GENERATING_PLAN",
-        label: "إنشاء الخطة الهندسية (Generating engineering plan)",
-        badgeColor: "bg-violet-500/20 text-violet-400 border-violet-500/40 font-mono font-bold animate-pulse",
+        label: "🧠 جاري إنشاء Engineering Plan",
+        badgeColor: "bg-violet-500/20 text-violet-400 border-violet-500/40 font-bold animate-pulse",
         canExecute: false,
         helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
       };
     }
 
+    // TASKS IN DATABASE
     if (pendingTask) {
+      // 7. COMPLETED
       if (pendingTask.status === "completed" || pendingTask.status === "success") {
         return {
           stage: "COMPLETED",
-          label: "اكتمل التنفيذ (Completed)",
-          badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-mono font-bold",
+          label: "🎉 اكتمل التنفيذ",
+          badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold",
           canExecute: false,
           helperMsg: "تم تنفيذ المهمة واجتياز فحص البناء بنجاح.",
         };
       }
 
+      // 6. EXECUTING
       if (pendingTask.status === "executing" || pendingTask.status === "running") {
         return {
           stage: "EXECUTING",
-          label: "جاري التنفيذ (Executing)",
-          badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-mono font-bold animate-pulse",
+          label: "⚙️ جاري تنفيذ التغييرات",
+          badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-bold animate-pulse",
           canExecute: false,
           helperMsg: "جاري تطبيق التعديلات وفحص البناء التجميعي...",
         };
       }
 
+      // 5. APPROVED
+      if (pendingTask.status === "approved" || pendingTask.status === "APPROVED") {
+        return {
+          stage: "APPROVED",
+          label: "✅ تمت الموافقة، جاهز للتنفيذ",
+          badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold",
+          canExecute: true,
+          helperMsg: "اضغط على Build & Execute لبدء التنفيذ.",
+        };
+      }
+
+      // 3. PLAN_READY / 4. WAITING_APPROVAL
       return {
         stage: "PLAN_READY",
-        label: "الخطة جاهزة للاعتماد (Plan ready for approval)",
-        badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/40 font-mono font-bold",
+        label: "📋 الخطة الهندسية جاهزة للمراجعة",
+        badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold",
         canExecute: true,
         helperMsg: "اضغط على Build & Execute للاعتماد والتنفيذ الفوري.",
       };
     }
 
+    // 4. WAITING_APPROVAL (DEFAULT)
     return {
-      stage: "GENERATING_PLAN",
-      label: "في انتظار الخطة (Engineering plan required)",
-      badgeColor: "bg-zinc-800 text-zinc-400 border-zinc-700 font-mono",
+      stage: "WAITING_APPROVAL",
+      label: "⏳ بانتظار الموافقة على الخطة",
+      badgeColor: "bg-zinc-800 text-zinc-400 border-zinc-700 font-bold",
       canExecute: false,
       helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
     };
