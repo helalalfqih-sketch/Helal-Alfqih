@@ -68,6 +68,7 @@ import {
   approveAgentTask,
   rejectAgentTask,
   executeApprovedTask,
+  startExecutionTask,
   listExecutionHistoryFn,
   listExecutionJournalFn,
   getSessionExecutionEventsFn,
@@ -480,7 +481,7 @@ function AIEngineeringAgentPage() {
     }
   };
 
-  const executeApprovedFn = useServerFn(executeApprovedTask);
+  const startExecutionFn = useServerFn(startExecutionTask);
   const [isExecutingTask, setIsExecutingTask] = useState(false);
 
   const approveTaskServerFn = useServerFn(approveAgentTask);
@@ -506,8 +507,8 @@ function AIEngineeringAgentPage() {
       // 1. approvePlan(taskId)
       await approveTaskServerFn({ data: { taskId: taskIdToRun } });
       
-      // 2. startExecution(taskId)
-      const res = (await executeApprovedFn({ data: { taskId: taskIdToRun } })) as any;
+      // 2. startExecution Controller Orchestrator
+      const res = (await startExecutionFn({ data: { taskId: taskIdToRun, sessionId: activeSessionId || "default" } })) as any;
       if (res?.success) {
         toast.success(`تم تطبيق جميع الخطوات والتعديلات واجتياز فحص البناء بنجاح! ✨`, { id: "task-exec" });
         setPendingTask(null);

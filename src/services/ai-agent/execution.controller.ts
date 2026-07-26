@@ -44,6 +44,8 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
   const db = await getAdminDb(options);
   const { taskId, tenantId, sessionId } = options;
 
+  console.log("[EXECUTION_CONTROLLER] START", { taskId, sessionId, tenantId });
+
   // 1. Deduplication guard — prevent duplicate EXECUTION_STARTED logs
   const alreadyStarted = await hasExecutionStartedLog(taskId, db);
   if (!alreadyStarted) {

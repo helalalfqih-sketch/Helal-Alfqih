@@ -785,6 +785,26 @@ export const listSessionTasksFn = createServerFn({ method: "GET" })
   });
 
 /**
+ * Single Entry Point Orchestrator — Start AI Agent Task Execution via Execution Controller
+ */
+export const startExecutionTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ taskId: z.string().min(1), sessionId: z.string().optional() }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { startExecution } = await import("@/services/ai-agent/execution.controller");
+    return startExecution({
+      taskId: data.taskId,
+      tenantId,
+      sessionId: data.sessionId || "default",
+      userId: ctx.userId,
+    });
+  });
+
+/**
  * Execute an approved AI Agent task — Owner Role Only 👑
  * Applies code proposals to disk, runs typecheck & build verification,
  * logs audit trace, and saves solution into AI Long-Term Memory.
@@ -793,6 +813,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ taskId: z.string().min(1) }))
   .handler(async ({ data, context }) => {
+    console.log("[DIRECT_EXECUTION] CALLED", data.taskId);
     const ctx = context as any;
     const db = await getAdminDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
