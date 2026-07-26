@@ -308,12 +308,17 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     sendEvent,
   } = input;
 
-  // 1. Load Dynamic Project Code Intelligence Context & Memory (Phase 7.3)
-  sendEvent(makeStatusEvent("loading_project_context", "🧠 جاري التحليل والفهرسة الديناميكية لهيكلية المشروع..."));
+  // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine (Phase 7.5)
+  sendEvent(makeStatusEvent("loading_project_context", "🧠 جاري التحليل والفهرسة الديناميكية واحتساب القرار الهندسي..."));
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
+  const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
+  
   const dynamicCodeIntel = await getProjectContextForAgent(tenantId, message);
   const baseContext = await buildProjectPromptContext(tenantId);
-  const projectContext = `${baseContext}\n\n${dynamicCodeIntel}`;
+  const reasoningReport = await analyzeEngineeringRequest(message, []);
+  const decisionSummary = await generateTechnicalDecision(reasoningReport);
+
+  const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");

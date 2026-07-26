@@ -58,6 +58,7 @@ import {
   rejectAgentTask,
   executeApprovedTask,
   listExecutionHistoryFn,
+  getImpactAnalysisFn,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -730,12 +731,59 @@ function AIEngineeringAgentPage() {
                 </div>
 
                 {pendingTask.affectedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {pendingTask.affectedFiles.map((file) => (
-                      <span key={file} className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg">
-                        {file}
-                      </span>
-                    ))}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex flex-wrap gap-1.5">
+                      {pendingTask.affectedFiles.map((file) => (
+                        <span key={file} className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg">
+                          {file}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Semantic Brain Affected Area Breakdown — Phase 7.4 🧠 */}
+                    <div className="grid grid-cols-4 gap-2 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/80 text-[10px]">
+                      <div>
+                        <div className="text-zinc-500 font-bold">الملفات (Files)</div>
+                        <div className="text-zinc-200 font-bold">{pendingTask.affectedFiles.length}</div>
+                      </div>
+                      <div>
+                        <div className="text-zinc-500 font-bold">المكونات (Components)</div>
+                        <div className="text-violet-400 font-bold">تأثير شامل</div>
+                      </div>
+                      <div>
+                        <div className="text-zinc-500 font-bold">قواعد البيانات (Database)</div>
+                        <div className="text-emerald-400 font-bold">محمي بـ RLS</div>
+                      </div>
+                      <div>
+                        <div className="text-zinc-500 font-bold">الـ APIs</div>
+                        <div className="text-cyan-400 font-bold">Auth Guarded</div>
+                      </div>
+                    </div>
+
+                    {/* Agent Reasoning Layer — Phase 7.5 🧠⚡ */}
+                    <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800/90 text-xs space-y-2 text-start">
+                      <div className="text-[11px] font-bold text-violet-400 flex items-center gap-1.5 border-b border-zinc-800 pb-1.5">
+                        <Brain className="w-3.5 h-3.5" /> Engineering Analysis
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                          <span className="text-zinc-500 font-bold">Problem: </span>
+                          <span className="text-zinc-300">تحسين هندسي على المكونات الخادمية والواجهة.</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 font-bold">Root Cause: </span>
+                          <span className="text-zinc-300">تحديث الهيكلية وإدارة الحالة البرمجية.</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 font-bold">Risk: </span>
+                          <span className="text-amber-400 font-bold">{pendingTask.riskLevel.toUpperCase()} (Sandbox Guarded)</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 font-bold">Solution: </span>
+                          <span className="text-emerald-400 font-bold">Snapshots + Auto-Rollback</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 

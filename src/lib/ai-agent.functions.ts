@@ -977,3 +977,12 @@ export const getCodebaseIndexFn = createServerFn({ method: "GET" })
     return scanProjectStructure();
   });
 
+/** Run Impact Analysis for target files */
+export const getImpactAnalysisFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ files: z.array(z.string()) }))
+  .handler(async ({ data }) => {
+    const { findImpactAnalysis } = await import("@/services/ai-agent/code-intelligence.service");
+    return findImpactAnalysis(data.files);
+  });
+

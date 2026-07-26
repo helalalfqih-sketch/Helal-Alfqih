@@ -234,3 +234,88 @@ export async function getProjectContextForAgent(
 
   return sections.join("\n");
 }
+export interface ImpactAnalysisReport {
+  targetFiles: string[];
+  affectedComponents: string[];
+  affectedDatabaseTables: string[];
+  affectedApis: string[];
+  dependencyMap: Record<string, string[]>;
+}
+
+/**
+ * Build a light dependency graph mapping files to imports and database tables
+ */
+export async function buildDependencyGraph(targetFiles: string[]): Promise<Record<string, string[]>> {
+  const graph: Record<string, string[]> = {};
+  for (const file of targetFiles) {
+    const imports = await analyzeFileDependencies(file);
+    graph[file] = imports;
+  }
+  return graph;
+}
+
+/**
+ * Perform Impact Analysis on target files to determine affected components, database tables, and APIs
+ */
+export async function findImpactAnalysis(targetFiles: string[]): Promise<ImpactAnalysisReport> {
+  const index = await scanProjectStructure();
+  const affectedComponents: Set<string> = new Set();
+  const affectedDatabaseTables: Set<string> = new Set();
+  const affectedApis: Set<string> = new Set();
+  const dependencyMap: Record<string, string[]> = {};
+
+  for (const file of targetFiles) {
+    const imports = await analyzeFileDependencies(file);
+    dependencyMap[file] = imports;
+
+    // Detect DB tables referenced
+    try {
+      const absPath = path.resolve(PROJECT_ROOT, file.replace(/^[/\\]+/, ""));
+      const content = await fs.readFile(absPath, "utf-8");
+
+      for (const table of index.dbTables) {
+        if (content.includes(`.from("${table}")`) || content.includes(`.from('${table}')`)) {
+          affectedDatabaseTables.add(table);
+        }
+      }
+
+      // Detect APIs/Server functions
+      if (content.includes("createServerFn") || file.includes(".functions.ts") || file.includes(".server.ts")) {
+        affectedApis.add(file);
+      }
+
+      // Detect Components
+      for (const comp of index.components) {
+        const compBasename = path.basename(comp, path.extname(comp));
+        if (content.includes(compBasename)) {
+          affectedComponents.add(comp);
+        }
+      }
+    } catch {
+      // Ignore unreadable file
+    }
+  }
+
+  return {
+    targetFiles,
+    affectedComponents: Array.from(affectedComponents),
+    affectedDatabaseTables: Array.from(affectedDatabaseTables),
+    affectedApis: Array.from(affectedApis),
+    dependencyMap,
+  };
+}
+
+/**
+ * Get detailed related code context for a target file
+ */
+export async function getRelatedCodeContext(targetFile: string): Promise<string> {
+  const report = await findImpactAnalysis([targetFile]);
+  const sections = [
+    `=== Impact Analysis for: ${targetFile} ===`,
+    `المكونات المتأثرة (Components): ${report.affectedComponents.length > 0 ? report.affectedComponents.join(", ") : "لا يوجد"}`,
+    `جداول قواعد البيانات المستهدفة (DB Tables): ${report.affectedDatabaseTables.length > 0 ? report.affectedDatabaseTables.join(", ") : "لا يوجد"}`,
+    `الـ APIs والـ Server Functions: ${report.affectedApis.length > 0 ? report.affectedApis.join(", ") : "لا يوجد"}`,
+  ];
+  return sections.join("\n");
+}
+
