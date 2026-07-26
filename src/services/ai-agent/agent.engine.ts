@@ -308,13 +308,34 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     sendEvent,
   } = input;
 
-  // 1. Load Project Context
-  sendEvent(makeStatusEvent("loading_project_context", "📚 جاري تحميل سياق المشروع..."));
+  // 1. Load Project Context & Task Memory (Phase 5)
+  sendEvent(makeStatusEvent("loading_project_context", "📚 جاري تحميل سياق ذاكرة المشروع..."));
   const projectContext = await buildProjectPromptContext(tenantId);
-  sendEvent(makeStatusEvent("project_context_ready", "✅ تم تجهيز سياق المشروع"));
+
+  // Search Long-Term Task Memory for relevant past solutions
+  const { searchTaskMemory } = await import("./agent.tasks");
+  const pastMemories = await searchTaskMemory(tenantId, message, 3);
+  let memoryStr = projectMemory || "";
+  if (pastMemories.length > 0) {
+    const pastStr = pastMemories
+      .map(
+        (m) =>
+          `[حل سابق / ${m.category}]: مشكلة "${m.problem}" ⬅️ الحل: ${m.solution} ${m.commit_hash ? `(Commit: ${m.commit_hash})` : ""}`,
+      )
+      .join("\n");
+    memoryStr = memoryStr ? `${memoryStr}\n\n${pastStr}` : pastStr;
+    sendEvent(
+      makeStatusEvent(
+        "task_memory_recalled",
+        `🧬 تم استرجاع ${pastMemories.length} ذكريات سابقة ذات صلة من ai_task_memory...`,
+      ),
+    );
+  } else {
+    sendEvent(makeStatusEvent("project_context_ready", "✅ تم تجهيز سياق المشروع"));
+  }
 
   // 2. Build system prompt + tools
-  const systemPrompt = buildSystemPrompt(projectContext, projectMemory, agentRole);
+  const systemPrompt = buildSystemPrompt(projectContext, memoryStr, agentRole);
   const tools = buildTools(agentRole, tenantId, sendEvent);
 
   const messages = [
