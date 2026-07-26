@@ -70,6 +70,7 @@ import {
   executeApprovedTask,
   listExecutionHistoryFn,
   listExecutionJournalFn,
+  getSessionExecutionEventsFn,
   getImpactAnalysisFn,
   getAgentPerformanceFn,
   type AgentSession,
@@ -171,6 +172,7 @@ function AIEngineeringAgentPage() {
   const getExecHistoryFn = useServerFn(listExecutionHistoryFn);
   const getAgentPerfFn = useServerFn(getAgentPerformanceFn);
   const getExecJournalFn = useServerFn(listExecutionJournalFn);
+  const getSessionEventsFn = useServerFn(getSessionExecutionEventsFn);
 
   const { data: execHistory = [] } = useQuery({
     queryKey: ["ai-execution-history"],
@@ -183,6 +185,13 @@ function AIEngineeringAgentPage() {
     refetchInterval: 5000,
   });
   const journalLogs = (rawJournalLogs || []) as any[];
+
+  const { data: rawPersistentEvents } = useQuery({
+    queryKey: ["ai-session-events", activeSessionId],
+    queryFn: () => (activeSessionId ? getSessionEventsFn({ data: { sessionId: activeSessionId } }) : Promise.resolve([])),
+    enabled: !!activeSessionId,
+  });
+  const persistentEvents = (rawPersistentEvents || []) as any[];
 
   const { data: perfOverview } = useQuery({
     queryKey: ["ai-agent-performance"],
@@ -774,42 +783,46 @@ function AIEngineeringAgentPage() {
               ))}
             </AnimatePresence>
 
-            {isStreaming && (
-              <div className="p-3.5 rounded-2xl bg-[#18181c] border border-zinc-800 space-y-2 text-xs font-mono shadow-md text-start">
+            {/* Persistent & Live Execution Events Timeline Stream 📜 */}
+            {(isStreaming || persistentEvents.length > 0) && (
+              <div className="p-3.5 rounded-2xl bg-[#18181c] border border-zinc-800 space-y-2 text-xs font-mono shadow-md text-start my-2">
                 <div className="text-[11px] font-bold text-violet-400 flex items-center justify-between border-b border-zinc-800 pb-2 font-sans">
                   <span className="flex items-center gap-1.5">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" /> Task Execution State Machine
+                    {isStreaming ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                    ) : (
+                      <History className="w-3.5 h-3.5 text-emerald-400" />
+                    )}
+                    Persistent Execution History ({persistentEvents.length || agentEventsLog.length} events)
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold uppercase tracking-wider">
-                    {agentActivity?.status || "ANALYZING_REPOSITORY"}
+                    {isStreaming ? (agentActivity?.status || "ANALYZING_REPOSITORY") : "COMPLETED_SESSION"}
                   </span>
                 </div>
-                <div className="space-y-1.5 text-zinc-300 text-[11px]">
-                  {agentEventsLog.length === 0 ? (
-                    <div className="flex items-center gap-2 text-cyan-400 font-semibold">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>⏳ {agentActivity?.label || "ANALYZING_REPOSITORY (Inspecting code & DB schema...)"}</span>
-                    </div>
-                  ) : (
-                    agentEventsLog.map((evt, idx) => {
-                      const isLast = idx === agentEventsLog.length - 1;
-                      return (
-                        <div key={evt.id} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            {isLast ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" />
-                            ) : (
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            )}
-                            <span className={isLast ? "text-cyan-400 font-semibold" : "text-emerald-400 font-medium"}>
-                              {isLast ? "⏳" : "✓"} {evt.label}
-                            </span>
-                          </div>
-                          <span className="text-[9px] text-zinc-500 font-mono shrink-0">{evt.time}</span>
+                <div className="space-y-1.5 text-zinc-300 text-[11px] max-h-60 overflow-y-auto no-scrollbar">
+                  {((persistentEvents.length > 0 ? persistentEvents : agentEventsLog) as any[]).map((evt, idx, arr) => {
+                    const isLast = isStreaming && idx === arr.length - 1;
+                    const labelStr = evt.message || evt.label || "Execution Event";
+                    const timeStr = evt.createdAt
+                      ? new Date(evt.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                      : evt.time || "--:--:--";
+
+                    return (
+                      <div key={evt.id || idx} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {isLast ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" />
+                          ) : (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          )}
+                          <span className={isLast ? "text-cyan-400 font-semibold" : "text-emerald-400 font-medium"}>
+                            {isLast ? "⏳" : "✓"} {labelStr}
+                          </span>
                         </div>
-                      );
-                    })
-                  )}
+                        <span className="text-[9px] text-zinc-500 font-mono shrink-0">{timeStr}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

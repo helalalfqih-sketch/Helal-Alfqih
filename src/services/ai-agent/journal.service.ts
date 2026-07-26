@@ -56,3 +56,63 @@ export async function fetchExecutionJournalLogs(tenantId: string, limit = 50): P
     return [];
   }
 }
+
+export interface PersistentExecutionEvent {
+  id?: string;
+  sessionId: string;
+  taskId?: string;
+  tenantId: string;
+  eventType: "STATE_CHANGE" | "TOOL_CALL" | "PROGRESS" | "ERROR" | "COMPLETION";
+  state?: string;
+  message: string;
+  progress?: number;
+  metadata?: any;
+  createdAt?: string;
+}
+
+export async function savePersistentExecutionEvent(event: PersistentExecutionEvent): Promise<void> {
+  try {
+    const db = await getAdminDb({});
+    await db.from("agent_execution_events").insert({
+      session_id: event.sessionId,
+      task_id: event.taskId || null,
+      tenant_id: event.tenantId || "default",
+      event_type: event.eventType,
+      state: event.state || null,
+      message: event.message,
+      progress: event.progress || 0,
+      metadata: typeof event.metadata === "object" ? event.metadata : { detail: event.metadata },
+      created_at: event.createdAt || new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[ExecutionEvents] Failed to save persistent event:", err);
+  }
+}
+
+export async function listSessionExecutionEvents(sessionId: string, limit = 100): Promise<PersistentExecutionEvent[]> {
+  try {
+    const db = await getAdminDb({});
+    const { data } = await db
+      .from("agent_execution_events")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true })
+      .limit(limit);
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      taskId: row.task_id,
+      tenantId: row.tenant_id,
+      eventType: row.event_type as any,
+      state: row.state,
+      message: row.message,
+      progress: row.progress,
+      metadata: row.metadata,
+      createdAt: row.created_at,
+    }));
+  } catch (err) {
+    console.warn("[ExecutionEvents] Failed to fetch session execution events:", err);
+    return [];
+  }
+}

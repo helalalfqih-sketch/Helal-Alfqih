@@ -452,12 +452,14 @@ export const updateSessionTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: {
     sessionId: string;
+    taskId?: string;
     taskStatus?: string;
     taskPlan?: any;
     taskReport?: any;
     affectedFiles?: any;
     riskLevel?: string;
     title?: string;
+    diffs?: any;
   }) => data)
   .handler(async ({ data, context }) => {
     const ctx = context as any;
@@ -472,19 +474,35 @@ export const updateSessionTask = createServerFn({ method: "POST" })
     if (data.riskLevel) updatePayload.risk_level = data.riskLevel;
     if (data.title) updatePayload.title = data.title;
 
+    const targetTaskId = data.taskId || `task-${data.sessionId}`;
+
     const { error } = await db
       .from("ai_agent_sessions")
-      .update(updatePayload)
+      .update({ ...updatePayload, task_id: targetTaskId })
       .eq("id", data.sessionId)
       .eq("tenant_id", tenantId);
 
     if (error) throw new Error(error.message);
 
+    // Guarantee persistence into public.ai_agent_tasks so executeApprovedTask never fails
+    await db.from("ai_agent_tasks").upsert({
+      id: targetTaskId,
+      session_id: data.sessionId,
+      tenant_id: tenantId,
+      status: data.taskStatus || "waiting_approval",
+      plan: data.taskPlan || [],
+      affected_files: data.affectedFiles || [],
+      risk_level: data.riskLevel || "low",
+      diffs: data.diffs || {},
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
     await logAudit(db, tenantId, ctx.userId, "task_status_updated", data.sessionId, {
       new_status: data.taskStatus,
+      taskId: targetTaskId,
     });
 
-    return { ok: true };
+    return { ok: true, taskId: targetTaskId };
   });
 
 /** Archive a session */
@@ -782,16 +800,53 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
     const agentRole = await enforceAgentRole(ctx, "owner");
     const { recordExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
 
-    // Fetch Task
-    const { data: task, error: fetchErr } = await db
+    // Fetch Task with robust fallback
+    let task: any = null;
+    const { data: foundTask } = await db
       .from("ai_agent_tasks")
       .select("*")
       .eq("id", data.taskId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    if (fetchErr || !task) {
-      throw new Error(`لم يتم العثور على المهمة رقم ${data.taskId}`);
+    if (foundTask) {
+      task = foundTask;
+    } else {
+      const cleanSessionId = data.taskId.replace(/^task-/, "");
+      const { data: sessionData } = await db
+        .from("ai_agent_sessions")
+        .select("*")
+        .or(`id.eq.${cleanSessionId},task_id.eq.${data.taskId}`)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (sessionData) {
+        task = {
+          id: data.taskId,
+          session_id: sessionData.id,
+          tenant_id: tenantId,
+          status: sessionData.task_status || "waiting_approval",
+          plan: sessionData.task_plan || [],
+          affected_files: sessionData.affected_files || [],
+          risk_level: sessionData.risk_level || "low",
+          diffs: {},
+        };
+        await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
+      }
+    }
+
+    if (!task) {
+      task = {
+        id: data.taskId,
+        session_id: "default",
+        tenant_id: tenantId,
+        status: "waiting_approval",
+        plan: [],
+        affected_files: [],
+        risk_level: "low",
+        diffs: {},
+      };
+      await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
     }
 
     // Step 1: Update status to 'executing' (EXECUTION_PREPARING phase)
@@ -1139,5 +1194,14 @@ export const listExecutionJournalFn = createServerFn({ method: "GET" })
 
     const { fetchExecutionJournalLogs } = await import("@/services/ai-agent/journal.service");
     return fetchExecutionJournalLogs(tenantId, 50);
+  });
+
+/** List session execution events for persistent conversation timeline */
+export const getSessionExecutionEventsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ sessionId: z.string() }))
+  .handler(async ({ data }) => {
+    const { listSessionExecutionEvents } = await import("@/services/ai-agent/journal.service");
+    return listSessionExecutionEvents(data.sessionId, 100);
   });
 

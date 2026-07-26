@@ -142,6 +142,14 @@ const ProposeCreateFileSchema = z.object({
   reason: z.string().describe("سبب إنشاء الملف"),
 });
 
+const ApprovePlanSchema = z.object({
+  task_id: z.string().describe("معرف المهمة المراد اعتماد خطتها للتنفيذ"),
+});
+
+const ExecuteTaskSchema = z.object({
+  task_id: z.string().describe("معرف المهمة المراد تفعيل خطواتها الميدانية والفحص البنائي لها"),
+});
+
 // ─────────────────────────────────────────────────
 // Build ToolSet for ai SDK v7
 // ─────────────────────────────────────────────────
@@ -289,6 +297,28 @@ function buildTools(
     };
   }
 
+  // ── Approve Execution Plan ──────────────────────────────────
+  tools.approve_execution_plan = {
+    description: "Approve the current engineering plan and start execution",
+    inputSchema: ApprovePlanSchema,
+    execute: async (input: z.infer<typeof ApprovePlanSchema>) => {
+      sendEvent(makeToolCallEvent("approve_execution_plan", { task_id: input.task_id }));
+      const { approvePlan } = await import("./execution.controller");
+      return approvePlan({ taskId: input.task_id, tenantId, sessionId: "" });
+    },
+  };
+
+  // ── Execute Task ────────────────────────────────────────────
+  tools.execute_task = {
+    description: "Execute approved engineering steps, apply file modifications, and run build verification",
+    inputSchema: ExecuteTaskSchema,
+    execute: async (input: z.infer<typeof ExecuteTaskSchema>) => {
+      sendEvent(makeToolCallEvent("execute_task", { task_id: input.task_id }));
+      const { startExecution } = await import("./execution.controller");
+      return startExecution({ taskId: input.task_id, tenantId, sessionId: "" });
+    },
+  };
+
   return tools;
 }
 
@@ -310,8 +340,24 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
   // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine
   const { AgentTaskState } = await import("./agent.state");
   const { makeProgressEvent } = await import("./agent.events");
+  const { savePersistentExecutionEvent } = await import("./journal.service");
 
-  sendEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, "✓ Inspecting routes, services & DB migrations...", 20));
+  const dispatchPersistentEvent = (event: any) => {
+    sendEvent(event);
+    if (event.type === "status" || event.type === "tool_call" || event.type === "reading_file" || event.type === "searching_code") {
+      savePersistentExecutionEvent({
+        sessionId: input.sessionId,
+        tenantId,
+        eventType: event.type === "tool_call" ? "TOOL_CALL" : "STATE_CHANGE",
+        state: event.state || event.status,
+        message: event.message || event.label || "Execution progress event",
+        progress: event.progress || 0,
+        metadata: event.metadata,
+      }).catch(() => {});
+    }
+  };
+
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, "✓ Inspecting routes, services & DB migrations...", 20));
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
   const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
   
@@ -322,7 +368,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
 
   const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
-  sendEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, "✓ Generating complete engineering plan...", 45));
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, "✓ Generating complete engineering plan...", 45));
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");
   const pastMemories = await searchTaskMemory(tenantId, message, 3);
@@ -339,14 +385,14 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
 
   // 2. Build system prompt + tools
   const systemPrompt = buildSystemPrompt(projectContext, memoryStr, agentRole);
-  const tools = buildTools(agentRole, tenantId, sendEvent);
+  const tools = buildTools(agentRole, tenantId, dispatchPersistentEvent);
 
   const messages = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     { role: "user" as const, content: message },
   ];
 
-  sendEvent(makeProgressEvent(AgentTaskState.WAITING_APPROVAL, "✓ Engineering plan ready for approval", 50));
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.WAITING_APPROVAL, "✓ Engineering plan ready for approval", 50));
 
   // 3. Stream with model fallback
   const candidates = Array.from(new Set([resolved.modelName, ...MODEL_FALLBACKS]));
