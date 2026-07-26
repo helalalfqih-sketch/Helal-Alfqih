@@ -700,28 +700,50 @@ export const approveAgentTask = createServerFn({ method: "POST" })
     const db = await getAdminDb(ctx);
 
     const cleanSessionId = data.taskId.replace(/^task-/, "");
-    try {
-      await db.from("ai_agent_tasks").upsert({
-        id: data.taskId,
-        session_id: cleanSessionId,
-        tenant_id: auth.tenantId,
-        status: "executing",
-        user_approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
+    const nowIso = new Date().toISOString();
 
-      await db.from("ai_agent_plans").upsert({
-        id: data.taskId,
-        session_id: cleanSessionId,
-        tenant_id: auth.tenantId,
-        objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
-        status: "APPROVED",
-        approved_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      }, { onConflict: "id" });
-    } catch (err) {
-      console.warn("[approveAgentTask] Non-fatal RLS/Table warning:", err);
-    }
+    console.log("[DIAGNOSTIC_APPROVE] Starting plan/task approval", {
+      taskId: data.taskId,
+      cleanSessionId,
+      tenantId: auth.tenantId,
+    });
+
+    const taskUpsertRes = await db.from("ai_agent_tasks").upsert({
+      id: data.taskId,
+      session_id: cleanSessionId,
+      tenant_id: auth.tenantId,
+      status: "executing",
+      user_approved_at: nowIso,
+      updated_at: nowIso,
+    }, { onConflict: "id" });
+
+    console.log("[DIAGNOSTIC_APPROVE] ai_agent_tasks update result", {
+      error: taskUpsertRes.error?.message || null,
+      status: taskUpsertRes.status,
+    });
+
+    const planUpsertRes = await db.from("ai_agent_plans").upsert({
+      id: cleanSessionId,
+      session_id: cleanSessionId,
+      tenant_id: auth.tenantId,
+      objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
+      status: "APPROVED",
+      approved_at: nowIso,
+      created_at: nowIso,
+    }, { onConflict: "id" });
+
+    console.log("[DIAGNOSTIC_APPROVE] ai_agent_plans update result", {
+      error: planUpsertRes.error?.message || null,
+      status: planUpsertRes.status,
+    });
+
+    const { data: verifyTask } = await db.from("ai_agent_tasks").select("id, status, user_approved_at").eq("id", data.taskId).maybeSingle();
+    const { data: verifyPlan } = await db.from("ai_agent_plans").select("id, session_id, status, approved_at").eq("id", cleanSessionId).maybeSingle();
+
+    console.log("[DIAGNOSTIC_APPROVE] Final statuses after update", {
+      verifiedTask: verifyTask,
+      verifiedPlan: verifyPlan,
+    });
 
     return { success: true, taskId: data.taskId, status: "executing", approvedBy: auth.userId };
   });

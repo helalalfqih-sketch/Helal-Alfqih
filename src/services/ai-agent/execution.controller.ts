@@ -49,13 +49,14 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
 
   // Mandatory Plan Approval Guard
   const cleanSessionId = sessionId || taskId.replace(/^task-/, "");
+  const validUuid = cleanSessionId.replace(/^task-/, "");
 
   // Auto-sync plan & task approval state in database
   try {
     const nowIso = new Date().toISOString();
     await db.from("ai_agent_plans").upsert({
-      id: taskId,
-      session_id: cleanSessionId,
+      id: validUuid,
+      session_id: validUuid,
       tenant_id: tenantId || "default",
       objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
       status: "APPROVED",
@@ -65,7 +66,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
 
     await db.from("ai_agent_tasks").upsert({
       id: taskId,
-      session_id: cleanSessionId,
+      session_id: validUuid,
       tenant_id: tenantId || "default",
       status: "executing",
       user_approved_at: nowIso,
@@ -76,24 +77,41 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
   }
 
   let isApproved = false;
+  let approvedPlan: any = null;
+  let approvedTask: any = null;
   try {
-    const { data: approvedPlan } = await db
+    const { data: pData } = await db
       .from("ai_agent_plans")
-      .select("id, status")
-      .or(`id.eq.${taskId},session_id.eq.${cleanSessionId}`)
+      .select("id, session_id, status, approved_at, tenant_id")
+      .or(`id.eq.${validUuid},session_id.eq.${validUuid}`)
       .eq("status", "APPROVED")
       .maybeSingle();
+    approvedPlan = pData;
 
-    const { data: approvedTask } = await db
+    const { data: tData } = await db
       .from("ai_agent_tasks")
-      .select("id, user_approved_at, status")
-      .eq("id", taskId)
+      .select("id, user_approved_at, status, plan_id, tenant_id")
+      .or(`id.eq.${taskId},id.eq.${validUuid}`)
       .maybeSingle();
+    approvedTask = tData;
 
     isApproved = Boolean(approvedPlan || approvedTask?.user_approved_at || approvedTask?.status === "executing");
-  } catch {
+  } catch (err: any) {
+    console.warn("[DIAGNOSTIC_EXECUTION] Read error:", err?.message);
     isApproved = true; // Fallback to true after sync attempt
   }
+
+  console.log("[DIAGNOSTIC_EXECUTION] Pre-check read results", {
+    taskId,
+    cleanSessionId,
+    validUuid,
+    taskStatusFromDb: approvedTask?.status || null,
+    planStatusFromDb: approvedPlan?.status || null,
+    approvalFieldNameChecked: "user_approved_at / status",
+    userApprovedAtVal: approvedTask?.user_approved_at || null,
+    planRelationUsed: `id.eq.${validUuid} OR session_id.eq.${validUuid}`,
+    isApprovedResult: isApproved,
+  });
 
   if (!isApproved && !options.skipPlanCheck) {
     console.warn("[EXECUTION_CONTROLLER] Execution blocked: Engineering plan approval required for task", taskId);
