@@ -85,13 +85,17 @@ function buildSystemPrompt(
 == صلاحياتك ==
 ${roleDesc[agentRole]}
 
-== قواعد التنفيذ الصارمة ==
-1. لا تُعدّل أي ملف بدون موافقة صريحة من المستخدم.
-2. لا تكشف مفاتيح API أو بيانات التوثيق.
-3. حافظ على Multi-Tenant isolation (tenant_id) في كل استعلام.
-4. استخدم أدواتك (read_file, search_code, inspect_database) قبل اقتراح أي خطة.
-5. أجب بالعربية الواضحة. الكود والمسارات تبقى بالإنجليزية.
-6. لا تعرض chain-of-thought أو التفكير الداخلي.
+== قواعد التنفيذ الصارمة والتنفيذ المستمر (Continuous Autonomous Execution) ==
+1. التغطية المستمرة الفورية: لا تتوقف بعد استلام الطلب ولا تكتب عبارات تسويفية مثل ("سأبدأ...", "سأقوم...", "سأحلل...") بدون تنفيذ التحليل وتقديم الخطة والحل كاملاً فوراً في نفس الإجابة.
+2. لا تطلب من المستخدم كلمة "اكمل" بعد كل خطوة، واصل التحليل والتنفيذ تلقائياً عبر خطوات العمل المتتابعة.
+3. التوقف متاح فقط في 4 حالات صريحة:
+   - طلب قرار تصميم جوهري من المستخدم.
+   - عدم توفر صلاحية مطلوبة (مثلاً تنفيذ كود ورتبة المستخدم ليست Owner).
+   - وجود تعارض لا يمكن حله تلقائياً.
+   - موافقة الـ Owner الصريحة لتطبيق التعديلات البرمجية (Approve & Execute Gate).
+4. استخدم أدواتك الذكية مباشرةً للتحليل، القراءة، واقتراح الـ diffs.
+5. حافظ على Multi-Tenant isolation (tenant_id) في كل استعلام.
+6. أجب بالعربية الواضحة ذات الطابع الهندسي المحترف. الكود والمسارات تظل بالإنجليزية.
 
 == سياق المشروع ==
 ${projectContext}
@@ -100,10 +104,10 @@ ${projectContext}
 ${projectMemory || "(لا توجد ذاكرة إضافية)"}
 
 == نمط الإجابة ==
-- ملخص المشكلة
-- الخطة المرقمة مع الملفات
+- ملخص التحليل الهندسي
+- خطة العمل التفصيلية للحل
 - مستوى الخطورة: 🟢 Low | 🟡 Medium | 🟠 High | 🔴 Critical
-- الكود في code blocks محددة اللغة`.trim();
+- الكود والـ Diffs المقترحة داخل code blocks محددة`.trim();
 }
 
 // ─────────────────────────────────────────────────
@@ -309,10 +313,11 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
   } = input;
 
   // 1. Load Dynamic Project Code Intelligence Context & Reasoning Engine (Phase 7.5)
-  sendEvent(makeStatusEvent("loading_project_context", "🧠 جاري التحليل والفهرسة الديناميكية واحتساب القرار الهندسي..."));
+  sendEvent(makeStatusEvent("searching_code", "✓ Searching routes & reading files..."));
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
   const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
   
+  sendEvent(makeStatusEvent("analyzing", "✓ Analyzing modules & impact..."));
   const dynamicCodeIntel = await getProjectContextForAgent(tenantId, message);
   const baseContext = await buildProjectPromptContext(tenantId);
   const reasoningReport = await analyzeEngineeringRequest(message, []);
@@ -320,6 +325,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
 
   const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
+  sendEvent(makeStatusEvent("planning", "✓ Building implementation plan..."));
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");
   const pastMemories = await searchTaskMemory(tenantId, message, 3);
@@ -339,7 +345,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
       ),
     );
   } else {
-    sendEvent(makeStatusEvent("project_context_ready", "✅ تم تجهيز سياق المشروع"));
+    sendEvent(makeStatusEvent("project_context_ready", "✓ Project context ready"));
   }
 
   // 2. Build system prompt + tools
@@ -351,7 +357,7 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     { role: "user" as const, content: message },
   ];
 
-  sendEvent(makeStatusEvent("generating_response", "🤖 أفكر في الإجابة..."));
+  sendEvent(makeStatusEvent("generating_response", "✓ Executing solution stream..."));
 
   // 3. Stream with model fallback
   const candidates = Array.from(new Set([resolved.modelName, ...MODEL_FALLBACKS]));
@@ -402,5 +408,5 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
   }
 
   // 4. Done
-  sendEvent(makeStatusEvent("completed", "✅ اكتملت المعالجة"));
+  sendEvent(makeStatusEvent("completed", "✓ Finished."));
 }

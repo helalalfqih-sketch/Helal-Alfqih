@@ -708,9 +708,29 @@ function AIEngineeringAgentPage() {
             </AnimatePresence>
 
             {isStreaming && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-[#1c1c1e] border border-zinc-800 text-xs text-zinc-300">
-                <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
-                <span>{agentActivity?.label || "جاري التحليل والتطوير..."}</span>
+              <div className="p-3.5 rounded-2xl bg-[#18181c] border border-zinc-800 space-y-2 text-xs font-mono shadow-md text-start">
+                <div className="text-[11px] font-bold text-violet-400 flex items-center justify-between border-b border-zinc-800 pb-2 font-sans">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" /> Execution State Machine
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold uppercase tracking-wider">
+                    {agentActivity?.status || "Analyzing"}
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-zinc-300 text-[11px]">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>✓ Reading files...</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>✓ Searching routes & analyzing payment modules...</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>✓ {agentActivity?.label || "Building implementation plan..."}</span>
+                  </div>
+                </div>
               </div>
             )}
             <div ref={chatEndRef} />
