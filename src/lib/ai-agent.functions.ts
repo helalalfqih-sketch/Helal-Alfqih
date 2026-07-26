@@ -886,6 +886,18 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           retryAttempts: retryResult.attemptsCount,
         });
 
+        // Evaluate Failure & Penalty (Phase 9 📊)
+        const { evaluateTaskExecution } = await import("@/services/ai-agent/evaluation.engine");
+        const evalReport = await evaluateTaskExecution({
+          tenantId,
+          taskId: data.taskId,
+          buildSuccess: false,
+          typecheckSuccess: false,
+          retryAttempts: retryResult.attemptsCount,
+          affectedFilesCount: affectedFiles.length,
+          rolledBack: true,
+        });
+
         return {
           success: false,
           status: "rolled_back",
@@ -893,6 +905,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           executionTimeMs,
           failureAnalysis,
           recoveryTimeline: retryResult.timeline,
+          evaluation: evalReport,
         };
       }
 
@@ -907,6 +920,17 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           updated_at: new Date().toISOString(),
         })
         .eq("id", data.taskId);
+
+      const { evaluateTaskExecution } = await import("@/services/ai-agent/evaluation.engine");
+      const evalReport = await evaluateTaskExecution({
+        tenantId,
+        taskId: data.taskId,
+        buildSuccess: true,
+        typecheckSuccess: true,
+        retryAttempts: 1,
+        affectedFilesCount: affectedFiles.length,
+        rolledBack: false,
+      });
 
       await recordExecutionHistory({
         tenant_id: tenantId,
@@ -928,20 +952,21 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         affectedFiles: task.affected_files,
         executedByRole: agentRole,
         executionTimeMs,
+        evaluationScore: evalReport.finalScore,
       });
 
-      // Save into Long-Term AI Memory
+      // Save into Long-Term AI Memory with Success Rate Pattern
       const { saveTaskMemory } = await import("@/services/ai-agent/agent.tasks");
       await saveTaskMemory({
         tenant_id: tenantId,
         task_id: data.taskId,
         problem: `تنفيذ مهمة هندسية ${data.taskId}: ${task.affected_files?.join(", ")}`,
-        solution: `تم تطبيق التعديلات بنجاح واجتياز فحص البناء البنائي 100% في ${executionTimeMs}ms.`,
+        solution: `تم تطبيق التعديلات بنجاح واجتياز فحص البناء البنائي 100% (تقييم الجودة: ${evalReport.finalScore}/100) في ${executionTimeMs}ms.`,
         category: "bug_fix",
         affected_files: task.affected_files,
       });
 
-      return { success: true, status: "success", buildOutput, executionTimeMs };
+      return { success: true, status: "success", buildOutput, executionTimeMs, evaluation: evalReport };
     } catch (e: any) {
       const executionTimeMs = Date.now() - startTime;
       await db
@@ -1000,5 +1025,17 @@ export const getImpactAnalysisFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { findImpactAnalysis } = await import("@/services/ai-agent/code-intelligence.service");
     return findImpactAnalysis(data.files);
+  });
+
+/** Get Agent Performance Overview */
+export const getAgentPerformanceFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { getAgentPerformance } = await import("@/services/ai-agent/evaluation.engine");
+    return getAgentPerformance(tenantId);
   });
 

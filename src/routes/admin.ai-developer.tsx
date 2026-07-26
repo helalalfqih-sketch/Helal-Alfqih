@@ -60,6 +60,7 @@ import {
   executeApprovedTask,
   listExecutionHistoryFn,
   getImpactAnalysisFn,
+  getAgentPerformanceFn,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -148,10 +149,16 @@ function AIEngineeringAgentPage() {
   });
 
   const getExecHistoryFn = useServerFn(listExecutionHistoryFn);
+  const getAgentPerfFn = useServerFn(getAgentPerformanceFn);
 
   const { data: execHistory = [] } = useQuery({
     queryKey: ["ai-execution-history"],
     queryFn: () => getExecHistoryFn(),
+  });
+
+  const { data: perfOverview } = useQuery({
+    queryKey: ["ai-agent-performance"],
+    queryFn: () => getAgentPerfFn(),
   });
 
   const { data: providers = [] } = useQuery({
@@ -680,10 +687,10 @@ function AIEngineeringAgentPage() {
                     <div className={`inline-block rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
                         ? "bg-violet-600 text-white rounded-tr-sm"
-                        : "bg-surface border border-border/60 text-foreground rounded-tl-sm"
+                        : "bg-[#1c1c1e] border border-zinc-800 text-zinc-100 rounded-tl-sm shadow-md"
                     }`}>
                       {msg.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none [&_pre]:rounded-xl [&_pre]:bg-black/40 [&_code]:text-violet-400 [&_code]:text-xs">
+                        <div className="max-w-none text-zinc-100">
                           <MarkdownContent content={msg.content} />
                         </div>
                       ) : (
@@ -850,7 +857,7 @@ function AIEngineeringAgentPage() {
                 </div>
                 <div className="flex-1 max-w-[85%] space-y-3">
                   <div className="rounded-2xl rounded-tl-sm bg-[#1c1c1e] border border-zinc-800 px-4 py-3 text-sm text-foreground shadow-xs">
-                    <div className="prose prose-sm prose-invert max-w-none [&_pre]:rounded-xl [&_pre]:bg-black/40 [&_code]:text-violet-400 [&_code]:text-xs">
+                    <div className="max-w-none text-zinc-100">
                       <MarkdownContent content={streamingContent} />
                       <span className="inline-block w-2 h-4 bg-violet-500 animate-pulse rounded-sm ms-0.5" />
                     </div>
@@ -1016,6 +1023,32 @@ function AIEngineeringAgentPage() {
                 </div>
               )}
 
+              {/* Agent Performance & Quality Intelligence — Phase 9 📊 */}
+              {perfOverview && (
+                <div className="rounded-2xl border border-violet-500/30 bg-violet-950/20 p-3 space-y-2">
+                  <div className="text-[10px] font-bold text-violet-400 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-violet-400" /> أداء الجودة (Agent Performance)
+                    </span>
+                    <span className="font-mono text-emerald-400 font-bold">{perfOverview.successRate}% نجاح</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
+                      <div className="text-zinc-500 text-[9px]">المهام</div>
+                      <div className="font-bold text-zinc-200">{perfOverview.totalTasks}</div>
+                    </div>
+                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
+                      <div className="text-zinc-500 text-[9px]">التراجع</div>
+                      <div className="font-bold text-amber-400">{perfOverview.rollbackCount}</div>
+                    </div>
+                    <div className="p-1.5 rounded-xl bg-black/40 border border-zinc-800">
+                      <div className="text-zinc-500 text-[9px]">التقييم</div>
+                      <div className="font-bold text-emerald-400">{perfOverview.averageScore}/100</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Execution History — Phase 7.2 */}
               <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
                 <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center justify-between">
@@ -1130,30 +1163,37 @@ function cleanThoughtContent(content: string): string {
 /** Simple markdown-to-HTML renderer for AI responses */
 function MarkdownContent({ content }: { content: string }) {
   const cleaned = cleanThoughtContent(content);
-  // Simple markdown rendering — handle code blocks, bold, lists
+
   const html = cleaned
-    // Code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) =>
-      `<pre><code class="language-${lang || "text"}">${escapeHtml(code.trim())}</code></pre>`
-    )
+    // Code blocks with dark container and LTR direction
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) => {
+      const language = lang || "code";
+      return `<div className="my-3 rounded-2xl border border-zinc-800 bg-[#09090b] shadow-2xl overflow-hidden text-start" dir="ltr">
+        <div className="flex items-center justify-between px-3.5 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 text-[10px] font-mono text-zinc-400">
+          <span className="uppercase font-bold text-violet-400">${language}</span>
+          <span className="text-zinc-500">Indexes Store AI</span>
+        </div>
+        <pre className="p-4 overflow-x-auto font-mono text-xs text-zinc-100 leading-relaxed"><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>
+      </div>`;
+    })
     // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-800 text-violet-300 font-mono text-xs border border-zinc-700/60">$1</code>')
     // Bold
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-black text-zinc-100">$1</strong>')
     // Headers
-    .replace(/^### (.+)$/gm, '<h3 class="text-sm font-black mt-3 mb-1">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-base font-black mt-4 mb-1">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-lg font-black mt-4 mb-2">$1</h1>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-sm font-black text-zinc-100 mt-4 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-base font-black text-zinc-100 mt-5 mb-2 pb-1 border-b border-zinc-800/80">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-lg font-black text-zinc-100 mt-6 mb-2">$1</h1>')
     // Unordered lists
-    .replace(/^- (.+)$/gm, '<li class="ms-3">$1</li>')
+    .replace(/^- (.+)$/gm, '<li class="ms-4 list-disc text-zinc-300 my-0.5">$1</li>')
     // Ordered lists
-    .replace(/^\d+\. (.+)$/gm, '<li class="ms-3 list-decimal">$1</li>')
+    .replace(/^\d+\. (.+)$/gm, '<li class="ms-4 list-decimal text-zinc-300 my-0.5">$1</li>')
     // Paragraphs (double newline)
-    .replace(/\n\n/g, '</p><p class="mb-2">')
+    .replace(/\n\n/g, '</p><p class="mb-2 leading-relaxed text-zinc-200">')
     // Single newline
     .replace(/\n/g, '<br/>');
 
-  return <div dangerouslySetInnerHTML={{ __html: `<p class="mb-2">${html}</p>` }} />;
+  return <div className="text-zinc-200 leading-relaxed text-sm" dangerouslySetInnerHTML={{ __html: `<p class="mb-2 leading-relaxed">${html}</p>` }} />;
 }
 
 function escapeHtml(text: string) {
