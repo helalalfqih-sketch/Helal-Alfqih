@@ -19,6 +19,14 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isProtectedPath, canInspectRows, SENSITIVE_TABLES } from "./agent.policy";
 import { getAdminDb } from "@/lib/ai-agent.functions";
+import {
+  generateFileDiff,
+  validateDiff,
+  detectFileConflict,
+  summarizeProjectDiff,
+} from "./agent.diff";
+
+export { generateFileDiff, validateDiff, detectFileConflict, summarizeProjectDiff };
 
 const execFileAsync = promisify(execFile);
 

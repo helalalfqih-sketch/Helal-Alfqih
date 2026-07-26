@@ -106,11 +106,13 @@ function AIEngineeringAgentPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [showSessions, setShowSessions] = useState(true);
   const [showContext, setShowContext] = useState(true);
+  const [showDiffModal, setShowDiffModal] = useState(false);
   const [pendingTask, setPendingTask] = useState<{
     taskId: string;
     plan: any[];
     affectedFiles: string[];
     riskLevel: string;
+    diffs?: Record<string, string>;
   } | null>(null);
   const [agentActivity, setAgentActivity] = useState<{
     status: string;
@@ -732,10 +734,11 @@ function AIEngineeringAgentPage() {
                 <div className="flex items-center justify-between pt-2">
                   <button 
                     type="button"
-                    onClick={() => toast.info(`مراجعة تفاصيل ${pendingTask.taskId}`)}
-                    className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-medium"
+                    onClick={() => setShowDiffModal(true)}
+                    className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition font-medium flex items-center gap-1"
                   >
-                    Review
+                    <Code2 className="w-3.5 h-3.5 text-violet-400" />
+                    Review Diff
                   </button>
 
                   <div className="flex items-center gap-2">
@@ -762,6 +765,16 @@ function AIEngineeringAgentPage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Real Diff Preview Modal — Phase 7.1 🧬 */}
+            {showDiffModal && pendingTask && (
+              <DiffPreviewModal
+                task={pendingTask}
+                onClose={() => setShowDiffModal(false)}
+                onApprove={handleApproveTask}
+                isExecuting={isExecutingTask}
+              />
             )}
 
             {/* Streaming Text Output */}
@@ -1039,4 +1052,102 @@ function escapeHtml(text: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function DiffPreviewModal({
+  task,
+  onClose,
+  onApprove,
+  isExecuting,
+}: {
+  task: { taskId: string; affectedFiles: string[]; diffs?: Record<string, string> };
+  onClose: () => void;
+  onApprove: () => void;
+  isExecuting: boolean;
+}) {
+  const [selectedFile, setSelectedFile] = useState<string>(task.affectedFiles[0] || "");
+  const diffs = task.diffs || {};
+  const currentDiff = diffs[selectedFile] || "";
+
+  const lines = currentDiff.split("\n");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" dir="rtl">
+      <div className="w-full max-w-4xl rounded-3xl bg-[#1c1c1e] border border-zinc-800 p-6 shadow-2xl space-y-4 my-6">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Code2 className="h-5 w-5 text-violet-400" />
+            <h3 className="text-base font-bold text-zinc-100">
+              معاينة التغييرات الفروقية (Diff Preview — {task.taskId})
+            </h3>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">
+            ✕
+          </button>
+        </div>
+
+        {/* File Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800/80">
+          {task.affectedFiles.map((file) => (
+            <button
+              key={file}
+              onClick={() => setSelectedFile(file)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-semibold transition ${
+                selectedFile === file
+                  ? "bg-violet-600 text-white shadow-md shadow-violet-600/20"
+                  : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+              }`}
+            >
+              {file}
+            </button>
+          ))}
+        </div>
+
+        {/* Diff Code View */}
+        <div className="rounded-2xl bg-[#121214] border border-zinc-800/80 p-4 font-mono text-xs overflow-x-auto max-h-96 space-y-1">
+          {lines.length > 0 && lines[0] !== "" ? (
+            lines.map((line, idx) => {
+              let lineStyle = "text-zinc-400";
+              let bgStyle = "";
+              if (line.startsWith("+") && !line.startsWith("+++")) {
+                lineStyle = "text-emerald-400 font-bold";
+                bgStyle = "bg-emerald-950/30 -mx-4 px-4 py-0.5 border-r-2 border-emerald-500";
+              } else if (line.startsWith("-") && !line.startsWith("---")) {
+                lineStyle = "text-rose-400 font-bold";
+                bgStyle = "bg-rose-950/30 -mx-4 px-4 py-0.5 border-r-2 border-rose-500";
+              } else if (line.startsWith("---") || line.startsWith("+++")) {
+                lineStyle = "text-zinc-500 font-bold";
+              }
+
+              return (
+                <div key={idx} className={`leading-relaxed whitespace-pre ${bgStyle} ${lineStyle}`}>
+                  {line}
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-zinc-500 italic">لا توجد فروقات مرئية مسبقاً لهذا الملف.</p>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-zinc-700 text-xs font-bold text-zinc-300 hover:bg-zinc-800">
+            إغلاق المعاينة
+          </button>
+          <button
+            disabled={isExecuting}
+            onClick={() => {
+              onClose();
+              onApprove();
+            }}
+            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {isExecuting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+            اعتماد وتنفيذ التعديلات (Approve & Execute)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
