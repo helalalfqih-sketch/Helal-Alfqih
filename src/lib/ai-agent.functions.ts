@@ -794,11 +794,22 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       throw new Error(`لم يتم العثور على المهمة رقم ${data.taskId}`);
     }
 
-    // Step 1: Update status to 'executing' (EXECUTING phase)
+    // Step 1: Update status to 'executing' (EXECUTION_PREPARING phase)
+    const { logExecutionJournal } = await import("@/services/ai-agent/journal.service");
     await db
       .from("ai_agent_tasks")
       .update({ status: "executing", updated_at: new Date().toISOString() })
       .eq("id", data.taskId);
+
+    await logExecutionJournal({
+      taskId: data.taskId,
+      tenantId,
+      action: "EXECUTION_PREPARING",
+      tool: "execute_approved_task",
+      input: { taskId: data.taskId },
+      output: { status: "Preparing Execution Dispatcher" },
+      status: "SUCCESS",
+    });
 
     try {
       // Step 2: Sandbox Layer — Create snapshot of original files before applying edits
@@ -806,17 +817,54 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         "@/services/ai-agent/agent.tools"
       );
       const affectedFiles = (task.affected_files as string[]) || [];
+      const taskPlan = (task.plan as any[]) || [];
       const snapshots = await createFileSnapshots(affectedFiles);
 
-      // Step 3: Apply file mutations (MODIFYING_FILES phase)
+      // Save execution steps to agent_execution_steps table
       const diffs = (task.diffs as Record<string, string>) || {};
-      for (const [filePath, newContent] of Object.entries(diffs)) {
+      const filePaths = Object.keys(diffs);
+
+      for (let i = 0; i < filePaths.length; i++) {
+        const filePath = filePaths[i];
+        const isSql = filePath.endsWith(".sql");
+        const actionType = isSql ? "RUNNING_DATABASE_CHANGES" : "MODIFYING_FILES";
+
+        await db.from("agent_execution_steps").insert({
+          task_id: data.taskId,
+          step_order: i + 1,
+          action: actionType,
+          target_file: filePath,
+          status: "EXECUTING",
+          result: { started: true },
+        });
+
+        // Step Dispatcher: Select Tool -> Execute -> Save Result
         await applyEditFile({
           filePath,
           originalContent: snapshots[filePath] || "",
-          newContent,
+          newContent: diffs[filePath],
           diff: "",
           requiresApproval: true,
+        });
+
+        await db
+          .from("agent_execution_steps")
+          .update({
+            status: "COMPLETED",
+            result: { success: true, timestamp: new Date().toISOString() },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("task_id", data.taskId)
+          .eq("target_file", filePath);
+
+        await logExecutionJournal({
+          taskId: data.taskId,
+          tenantId,
+          action: actionType,
+          tool: isSql ? "create_migration" : "apply_edit_file",
+          input: { filePath },
+          output: { status: "COMPLETED" },
+          status: "SUCCESS",
         });
       }
 
@@ -835,6 +883,15 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
 
       try {
         const { stdout: tcOut } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
+        await logExecutionJournal({
+          taskId: data.taskId,
+          tenantId,
+          action: "TYPECHECK",
+          tool: "npm_typecheck",
+          input: { command: "npm run typecheck" },
+          output: { stdout: tcOut?.slice(0, 300) || "PASSED" },
+          status: "SUCCESS",
+        });
         
         // Step 5: Production Build Validation (BUILD_VALIDATION phase)
         await db
@@ -843,6 +900,15 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
           .eq("id", data.taskId);
 
         const { stdout: bOut } = await execAsync("npm", ["run", "build"], { cwd: process.cwd() });
+        await logExecutionJournal({
+          taskId: data.taskId,
+          tenantId,
+          action: "BUILD_VALIDATION",
+          tool: "npm_build",
+          input: { command: "npm run build" },
+          output: { stdout: bOut?.slice(0, 300) || "PASSED" },
+          status: "SUCCESS",
+        });
         buildOutput = `${tcOut}\n${bOut}` || buildOutput;
       } catch (err: any) {
         buildSuccess = false;
@@ -1061,5 +1127,17 @@ export const getAgentPerformanceFn = createServerFn({ method: "GET" })
 
     const { getAgentPerformance } = await import("@/services/ai-agent/evaluation.engine");
     return getAgentPerformance(tenantId);
+  });
+
+/** List Execution Journal Audit Logs */
+export const listExecutionJournalFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { fetchExecutionJournalLogs } = await import("@/services/ai-agent/journal.service");
+    return fetchExecutionJournalLogs(tenantId, 50);
   });
 

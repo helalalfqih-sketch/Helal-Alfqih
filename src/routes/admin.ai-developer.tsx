@@ -69,6 +69,7 @@ import {
   rejectAgentTask,
   executeApprovedTask,
   listExecutionHistoryFn,
+  listExecutionJournalFn,
   getImpactAnalysisFn,
   getAgentPerformanceFn,
   type AgentSession,
@@ -169,11 +170,19 @@ function AIEngineeringAgentPage() {
 
   const getExecHistoryFn = useServerFn(listExecutionHistoryFn);
   const getAgentPerfFn = useServerFn(getAgentPerformanceFn);
+  const getExecJournalFn = useServerFn(listExecutionJournalFn);
 
   const { data: execHistory = [] } = useQuery({
     queryKey: ["ai-execution-history"],
     queryFn: () => getExecHistoryFn(),
   });
+
+  const { data: rawJournalLogs } = useQuery({
+    queryKey: ["ai-execution-journal"],
+    queryFn: () => getExecJournalFn(),
+    refetchInterval: 5000,
+  });
+  const journalLogs = (rawJournalLogs || []) as any[];
 
   const { data: perfOverview } = useQuery({
     queryKey: ["ai-agent-performance"],
@@ -465,6 +474,8 @@ function AIEngineeringAgentPage() {
   const executeApprovedFn = useServerFn(executeApprovedTask);
   const [isExecutingTask, setIsExecutingTask] = useState(false);
 
+  const approveTaskServerFn = useServerFn(approveAgentTask);
+
   const handleApproveTask = async () => {
     if (!pendingTask) return;
     if (agentRole !== "owner") {
@@ -473,15 +484,20 @@ function AIEngineeringAgentPage() {
     }
 
     setIsExecutingTask(true);
-    toast.loading(`جاري تنفيذ وإجراء الفحص الآلي للمهمة ${pendingTask.taskId}...`, { id: "task-exec" });
+    toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${pendingTask.taskId}...`, { id: "task-exec" });
 
     try {
+      // 1. approvePlan(taskId)
+      await approveTaskServerFn({ data: { taskId: pendingTask.taskId } });
+      
+      // 2. startExecution(taskId)
       const res = (await executeApprovedFn({ data: { taskId: pendingTask.taskId } })) as any;
       if (res?.success) {
-        toast.success(`تم تنفيذ المهمة ${pendingTask.taskId} بنجاح واجتياز الفحص! ✨`, { id: "task-exec" });
+        toast.success(`تم تطبيق جميع الخطوات والتعديلات واجتياز فحص البناء بنجاح! ✨`, { id: "task-exec" });
         setPendingTask(null);
         setFailureExplanation(null);
         queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["ai-execution-journal"] });
       } else {
         if (res?.failureDetails) {
           setFailureExplanation(res.failureDetails);
@@ -489,7 +505,7 @@ function AIEngineeringAgentPage() {
         if (res?.recoveryTimeline) {
           setRecoveryTimeline(res.recoveryTimeline);
         }
-        toast.error(`فشل التنفيذ/فحص البناء! (${res?.failureDetails?.reason || "تم إيقاف العملية والتراجع تلقائياً"}) 🔄`, { id: "task-exec" });
+        toast.error(`فشل التنفيذ/فحص البناء! (${res?.failureDetails?.reason || "تم التراجع تلقائياً"}) 🔄`, { id: "task-exec" });
       }
     } catch (err: any) {
       toast.error(err.message || "حدث خطأ أثناء التنفيذ", { id: "task-exec" });
@@ -1039,6 +1055,51 @@ function AIEngineeringAgentPage() {
                 </div>
               </div>
             )}
+
+            {/* Execution Journal (Production Audit Log) Card 📜 */}
+            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                  <History className="w-4 h-4 text-emerald-400" />
+                  Execution Journal (سجل التنفيذ الإنتاجي)
+                </span>
+                <span className="text-[10px] font-mono text-zinc-400 font-semibold bg-zinc-800 px-2 py-0.5 rounded-md">
+                  {journalLogs.length} سجلات
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 no-scrollbar text-start">
+                {journalLogs.length === 0 ? (
+                  <div className="text-[11px] text-zinc-500 py-3 text-center font-mono">
+                    لا توجد سجلات تنفيذ حتى الآن
+                  </div>
+                ) : (
+                  journalLogs.map((log: any) => {
+                    const timeStr = log.createdAt
+                      ? new Date(log.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                      : "--:--:--";
+                    return (
+                      <div key={log.id || log.createdAt} className="p-2.5 rounded-xl bg-[#121214] border border-zinc-800/80 flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            log.status === "SUCCESS" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          }`}>
+                            {log.status}
+                          </span>
+                          <span className="font-bold text-zinc-200 truncate">{log.action}</span>
+                          {log.tool && (
+                            <span className="text-[10px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded border border-violet-500/20">
+                              {log.tool}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-zinc-500 shrink-0">{timeStr}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
             {/* Failure Explanation Panel */}
             {failureExplanation && (
