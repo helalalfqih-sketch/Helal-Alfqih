@@ -969,3 +969,11 @@ export const listExecutionHistoryFn = createServerFn({ method: "GET" })
     return listExecutionHistory(tenantId, 25);
   });
 
+/** Scan and return Codebase Intelligence Index */
+export const getCodebaseIndexFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { scanProjectStructure } = await import("@/services/ai-agent/code-intelligence.service");
+    return scanProjectStructure();
+  });
+
