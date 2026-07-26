@@ -27,14 +27,11 @@ export type TaskStatus =
   | "waiting_approval"
   | "executing"
   | "testing"
+  | "building"
   | "completed"
   | "failed"
   | "cancelled"
-  | "blocked"
-  | "permission_error"
-  | "validation_error"
-  | "build_error"
-  | "database_error";
+  | "blocked";
 
 // ─────────────────────────────────────────────────
 // Active Task

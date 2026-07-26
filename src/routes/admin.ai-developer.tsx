@@ -744,15 +744,19 @@ function AIEngineeringAgentPage() {
                 <div className="space-y-1.5 text-zinc-300 text-[11px]">
                   <div className="flex items-center gap-2 text-emerald-400">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    <span>✓ Reading files...</span>
+                    <span>✓ Reading files</span>
                   </div>
                   <div className="flex items-center gap-2 text-emerald-400">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    <span>✓ Searching routes & analyzing payment modules...</span>
+                    <span>✓ Creating migration</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>✓ Updating functions</span>
                   </div>
                   <div className="flex items-center gap-2 text-cyan-400 font-semibold">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>✓ {agentActivity?.label || "Building implementation plan..."}</span>
+                    <span>✓ Testing & {agentActivity?.label || "Running verification..."}</span>
                   </div>
                 </div>
               </div>
@@ -1055,8 +1059,8 @@ function TaskStatusBadge({ status }: { status: string }) {
     waiting_approval: { icon: Shield, color: "text-amber-400 bg-amber-500/20 border border-amber-500/30", label: "في انتظار الموافقة ⏸" },
     executing: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري التنفيذ" },
     queued: { icon: Clock, color: "text-blue-500 bg-blue-500/10", label: "في الطابور" },
-    running: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري التنفيذ" },
     testing: { icon: Zap, color: "text-cyan-500 bg-cyan-500/10", label: "فحص البناء" },
+    building: { icon: Cpu, color: "text-indigo-400 bg-indigo-500/10", label: "تجمع الإنتاج" },
     success: { icon: CheckCircle, color: "text-emerald-500 bg-emerald-500/10", label: "تم بنجاح ✨" },
     completed: { icon: CheckCircle, color: "text-emerald-600 bg-emerald-500/10", label: "مكتمل" },
     failed: { icon: XCircle, color: "text-destructive bg-destructive/10", label: "فشل" },

@@ -857,7 +857,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
         await db
           .from("ai_agent_tasks")
           .update({
-            status: "rolled_back",
+            status: "failed",
             build_success: false,
             build_output: buildOutput,
             updated_at: new Date().toISOString(),
@@ -917,7 +917,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       await db
         .from("ai_agent_tasks")
         .update({
-          status: "success",
+          status: "completed",
           build_success: true,
           build_output: buildOutput,
           user_approved_at: new Date().toISOString(),

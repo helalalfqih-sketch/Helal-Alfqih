@@ -175,9 +175,29 @@ function AuthPage() {
         redirect_uri: redirectUrl,
         extraParams: { prompt: "select_account" },
       });
-      if (result.error) setError(mapAuthError(result.error));
-      // If result.redirected: browser navigates away. Otherwise the SIGNED_IN
-      // listener above performs the role-aware redirect.
+
+      if (result.error) {
+        // Fallback directly to Supabase native OAuth client
+        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: redirectUrl,
+            queryParams: { prompt: "select_account" },
+          },
+        });
+        if (supaErr) setError(mapAuthError(supaErr));
+      }
+    } catch (err) {
+      try {
+        const redirectUrl = window.location.origin + (import.meta.env.BASE_URL || "").replace(/\/$/, "") + "/auth";
+        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: redirectUrl },
+        });
+        if (supaErr) setError(mapAuthError(supaErr));
+      } catch (fallbackErr) {
+        setError(mapAuthError(err));
+      }
     } finally {
       setGoogleBusy(false);
     }
