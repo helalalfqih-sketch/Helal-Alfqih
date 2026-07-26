@@ -1,15 +1,16 @@
 /**
- * Indexes AI Engineering Agent — Streaming API Endpoint with Activity Events
+ * Indexes AI Engineering Agent — Streaming API Endpoint with Activity Events & Project Context Engine
  *
  * POST /api/ai/agent
  *
- * Provides real-time SSE streaming, agent status events, project context loading,
- * and integration with resolved active AI provider (Vertex AI / Gemini).
+ * Provides real-time SSE streaming, agent status events, Project Context Engine integration,
+ * and dynamic resolution of the active AI provider (Vertex AI / Gemini).
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { streamText } from "ai";
 import { z } from "zod";
 import { resolveActiveAIProvider } from "@/lib/ai-provider.server";
+import { buildProjectPromptContext } from "@/services/ai/project-context.service";
 import {
   PROJECT_FILE_STRUCTURE,
   DB_SCHEMA_SUMMARY,
@@ -30,9 +31,14 @@ const InputSchema = z.object({
   projectMemory: z.string().default(""),
   agentRole: z.enum(["owner", "admin", "developer", "viewer"]).default("owner"),
   providerId: z.string().optional(),
+  tenantId: z.string().default("default"),
 });
 
-function buildSystemPrompt(projectMemory: string, agentRole: string) {
+function buildSystemPrompt(
+  dynamicProjectContext: string,
+  projectMemory: string,
+  agentRole: string,
+) {
   const roleDesc =
     agentRole === "owner"
       ? "لديك صلاحية كاملة: تحليل، اقتراح، تنفيذ تعديلات، إنشاء ملفات."
@@ -44,19 +50,14 @@ function buildSystemPrompt(projectMemory: string, agentRole: string) {
 
   return `أنت "Indexes AI Engineering Agent" — مهندس برمجيات Senior متخصص حصرياً في مشروع Indexes Store.
 
-== دورك ==
+== دورك وصلاحياتك ==
 ${roleDesc}
 
-== بيانات وحالة المشروع ==
-- المنصة: Indexes Store — منصة تجارة إلكترونية SaaS متعددة المتاجر (Multi-Tenant)
-- Frontend Stack: TanStack Start + React 19 + TypeScript + TailwindCSS 4 + Shadcn UI + Framer Motion
-- Backend Stack: Supabase PostgreSQL + RLS + Server Functions (createServerFn + requireSupabaseAuth)
-- Architecture: SaaS Multi-tenant (كل جدول يتضمن tenant_id وتطبيق RLS)
-- AI Engine: Google Vertex AI (Enterprise Project: smartcontentcreator-d49f2) + Gemini Models + Vercel AI SDK
-- Integrations: WhatsApp Business API, Meta Commerce Catalog, Google Merchant RSS Feed, Sitemap, JSON-LD
+== ذاكرة ومعرفة المشروع التراكمية (PROJECT CONTEXT ENGINE) ==
+${dynamicProjectContext}
 
-== ذاكرة سياق المشروع ==
-${projectMemory || "(لا توجد ذاكرة محفوظة بعد)"}
+== ذاكرة سياق الجلسة ==
+${projectMemory || "(لا توجد ذاكرة إضافية محفوظة بعد)"}
 
 == هيكل ملفات المشروع الأساسية ==
 ${PROJECT_FILE_STRUCTURE}
@@ -118,15 +119,25 @@ export const Route = createFileRoute("/api/ai/agent")({
                 status: "receiving_request",
                 label: "جاري استقبال طلبك...",
               });
-              await new Promise((r) => setTimeout(r, 60));
+              await new Promise((r) => setTimeout(r, 40));
 
-              // Status 2: Analyzing context
+              // Status 2: Loading Project Context Engine
               sendEvent({
                 type: "status",
-                status: "analyzing_context",
-                label: "أحلل طلبك وسياق المشروع...",
+                status: "loading_project_context",
+                label: "📚 جاري تحميل سياق ذاكرة المشروع...",
               });
-              await new Promise((r) => setTimeout(r, 60));
+
+              const dynamicProjectContext = await buildProjectPromptContext(
+                payload.tenantId,
+              );
+
+              sendEvent({
+                type: "status",
+                status: "project_context_ready",
+                label: "✅ تم تجهيز سياق المشروع والمقابلة البرمجية...",
+              });
+              await new Promise((r) => setTimeout(r, 40));
 
               // Status 3: Searching project
               sendEvent({
@@ -167,6 +178,7 @@ export const Route = createFileRoute("/api/ai/agent")({
               });
 
               const systemPrompt = buildSystemPrompt(
+                dynamicProjectContext,
                 payload.projectMemory,
                 payload.agentRole,
               );
@@ -180,18 +192,58 @@ export const Route = createFileRoute("/api/ai/agent")({
                 { role: "user" as const, content: payload.message },
               ];
 
-              // Execute AI stream
-              const result = streamText({
-                model: resolved.model,
-                system: systemPrompt,
-                messages: formattedMessages,
-                temperature: 0.3,
-              });
+              // Execute AI stream with model fallbacks (gemini-2.5-flash -> gemini-2.5-flash-lite -> gemini-1.5-flash)
+              const candidateModels = Array.from(
+                new Set([
+                  resolved.modelName,
+                  "gemini-2.5-flash",
+                  "gemini-2.5-flash-lite",
+                  "gemini-1.5-flash",
+                ]),
+              );
 
-              for await (const chunk of result.textStream) {
-                if (chunk) {
-                  sendEvent({ type: "text", content: chunk });
+              let streamExecuted = false;
+              let lastStreamErr: any = null;
+
+              for (const modelCandidate of candidateModels) {
+                try {
+                  console.log(
+                    `[AI_AGENT] Attempting streamText with provider ${resolved.provider} / model ${modelCandidate}`,
+                  );
+                  const activeModel =
+                    modelCandidate === resolved.modelName
+                      ? resolved.model
+                      : (await import("@/lib/ai-provider.server")).createModelFromConfig(
+                          resolved.provider,
+                          null,
+                          modelCandidate,
+                        );
+
+                  const result = streamText({
+                    model: activeModel,
+                    system: systemPrompt,
+                    messages: formattedMessages,
+                    temperature: 0.3,
+                  });
+
+                  for await (const chunk of result.textStream) {
+                    if (chunk) {
+                      sendEvent({ type: "text", content: chunk });
+                    }
+                  }
+
+                  streamExecuted = true;
+                  break;
+                } catch (candErr: any) {
+                  lastStreamErr = candErr;
+                  console.warn(
+                    `[AI_AGENT_MODEL_FALLBACK] Model ${modelCandidate} failed: ${candErr?.message}, trying next fallback candidate...`,
+                  );
                 }
+              }
+
+              if (!streamExecuted && lastStreamErr) {
+                throw lastStreamErr;
               }
 
               // Status 5: Completed

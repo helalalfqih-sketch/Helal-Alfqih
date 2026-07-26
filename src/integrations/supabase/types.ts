@@ -194,6 +194,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      ai_project_context: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          project_name: string;
+          architecture: Json;
+          frameworks: Json;
+          database_schema: Json;
+          important_rules: string[];
+          technical_notes: string | null;
+          file_structure: Json;
+          ai_instructions: string | null;
+          version: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          project_name?: string;
+          architecture?: Json;
+          frameworks?: Json;
+          database_schema?: Json;
+          important_rules?: string[];
+          technical_notes?: string | null;
+          file_structure?: Json;
+          ai_instructions?: string | null;
+          version?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          project_name?: string;
+          architecture?: Json;
+          frameworks?: Json;
+          database_schema?: Json;
+          important_rules?: string[];
+          technical_notes?: string | null;
+          file_structure?: Json;
+          ai_instructions?: string | null;
+          version?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           color: string | null;

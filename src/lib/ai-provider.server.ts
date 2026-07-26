@@ -86,16 +86,16 @@ export function validateProviderModel(provider: string, rawModelName?: string | 
   const model = (rawModelName || "").trim();
 
   if (provider === "gemini" || provider === "google" || provider === "vertex") {
-    if (!model) return "gemini-2.0-flash";
+    if (!model) return "gemini-2.5-flash";
     return model;
   }
 
   if (provider === "openrouter") {
-    if (!model) return "google/gemini-2.0-flash";
+    if (!model) return "google/gemini-2.5-flash";
     return model.includes("/") ? model : `google/${model}`;
   }
 
-  return model || "gemini-2.0-flash";
+  return model || "gemini-2.5-flash";
 }
 
 export function createModelFromConfig(provider: AIProviderType | string, apiKey: string | null, rawModelName: string, baseUrl?: string | null) {
@@ -177,12 +177,15 @@ export function createModelFromConfig(provider: AIProviderType | string, apiKey:
       }
     }
 
+    const location = process.env.VERTEX_LOCATION || "us-central1";
+    console.log(`[AI_AGENT] Provider: vertex | Model: ${modelName} | Project: ${project} | Location: ${location}`);
+
     const vertex = createVertex({
-      location: process.env.VERTEX_LOCATION || "us-central1",
+      location,
       project,
       googleAuthOptions: credentials ? { credentials } : undefined,
     });
-    return vertex(modelName || "gemini-2.0-flash");
+    return vertex(modelName || "gemini-2.5-flash");
   }
 
   throw new Error(`Unsupported provider: ${provider}`);
@@ -226,7 +229,7 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
           return {
             model,
             provider: config.provider,
-            modelName: config.model,
+            modelName: config.model || "gemini-2.5-flash",
             source: "database",
           };
         } catch (err) {
@@ -250,19 +253,21 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
     try {
       const creds = JSON.parse(gcpCredentialsJson);
       const project = creds.project_id || vertexProject || "smartcontentcreator-d49f2";
+      const location = process.env.VERTEX_LOCATION || "us-central1";
+      const targetModel = "gemini-2.5-flash";
       const googleAuthOptions = creds.client_email && creds.private_key
         ? { credentials: { client_email: creds.client_email, private_key: creds.private_key } }
         : undefined;
       const vertex = createVertex({
-        location: process.env.VERTEX_LOCATION || "us-central1",
+        location,
         project,
         googleAuthOptions,
       });
-      console.log(`[AI_PROVIDER_ENV] Using GOOGLE_APPLICATION_CREDENTIALS_JSON → project: ${project}`);
+      console.log(`[AI_AGENT] Provider: vertex | Model: ${targetModel} | Project: ${project} | Location: ${location}`);
       return {
-        model: vertex("gemini-2.0-flash"),
+        model: vertex(targetModel),
         provider: "vertex",
-        modelName: "gemini-2.0-flash",
+        modelName: targetModel,
         source: "env",
       };
     } catch (e) {
@@ -272,10 +277,12 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
 
   if (geminiKey) {
     const google = createGoogleGenerativeAI({ apiKey: geminiKey });
+    const targetModel = "gemini-2.5-flash";
+    console.log(`[AI_AGENT] Provider: gemini | Model: ${targetModel}`);
     return {
-      model: google("gemini-2.0-flash"),
+      model: google(targetModel),
       provider: "gemini",
-      modelName: "gemini-2.0-flash",
+      modelName: targetModel,
       source: "env",
     };
   }
@@ -291,14 +298,17 @@ export async function resolveActiveAIProvider(options?: { tenantId?: string | nu
   }
 
   if (vertexProject) {
+    const location = process.env.VERTEX_LOCATION || "us-central1";
+    const targetModel = "gemini-2.5-flash";
     const vertex = createVertex({
-      location: process.env.VERTEX_LOCATION || "us-central1",
+      location,
       project: vertexProject,
     });
+    console.log(`[AI_AGENT] Provider: vertex | Model: ${targetModel} | Project: ${vertexProject} | Location: ${location}`);
     return {
-      model: vertex("gemini-2.0-flash"),
+      model: vertex(targetModel),
       provider: "vertex",
-      modelName: "gemini-2.0-flash",
+      modelName: targetModel,
       source: "env",
     };
   }
