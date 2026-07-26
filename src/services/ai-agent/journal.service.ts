@@ -21,26 +21,30 @@ export interface ExecutionJournalLog {
   createdAt?: string;
 }
 
-export async function hasExecutionStartedLog(taskId: string): Promise<boolean> {
+export async function hasExecutionStartedLog(taskId: string, customDb?: any): Promise<boolean> {
   if (!taskId) return false;
   try {
-    const db = await getAdminDb({});
-    const { count } = await db
+    const db = customDb || (await getAdminDb({}));
+    const { count, error } = await db
       .from("agent_execution_logs")
       .select("id", { count: "exact", head: true })
       .eq("task_id", taskId)
       .eq("action", "EXECUTION_STARTED");
+
+    if (error) {
+      console.warn("[ExecutionJournal] hasExecutionStartedLog error:", error);
+    }
     return (count || 0) > 0;
-  } catch {
+  } catch (err) {
+    console.warn("[ExecutionJournal] hasExecutionStartedLog exception:", err);
     return false;
   }
 }
 
-
-export async function logExecutionJournal(log: ExecutionJournalLog): Promise<void> {
+export async function logExecutionJournal(log: ExecutionJournalLog, customDb?: any): Promise<void> {
   try {
-    const db = await getAdminDb({});
-    await db.from("agent_execution_logs").insert({
+    const db = customDb || (await getAdminDb({}));
+    const { error } = await db.from("agent_execution_logs").insert({
       task_id: log.taskId || null,
       tenant_id: log.tenantId || "default",
       action: log.action,
@@ -50,20 +54,33 @@ export async function logExecutionJournal(log: ExecutionJournalLog): Promise<voi
       status: log.status,
       created_at: log.createdAt || new Date().toISOString(),
     });
+
+    if (error) {
+      console.error("[ExecutionJournal] Failed to insert journal entry into Supabase:", error);
+    }
   } catch (err) {
-    console.warn("[ExecutionJournal] Failed to log journal entry:", err);
+    console.error("[ExecutionJournal] Exception during logExecutionJournal:", err);
   }
 }
 
-export async function fetchExecutionJournalLogs(tenantId: string, limit = 50): Promise<ExecutionJournalLog[]> {
+export async function fetchExecutionJournalLogs(tenantId: string, limit = 50, customDb?: any): Promise<ExecutionJournalLog[]> {
   try {
-    const db = await getAdminDb({});
-    const { data } = await db
+    const db = customDb || (await getAdminDb({}));
+    let query = db
       .from("agent_execution_logs")
       .select("*")
-      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (tenantId && tenantId !== "default") {
+      query = query.or(`tenant_id.eq.${tenantId},tenant_id.eq.default,tenant_id.is.null`);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("[ExecutionJournal] Failed to fetch journal logs from Supabase:", error);
+      return [];
+    }
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -77,7 +94,7 @@ export async function fetchExecutionJournalLogs(tenantId: string, limit = 50): P
       createdAt: row.created_at,
     }));
   } catch (err) {
-    console.warn("[ExecutionJournal] Failed to fetch journal logs:", err);
+    console.error("[ExecutionJournal] Exception during fetchExecutionJournalLogs:", err);
     return [];
   }
 }
@@ -95,10 +112,10 @@ export interface PersistentExecutionEvent {
   createdAt?: string;
 }
 
-export async function savePersistentExecutionEvent(event: PersistentExecutionEvent): Promise<void> {
+export async function savePersistentExecutionEvent(event: PersistentExecutionEvent, customDb?: any): Promise<void> {
   try {
-    const db = await getAdminDb({});
-    await db.from("agent_execution_events").insert({
+    const db = customDb || (await getAdminDb({}));
+    const { error } = await db.from("agent_execution_events").insert({
       session_id: event.sessionId,
       task_id: event.taskId || null,
       tenant_id: event.tenantId || "default",
@@ -109,20 +126,29 @@ export async function savePersistentExecutionEvent(event: PersistentExecutionEve
       metadata: typeof event.metadata === "object" ? event.metadata : { detail: event.metadata },
       created_at: event.createdAt || new Date().toISOString(),
     });
+
+    if (error) {
+      console.error("[ExecutionEvents] Failed to insert persistent event into Supabase:", error);
+    }
   } catch (err) {
-    console.warn("[ExecutionEvents] Failed to save persistent event:", err);
+    console.error("[ExecutionEvents] Exception during savePersistentExecutionEvent:", err);
   }
 }
 
-export async function listSessionExecutionEvents(sessionId: string, limit = 100): Promise<PersistentExecutionEvent[]> {
+export async function listSessionExecutionEvents(sessionId: string, limit = 100, customDb?: any): Promise<PersistentExecutionEvent[]> {
   try {
-    const db = await getAdminDb({});
-    const { data } = await db
+    const db = customDb || (await getAdminDb({}));
+    const { data, error } = await db
       .from("agent_execution_events")
       .select("*")
       .eq("session_id", sessionId)
       .order("created_at", { ascending: true })
       .limit(limit);
+
+    if (error) {
+      console.error("[ExecutionEvents] Failed to fetch session execution events from Supabase:", error);
+      return [];
+    }
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -137,7 +163,7 @@ export async function listSessionExecutionEvents(sessionId: string, limit = 100)
       createdAt: row.created_at,
     }));
   } catch (err) {
-    console.warn("[ExecutionEvents] Failed to fetch session execution events:", err);
+    console.error("[ExecutionEvents] Exception during listSessionExecutionEvents:", err);
     return [];
   }
 }

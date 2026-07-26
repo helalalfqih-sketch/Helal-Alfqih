@@ -1286,15 +1286,17 @@ export const listExecutionJournalFn = createServerFn({ method: "GET" })
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { fetchExecutionJournalLogs } = await import("@/services/ai-agent/journal.service");
-    return fetchExecutionJournalLogs(tenantId, 50);
+    return fetchExecutionJournalLogs(tenantId, 50, db);
   });
 
 /** List session execution events for persistent conversation timeline */
 export const getSessionExecutionEventsFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ sessionId: z.string() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
     const { listSessionExecutionEvents } = await import("@/services/ai-agent/journal.service");
-    return listSessionExecutionEvents(data.sessionId, 100);
+    return listSessionExecutionEvents(data.sessionId, 100, db);
   });
 
