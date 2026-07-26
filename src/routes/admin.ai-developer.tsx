@@ -462,17 +462,17 @@ function AIEngineeringAgentPage() {
   // ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="font-sans pb-6" dir="rtl">
+    <div className="font-sans pb-6 bg-[#09090b] text-zinc-100 min-h-screen p-4 rounded-3xl border border-zinc-800/80 shadow-2xl space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-border/60 pb-4 mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-zinc-800/80 pb-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2.5 text-foreground">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-violet-500 shadow-xs">
+          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2.5 text-zinc-100">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-violet-400 shadow-xs border border-violet-500/30">
               <Code2 className="h-5 w-5" />
             </div>
             Indexes AI Engineering Agent
           </h1>
-          <p className="mt-1 text-xs font-medium text-muted-foreground">
+          <p className="mt-1 text-xs font-medium text-zinc-400">
             مساعد تطوير ذكي متخصص بمشروع Indexes Store — يحلل ويقترح وينفذ كمهندس Senior.
           </p>
         </div>
@@ -483,7 +483,7 @@ function AIEngineeringAgentPage() {
             <select
               value={selectedProviderId}
               onChange={(e) => setSelectedProviderId(e.target.value)}
-              className="rounded-xl border border-border bg-surface/50 px-3 py-1.5 text-[11px] font-bold text-foreground outline-none focus:border-violet-500/50 focus:ring-1 ring-violet-500/30 transition-all cursor-pointer hover:bg-surface"
+              className="rounded-xl border border-zinc-800 bg-[#141417] px-3 py-1.5 text-[11px] font-bold text-zinc-200 outline-none focus:border-violet-500/50 focus:ring-1 ring-violet-500/30 transition-all cursor-pointer hover:bg-zinc-800"
             >
               <option value="">✨ تلقائي (حسب الأولوية)</option>
               {providers.map((p: any) => (
@@ -497,12 +497,12 @@ function AIEngineeringAgentPage() {
           {/* Role Badge */}
           <div className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold border ${
             agentRole === "owner"
-              ? "bg-violet-500/10 text-violet-500 border-violet-500/30"
+              ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
               : agentRole === "admin"
-                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                 : agentRole === "developer"
-                  ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                  : "bg-muted text-muted-foreground border-border"
+                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  : "bg-zinc-800 text-zinc-400 border-zinc-700"
           }`}>
             <Shield className="h-3 w-3" />
             {agentRole === "owner" ? "Owner — تنفيذ كامل" : agentRole === "admin" ? "Admin — تنفيذ محدود" : agentRole === "developer" ? "Developer — اقتراح فقط" : "Viewer — قراءة فقط"}
@@ -510,8 +510,8 @@ function AIEngineeringAgentPage() {
 
           {/* Usage Stats */}
           {usageStats && usageStats.requests > 0 && (
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-surface border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground">
-              <Cpu className="h-3 w-3" />
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-[#141417] border border-zinc-800 px-3 py-1.5 text-[11px] font-bold text-zinc-400">
+              <Cpu className="h-3 w-3 text-violet-400" />
               {usageStats.totalTokens.toLocaleString()} tokens · ${usageStats.totalCost.toFixed(4)}
             </div>
           )}
@@ -570,20 +570,20 @@ function AIEngineeringAgentPage() {
       >
         {/* ═══ Left: Session Timeline ═══ */}
         {showSessions && (
-          <div className="min-w-0 rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
-            <div className="p-3 border-b border-border/60 flex items-center justify-between">
-              <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5" /> الجلسات ({activeSessions.length})
+          <div className="min-w-0 rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
+            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="text-xs font-black text-zinc-400 flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 text-violet-400" /> الجلسات ({activeSessions.length})
               </h2>
             </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
               </div>
             ) : activeSessions.length === 0 ? (
-              <div className="text-center py-8 text-xs text-muted-foreground">
+              <div className="text-center py-8 text-xs text-zinc-500">
                 لا توجد جلسات بعد
               </div>
             ) : (
@@ -596,12 +596,12 @@ function AIEngineeringAgentPage() {
                   onClick={() => loadSession(session.id)}
                   className={`w-full text-start rounded-2xl p-3 transition group ${
                     activeSessionId === session.id
-                      ? "bg-violet-500/10 border border-violet-500/30"
-                      : "hover:bg-accent/60 border border-transparent"
+                      ? "bg-violet-500/10 border border-violet-500/30 text-zinc-100"
+                      : "hover:bg-zinc-800/60 border border-transparent text-zinc-300"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1">
-                    <span className="text-[11px] font-bold text-foreground line-clamp-2">
+                    <span className="text-[11px] font-bold text-zinc-200 line-clamp-2">
                       {session.title}
                     </span>
                     <button
@@ -609,18 +609,18 @@ function AIEngineeringAgentPage() {
                       onClick={(e) => { e.stopPropagation(); handleArchive(session.id); }}
                       className="opacity-0 group-hover:opacity-100 transition shrink-0"
                     >
-                      <Archive className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      <Archive className="h-3 w-3 text-zinc-500 hover:text-red-400" />
                     </button>
                   </div>
                   <div className="flex items-center gap-2 mt-1.5">
                     {session.task_id && (
-                      <span className="text-[9px] font-mono font-bold text-violet-500 bg-violet-500/10 rounded-md px-1.5 py-0.5">
+                      <span className="text-[9px] font-mono font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded-md px-1.5 py-0.5">
                         {session.task_id}
                       </span>
                     )}
                     <TaskStatusBadge status={session.task_status} />
                   </div>
-                  <span className="text-[9px] text-muted-foreground mt-1 block">
+                  <span className="text-[9px] text-zinc-500 mt-1 block">
                     {new Date(session.updated_at).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </motion.button>
@@ -631,7 +631,7 @@ function AIEngineeringAgentPage() {
         )}
 
         {/* ═══ Center: Chat Window ═══ */}
-        <div className="rounded-3xl border border-border/80 bg-surface/40 backdrop-blur-sm shadow-xs flex flex-col overflow-hidden">
+        <div className="rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden">
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && !streamingContent && (
@@ -942,27 +942,27 @@ function AIEngineeringAgentPage() {
 
         {/* ═══ Right: Context Panel ═══ */}
         {showContext && (
-          <div className="min-w-0 rounded-3xl border border-border/80 bg-surface/60 backdrop-blur-sm shadow-xs overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
-            <div className="p-3 border-b border-border/60 flex items-center justify-between">
-              <h2 className="text-xs font-black text-muted-foreground flex items-center gap-1.5">
-                <FileCode className="h-3.5 w-3.5" /> سياق المشروع
+          <div className="min-w-0 rounded-3xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
+            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="text-xs font-black text-zinc-400 flex items-center gap-1.5">
+                <FileCode className="h-3.5 w-3.5 text-violet-400" /> سياق المشروع
               </h2>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-4">
               {/* Active Task */}
               {activeSession && (
-                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                  <div className="text-[10px] font-bold text-muted-foreground mb-1.5">المهمة الحالية</div>
+                <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
+                  <div className="text-[10px] font-bold text-zinc-400 mb-1.5">المهمة الحالية</div>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono font-bold text-violet-500">{activeSession.task_id}</span>
+                    <span className="text-xs font-mono font-bold text-violet-400">{activeSession.task_id}</span>
                     <TaskStatusBadge status={activeSession.task_status} />
                   </div>
-                  <div className="text-[11px] font-bold text-foreground line-clamp-2">{activeSession.title}</div>
+                  <div className="text-[11px] font-bold text-zinc-200 line-clamp-2">{activeSession.title}</div>
 
                   {/* Risk Level */}
                   <div className="flex items-center gap-1.5 mt-2">
-                    <span className="text-[10px] font-bold text-muted-foreground">الخطورة:</span>
+                    <span className="text-[10px] font-bold text-zinc-400">الخطورة:</span>
                     <RiskBadge level={activeSession.risk_level} />
                   </div>
                 </div>
@@ -970,12 +970,12 @@ function AIEngineeringAgentPage() {
 
               {/* Affected Files */}
               {activeSession?.affected_files && Array.isArray(activeSession.affected_files) && (activeSession.affected_files as string[]).length > 0 && (
-                <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                  <div className="text-[10px] font-bold text-muted-foreground mb-2">الملفات المتأثرة</div>
+                <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
+                  <div className="text-[10px] font-bold text-zinc-400 mb-2">الملفات المتأثرة</div>
                   <div className="space-y-1">
                     {(activeSession.affected_files as string[]).map((file: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-foreground">
-                        <FileCode className="h-3 w-3 text-violet-500 shrink-0" />
+                      <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-300">
+                        <FileCode className="h-3 w-3 text-violet-400 shrink-0" />
                         <span className="truncate">{file}</span>
                       </div>
                     ))}
@@ -984,19 +984,19 @@ function AIEngineeringAgentPage() {
               )}
 
               {/* Project Memory */}
-              <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-1">
-                  <Brain className="h-3 w-3" /> ذاكرة المشروع ({memory.length})
+              <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
+                <div className="text-[10px] font-bold text-zinc-400 mb-2 flex items-center gap-1">
+                  <Brain className="h-3 w-3 text-violet-400" /> ذاكرة المشروع ({memory.length})
                 </div>
                 <div className="space-y-1.5">
                   {memory.slice(0, 8).map((m: AgentMemoryEntry) => (
                     <div key={m.id} className="text-[10px]">
                       <span className="font-bold text-violet-400">{m.category}/{m.key}:</span>
-                      <span className="text-muted-foreground ms-1 line-clamp-1">{m.value}</span>
+                      <span className="text-zinc-400 ms-1 line-clamp-1">{m.value}</span>
                     </div>
                   ))}
                   {memory.length > 8 && (
-                    <div className="text-[9px] text-muted-foreground">+{memory.length - 8} إدخالات أخرى</div>
+                    <div className="text-[9px] text-zinc-500">+{memory.length - 8} إدخالات أخرى</div>
                   )}
                 </div>
               </div>
@@ -1050,23 +1050,23 @@ function AIEngineeringAgentPage() {
               )}
 
               {/* Execution History — Phase 7.2 */}
-              <div className="rounded-2xl border border-border/60 bg-surface/80 p-3">
-                <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center justify-between">
+              <div className="rounded-2xl border border-zinc-800 bg-[#1a1a1e] p-3">
+                <div className="text-[10px] font-bold text-zinc-400 mb-2 flex items-center justify-between">
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-emerald-500" /> سجل التنفيذ ({execHistory.length})
+                    <Clock className="h-3 w-3 text-emerald-400" /> سجل التنفيذ ({execHistory.length})
                   </span>
                 </div>
                 {execHistory.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground italic">لا توجد عمليات تنفيذ سابقة</div>
+                  <div className="text-[10px] text-zinc-500 italic">لا توجد عمليات تنفيذ سابقة</div>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {execHistory.slice(0, 5).map((item: any) => (
-                      <div key={item.id} className="p-2 rounded-xl bg-background border border-border/50 text-[10px] space-y-1">
+                      <div key={item.id} className="p-2 rounded-xl bg-[#121214] border border-zinc-800 text-[10px] space-y-1">
                         <div className="flex items-center justify-between font-bold">
                           <span className="font-mono text-violet-400">{item.task_id}</span>
                           <TaskStatusBadge status={item.status} />
                         </div>
-                        <div className="text-muted-foreground flex items-center justify-between text-[9px]">
+                        <div className="text-zinc-400 flex items-center justify-between text-[9px]">
                           <span>{item.files_changed?.length || 0} ملفات</span>
                           <span>{item.execution_time_ms || 0}ms</span>
                         </div>
