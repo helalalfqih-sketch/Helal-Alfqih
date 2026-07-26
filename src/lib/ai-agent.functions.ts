@@ -658,9 +658,108 @@ export const getAgentRole = createServerFn({ method: "GET" })
     return { role, tenantId, userId: ctx.userId };
   });
 
+
 // ──────────────────────────────────────────────────────────────
 // Exported constants for context building
 // ──────────────────────────────────────────────────────────────
 
 export { PROJECT_FILE_STRUCTURE, DB_SCHEMA_SUMMARY };
 export { resolveAgentRole, logAudit, recordUsage, getAdminDb };
+
+// ──────────────────────────────────────────────────────────────
+// Phase 3 — Planning + Approval Gate Server Functions
+// ──────────────────────────────────────────────────────────────
+
+/** Approve an agent task plan — transitions to executing (Requires admin/owner role) */
+export const approveAgentTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ taskId: z.string().min(1) }))
+  .handler(async ({ data, context }) => {
+    const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
+    const auth = await enforceAgentRole(context, "admin");
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+
+    const { error } = await db
+      .from("ai_agent_tasks")
+      .update({
+        status: "executing",
+        user_approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.taskId)
+      .eq("tenant_id", auth.tenantId);
+
+    if (error) throw new Error(`فشل في الموافقة على المهمة: ${error.message}`);
+    return { success: true, taskId: data.taskId, status: "executing", approvedBy: auth.userId };
+  });
+
+/** Reject an agent task plan — transitions to cancelled (Requires admin/owner role) */
+export const rejectAgentTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({
+    taskId: z.string().min(1),
+    reason: z.string().optional(),
+  }))
+  .handler(async ({ data, context }) => {
+    const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
+    const auth = await enforceAgentRole(context, "admin");
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+
+    const { error } = await db
+      .from("ai_agent_tasks")
+      .update({
+        status: "cancelled",
+        user_rejected_at: new Date().toISOString(),
+        rejection_reason: data.reason ?? "رُفض من المستخدم",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.taskId)
+      .eq("tenant_id", auth.tenantId);
+
+    if (error) throw new Error(`فشل في رفض المهمة: ${error.message}`);
+    return { success: true, taskId: data.taskId, status: "cancelled", rejectedBy: auth.userId };
+  });
+
+/** Get a task by ID */
+export const getAgentTaskFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ taskId: z.string().min(1) }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { data: task, error } = await db
+      .from("ai_agent_tasks")
+      .select("*")
+      .eq("id", data.taskId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return task;
+  });
+
+/** List recent tasks for a session */
+export const listSessionTasksFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ sessionId: z.string().min(1) }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { data: tasks, error } = await db
+      .from("ai_agent_tasks")
+      .select("id, status, plan, affected_files, risk_level, created_at")
+      .eq("session_id", data.sessionId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw new Error(error.message);
+    return tasks ?? [];
+  });
+
