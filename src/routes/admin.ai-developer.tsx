@@ -132,6 +132,7 @@ function AIEngineeringAgentPage() {
     plan: any[];
     affectedFiles: string[];
     riskLevel: string;
+    status?: string;
     diffs?: Record<string, string>;
   } | null>(null);
   const [agentActivity, setAgentActivity] = useState<{
@@ -206,6 +207,8 @@ function AIEngineeringAgentPage() {
 
   const agentRole = roleData?.role || "viewer";
   const canSend = agentRole !== "viewer";
+
+
 
   // Seed memory on first load
   useEffect(() => {
@@ -483,6 +486,95 @@ function AIEngineeringAgentPage() {
 
   const startExecutionFn = useServerFn(startExecutionTask);
   const [isExecutingTask, setIsExecutingTask] = useState(false);
+
+  // Real backend execution stage resolver (Inspecting -> Generating -> Plan Ready -> Approved -> Executing -> Completed/Failed)
+  const executionStageInfo = useMemo(() => {
+    if (failureExplanation) {
+      return {
+        stage: "FAILED",
+        label: "فشل التنفيذ (Failed)",
+        badgeColor: "bg-red-500/20 text-red-400 border-red-500/40",
+        canExecute: false,
+        helperMsg: failureExplanation.reason || "حدث خطأ أثناء فحص البناء أو التنفيذ.",
+      };
+    }
+
+    if (isExecutingTask) {
+      return {
+        stage: "EXECUTING",
+        label: "جاري التنفيذ (Executing)",
+        badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-mono font-bold animate-pulse",
+        canExecute: false,
+        helperMsg: "جاري تطبيق التعديلات وفحص البناء التجميعي...",
+      };
+    }
+
+    if (isStreaming) {
+      const latestEvent = persistentEvents.length > 0
+        ? persistentEvents[persistentEvents.length - 1]
+        : agentEventsLog.length > 0
+        ? agentEventsLog[agentEventsLog.length - 1]
+        : null;
+
+      const evtMsg = (latestEvent?.message || latestEvent?.label || "").toLowerCase();
+
+      if (evtMsg.includes("inspecting") || evtMsg.includes("فحص") || evtMsg.includes("inspect_project")) {
+        return {
+          stage: "INSPECTING_PROJECT",
+          label: "فحص بنية المشروع (Inspecting project)",
+          badgeColor: "bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-mono font-bold animate-pulse",
+          canExecute: false,
+          helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
+        };
+      }
+
+      return {
+        stage: "GENERATING_PLAN",
+        label: "إنشاء الخطة الهندسية (Generating engineering plan)",
+        badgeColor: "bg-violet-500/20 text-violet-400 border-violet-500/40 font-mono font-bold animate-pulse",
+        canExecute: false,
+        helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
+      };
+    }
+
+    if (pendingTask) {
+      if (pendingTask.status === "completed" || pendingTask.status === "success") {
+        return {
+          stage: "COMPLETED",
+          label: "اكتمل التنفيذ (Completed)",
+          badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-mono font-bold",
+          canExecute: false,
+          helperMsg: "تم تنفيذ المهمة واجتياز فحص البناء بنجاح.",
+        };
+      }
+
+      if (pendingTask.status === "executing" || pendingTask.status === "running") {
+        return {
+          stage: "EXECUTING",
+          label: "جاري التنفيذ (Executing)",
+          badgeColor: "bg-blue-500/20 text-blue-400 border-blue-500/40 font-mono font-bold animate-pulse",
+          canExecute: false,
+          helperMsg: "جاري تطبيق التعديلات وفحص البناء التجميعي...",
+        };
+      }
+
+      return {
+        stage: "PLAN_READY",
+        label: "الخطة جاهزة للاعتماد (Plan ready for approval)",
+        badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/40 font-mono font-bold",
+        canExecute: true,
+        helperMsg: "اضغط على Build & Execute للاعتماد والتنفيذ الفوري.",
+      };
+    }
+
+    return {
+      stage: "GENERATING_PLAN",
+      label: "في انتظار الخطة (Engineering plan required)",
+      badgeColor: "bg-zinc-800 text-zinc-400 border-zinc-700 font-mono",
+      canExecute: false,
+      helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
+    };
+  }, [isStreaming, pendingTask, isExecutingTask, persistentEvents, agentEventsLog, failureExplanation]);
 
   const approveTaskServerFn = useServerFn(approveAgentTask);
 
@@ -859,10 +951,14 @@ function AIEngineeringAgentPage() {
           {/* Console Input Container — Exact Lovable IDE Style */}
           <div className="p-3 bg-[#121214] border-t border-zinc-800/80">
             <div className="bg-[#18181c] border border-zinc-800 rounded-2xl p-3 space-y-2 shadow-2xl">
-              {/* Top Tag inside Input Box */}
+              {/* Top Tag & Real Backend Status Badge inside Input Box */}
               <div className="flex items-center justify-between text-[10px]">
                 <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-semibold">
                   Details
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-md border font-mono font-semibold flex items-center gap-1.5 ${executionStageInfo.badgeColor}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                  {executionStageInfo.label}
                 </span>
               </div>
 
@@ -895,8 +991,9 @@ function AIEngineeringAgentPage() {
                   <button
                     type="button"
                     onClick={handleApproveTask}
-                    disabled={isExecutingTask}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold cursor-pointer shadow-lg shadow-violet-600/20 transition disabled:opacity-50"
+                    disabled={!executionStageInfo.canExecute}
+                    title={!executionStageInfo.canExecute ? executionStageInfo.helperMsg : "اعتماد وتنفيذ الخطة الهندسية"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold cursor-pointer shadow-lg shadow-violet-600/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isExecutingTask ? (
                       <>
@@ -925,6 +1022,16 @@ function AIEngineeringAgentPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Explicit Execution Helper Message when Disabled */}
+              {!executionStageInfo.canExecute && (
+                <div className="pt-1.5 text-start border-t border-zinc-800/40">
+                  <p className="text-[10px] text-amber-400/90 font-medium flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                    {executionStageInfo.helperMsg}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1075,9 +1182,10 @@ function AIEngineeringAgentPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      disabled={isExecutingTask}
+                      disabled={!executionStageInfo.canExecute}
                       onClick={handleApproveTask}
-                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-50"
+                      title={!executionStageInfo.canExecute ? executionStageInfo.helperMsg : "اعتماد وتنفيذ الخطة الهندسية"}
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {isExecutingTask ? (
                         <>
