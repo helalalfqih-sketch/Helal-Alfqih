@@ -18,10 +18,14 @@ export type TaskStatus =
   | "analyzing"
   | "planning"
   | "waiting_approval"
+  | "queued"
+  | "running"
   | "executing"
   | "testing"
+  | "success"
   | "completed"
   | "failed"
+  | "rolled_back"
   | "cancelled";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";

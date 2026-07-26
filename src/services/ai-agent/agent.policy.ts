@@ -23,9 +23,14 @@ export const PROTECTED_PATHS = [
   ".env",
   ".env.local",
   ".env.production",
+  ".env.staging",
+  "node_modules",
   "supabase/config.toml",
   "package.json",
   "package-lock.json",
+  "bun.lockb",
+  "pnpm-lock.yaml",
+  "smartcontentcreator-d49f2-6d78b68ea04a.json", // Service account keys
 ];
 
 // ─────────────────────────────────────────────────

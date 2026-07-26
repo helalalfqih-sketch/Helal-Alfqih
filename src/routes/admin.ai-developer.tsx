@@ -56,6 +56,7 @@ import {
   getAgentRole,
   approveAgentTask,
   rejectAgentTask,
+  executeApprovedTask,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -184,30 +185,7 @@ function AIEngineeringAgentPage() {
     }
   };
 
-  // Approval Gate Handlers
-  const handleApproveTask = async () => {
-    if (!pendingTask) return;
-    try {
-      await approveTaskFn({ data: { taskId: pendingTask.taskId } });
-      toast.success(`تمت الموافقة على ${pendingTask.taskId}! جاري تنفيذ التعديلات...`);
-      setPendingTask(null);
-      setAgentActivity({ status: "executing", label: "⚙️ جاري تنفيذ التعديلات المعتمدة..." });
-    } catch (e: any) {
-      toast.error(e.message || "فشل إرسال الموافقة");
-    }
-  };
 
-  const handleRejectTask = async () => {
-    if (!pendingTask) return;
-    try {
-      await rejectTaskFn({ data: { taskId: pendingTask.taskId, reason: "رُفض من المستخدم" } });
-      toast.info(`تم إلغاء المهمة ${pendingTask.taskId}.`);
-      setPendingTask(null);
-      setAgentActivity(null);
-    } catch (e: any) {
-      toast.error(e.message || "فشل إلغاء المهمة");
-    }
-  };
 
   // Send message + stream AI response
   const handleSend = async () => {
@@ -388,6 +366,48 @@ function AIEngineeringAgentPage() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const executeApprovedFn = useServerFn(executeApprovedTask);
+  const [isExecutingTask, setIsExecutingTask] = useState(false);
+
+  const handleApproveTask = async () => {
+    if (!pendingTask) return;
+    if (agentRole !== "owner") {
+      toast.error("مرفوض: الاعتماد والتنفيذ الفعلي متاح فقط لرتبة المالك (Owner) 👑");
+      return;
+    }
+
+    setIsExecutingTask(true);
+    toast.loading(`جاري تنفيذ وإجراء الفحص الآلي للمهمة ${pendingTask.taskId}...`, { id: "task-exec" });
+
+    try {
+      const res = await executeApprovedFn({ data: { taskId: pendingTask.taskId } });
+      if (res.success) {
+        toast.success(`تم تنفيذ المهمة ${pendingTask.taskId} بنجاح واجتياز الفحص! ✨`, { id: "task-exec" });
+        setPendingTask(null);
+        queryClient.invalidateQueries({ queryKey: ["ai-agent-sessions"] });
+      } else if (res.status === "rolled_back") {
+        toast.error(`فشل فحص البناء! تم إلغاء التعديلات والتراجع تلقائياً 🔄`, { id: "task-exec" });
+      } else {
+        toast.error(`فشل تنفيذ المهمة: ${res.buildOutput}`, { id: "task-exec" });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "حدث خطأ أثناء التنفيذ", { id: "task-exec" });
+    } finally {
+      setIsExecutingTask(false);
+    }
+  };
+
+  const handleRejectTask = async () => {
+    if (!pendingTask) return;
+    try {
+      await rejectTaskFn({ data: { taskId: pendingTask.taskId } });
+      toast.info(`تم إلغاء المهمة ${pendingTask.taskId}`);
+      setPendingTask(null);
+    } catch {
+      toast.error("فشل إلغاء المهمة");
     }
   };
 
@@ -721,11 +741,16 @@ function AIEngineeringAgentPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       type="button"
+                      disabled={isExecutingTask}
                       onClick={handleApproveTask}
-                      className="px-5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1"
+                      className="px-5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1 disabled:opacity-50"
                     >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Approve
+                      {isExecutingTask ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      )}
+                      {isExecutingTask ? "Executing..." : "Approve & Execute"}
                     </button>
                     <button 
                       type="button"
@@ -933,11 +958,13 @@ function TaskStatusBadge({ status }: { status: string }) {
   const config: Record<string, { icon: typeof Clock; color: string; label: string }> = {
     idle: { icon: Clock, color: "text-muted-foreground bg-muted", label: "جديد" },
     planning: { icon: Sparkles, color: "text-violet-500 bg-violet-500/10", label: "تخطيط" },
-    approved: { icon: CheckCircle, color: "text-emerald-500 bg-emerald-500/10", label: "معتمد" },
-    running: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري" },
-    testing: { icon: Zap, color: "text-cyan-500 bg-cyan-500/10", label: "اختبار" },
+    queued: { icon: Clock, color: "text-blue-500 bg-blue-500/10", label: "في الطابور" },
+    running: { icon: Play, color: "text-amber-500 bg-amber-500/10", label: "جاري التنفيذ" },
+    testing: { icon: Zap, color: "text-cyan-500 bg-cyan-500/10", label: "فحص البناء" },
+    success: { icon: CheckCircle, color: "text-emerald-500 bg-emerald-500/10", label: "تم بنجاح ✨" },
     completed: { icon: CheckCircle, color: "text-emerald-600 bg-emerald-500/10", label: "مكتمل" },
     failed: { icon: XCircle, color: "text-destructive bg-destructive/10", label: "فشل" },
+    rolled_back: { icon: AlertTriangle, color: "text-orange-500 bg-orange-500/10", label: "تم التراجع 🔄" },
   };
 
   const c = config[status] || config.idle;

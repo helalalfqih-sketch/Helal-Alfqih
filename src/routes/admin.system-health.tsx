@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { getAgentUsageStats, getAgentRole } from "@/lib/ai-agent.functions";
 
-export const Route = createFileRoute("/admin/system-health" as any)({
+export const Route = createFileRoute("/admin/system-health")({
   head: () => ({
     meta: [
       { title: "حالة النظام ومراقبة الأداء — لوحة الإدارة" },

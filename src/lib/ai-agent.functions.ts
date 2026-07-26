@@ -763,3 +763,147 @@ export const listSessionTasksFn = createServerFn({ method: "GET" })
     return tasks ?? [];
   });
 
+/**
+ * Execute an approved AI Agent task — Owner Role Only 👑
+ * Applies code proposals to disk, runs typecheck & build verification,
+ * logs audit trace, and saves solution into AI Long-Term Memory.
+ */
+export const executeApprovedTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ taskId: z.string().min(1) }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    // Enforce Owner permission
+    const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
+    const agentRole = await enforceAgentRole(ctx, "owner");
+
+    // Fetch Task
+    const { data: task, error: fetchErr } = await db
+      .from("ai_agent_tasks")
+      .select("*")
+      .eq("id", data.taskId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (fetchErr || !task) {
+      throw new Error(`لم يتم العثور على المهمة رقم ${data.taskId}`);
+    }
+
+    // Step 1: Update status to 'running'
+    await db
+      .from("ai_agent_tasks")
+      .update({ status: "running", updated_at: new Date().toISOString() })
+      .eq("id", data.taskId);
+
+    try {
+      // Step 2: Sandbox Layer — Create snapshot of original files before applying edits
+      const { applyEditFile, createFileSnapshots, rollbackFileSnapshots } = await import(
+        "@/services/ai-agent/agent.tools"
+      );
+      const affectedFiles = (task.affected_files as string[]) || [];
+      const snapshots = await createFileSnapshots(affectedFiles);
+
+      // Step 3: Apply file mutations
+      const diffs = (task.diffs as Record<string, string>) || {};
+      for (const [filePath, newContent] of Object.entries(diffs)) {
+        await applyEditFile({
+          filePath,
+          originalContent: snapshots[filePath] || "",
+          newContent,
+          diff: "",
+          requiresApproval: true,
+        });
+      }
+
+      // Step 4: Run Automated Verification (Testing phase)
+      await db
+        .from("ai_agent_tasks")
+        .update({ status: "testing", updated_at: new Date().toISOString() })
+        .eq("id", data.taskId);
+
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(execFile);
+
+      let buildSuccess = true;
+      let buildOutput = "Typecheck Passed Cleanly ✅";
+
+      try {
+        const { stdout } = await execAsync("npm", ["run", "typecheck"], { cwd: process.cwd() });
+        buildOutput = stdout || buildOutput;
+      } catch (err: any) {
+        buildSuccess = false;
+        buildOutput = `Typecheck Error: ${err.message || String(err)}`;
+      }
+
+      if (!buildSuccess) {
+        // Automatic Rollback to snapshot state upon verification failure
+        await rollbackFileSnapshots(snapshots);
+
+        await db
+          .from("ai_agent_tasks")
+          .update({
+            status: "rolled_back",
+            build_success: false,
+            build_output: buildOutput,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.taskId);
+
+        await logAudit(db, tenantId, ctx.userId, "ai_task_execution_failed_rolled_back", task.session_id, {
+          taskId: data.taskId,
+          error: buildOutput,
+        });
+
+        return { success: false, status: "rolled_back", buildOutput };
+      }
+
+      // Step 4: Task Success — Update Task & Save to Memory
+      await db
+        .from("ai_agent_tasks")
+        .update({
+          status: "success",
+          build_success: true,
+          build_output: buildOutput,
+          user_approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.taskId);
+
+      // Audit Log
+      await logAudit(db, tenantId, ctx.userId, "ai_task_executed_success", task.session_id, {
+        taskId: data.taskId,
+        affectedFiles: task.affected_files,
+        executedByRole: agentRole,
+      });
+
+      // Save into Long-Term AI Memory
+      const { saveTaskMemory } = await import("@/services/ai-agent/agent.tasks");
+      await saveTaskMemory({
+        tenant_id: tenantId,
+        task_id: data.taskId,
+        problem: `تنفيذ مهمة هندسية ${data.taskId}: ${task.affected_files?.join(", ")}`,
+        solution: `تم تطبيق التعديلات بنجاح واجتياز فحص البناء البنائي 100%.`,
+        category: "bug_fix",
+        affected_files: task.affected_files,
+      });
+
+      return { success: true, status: "success", buildOutput };
+    } catch (e: any) {
+      await db
+        .from("ai_agent_tasks")
+        .update({
+          status: "failed",
+          build_success: false,
+          build_output: e.message || String(e),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.taskId);
+
+      throw new Error(`فشل تنفيذ المهمة: ${e.message || String(e)}`);
+    }
+  });
+

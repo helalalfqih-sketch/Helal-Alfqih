@@ -87,7 +87,7 @@ function resolveSafePath(relOrAbsPath: string): string {
   return resolved;
 }
 
-function buildUnifiedDiff(
+export function buildUnifiedDiff(
   filePath: string,
   original: string,
   newContent: string,
@@ -96,7 +96,6 @@ function buildUnifiedDiff(
   const newLines = newContent.split("\n");
   const diffLines: string[] = [`--- a/${filePath}`, `+++ b/${filePath}`];
 
-  // Simple line-by-line diff (good enough for display; apply uses fs.writeFile)
   let i = 0,
     j = 0;
   while (i < origLines.length || j < newLines.length) {
@@ -113,6 +112,22 @@ function buildUnifiedDiff(
     }
   }
   return diffLines.join("\n");
+}
+
+export async function generatePatch(
+  filePath: string,
+  newContent: string,
+): Promise<{ filePath: string; diff: string; originalContent: string }> {
+  const resolved = resolveSafePath(filePath);
+  let originalContent = "";
+  try {
+    originalContent = await fs.readFile(resolved, "utf-8");
+  } catch {
+    // New file
+    originalContent = "";
+  }
+  const diff = buildUnifiedDiff(filePath, originalContent, newContent);
+  return { filePath, diff, originalContent };
 }
 
 // ─────────────────────────────────────────────────
@@ -354,4 +369,42 @@ export async function applyCreateFile(proposal: EditFileProposal): Promise<void>
   const resolved = resolveSafePath(proposal.filePath);
   await fs.mkdir(path.dirname(resolved), { recursive: true });
   await fs.writeFile(resolved, proposal.newContent, "utf-8");
+}
+
+/**
+ * Sandbox Layer — Create snapshot of affected files before execution
+ */
+export async function createFileSnapshots(
+  filePaths: string[],
+): Promise<Record<string, string>> {
+  const snapshots: Record<string, string> = {};
+  for (const relPath of filePaths) {
+    try {
+      const resolved = resolveSafePath(relPath);
+      snapshots[relPath] = await fs.readFile(resolved, "utf-8");
+    } catch {
+      snapshots[relPath] = "__FILE_DOES_NOT_EXIST__";
+    }
+  }
+  return snapshots;
+}
+
+/**
+ * Sandbox Layer — Rollback affected files to original snapshot state
+ */
+export async function rollbackFileSnapshots(
+  snapshots: Record<string, string>,
+): Promise<void> {
+  for (const [relPath, originalContent] of Object.entries(snapshots)) {
+    try {
+      const resolved = resolveSafePath(relPath);
+      if (originalContent === "__FILE_DOES_NOT_EXIST__") {
+        await fs.unlink(resolved).catch(() => {});
+      } else {
+        await fs.writeFile(resolved, originalContent, "utf-8");
+      }
+    } catch (e) {
+      console.warn(`[Rollback] Warning reverting ${relPath}:`, e);
+    }
+  }
 }
