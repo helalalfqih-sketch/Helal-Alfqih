@@ -1,31 +1,46 @@
 /**
- * Phase 8.1 — Workflow Engine & State Machine
- * Orchestrates engineering task state transitions
+ * Phase 10.2 — 10-State Execution Machine
+ * Orchestrates engineering task state transitions cleanly
  */
-import { EngineeringTask } from "./task-orchestrator";
 
-export type TaskState = EngineeringTask["status"];
+export type ExecutionLifecycleState =
+  | "DETECTED"
+  | "ANALYZING"
+  | "PLANNING"
+  | "WAITING_APPROVAL"
+  | "APPROVED"
+  | "EXECUTING"
+  | "VERIFYING"
+  | "COMPLETED"
+  | "FAILED"
+  | "ROLLED_BACK";
 
-export function transitionTaskState(
-  task: EngineeringTask,
-  nextState: TaskState
-): EngineeringTask {
-  const allowedTransitions: Record<TaskState, TaskState[]> = {
-    DETECTED: ["ANALYZED"],
-    ANALYZED: ["WAITING_APPROVAL"],
-    WAITING_APPROVAL: ["EXECUTING", "ANALYZED"],
-    EXECUTING: ["VERIFIED"],
-    VERIFIED: ["COMPLETED"],
-    COMPLETED: [],
-  };
+export interface ExecutionTaskStateRecord {
+  taskId: string;
+  currentState: ExecutionLifecycleState;
+  updatedAt: string;
+}
 
-  const validNextStates = allowedTransitions[task.status] || [];
-  if (!validNextStates.includes(nextState)) {
-    throw new Error(`Invalid state transition: Cannot transition task ${task.taskId} from ${task.status} to ${nextState}`);
+const allowedLifecycleTransitions: Record<ExecutionLifecycleState, ExecutionLifecycleState[]> = {
+  DETECTED: ["ANALYZING"],
+  ANALYZING: ["PLANNING"],
+  PLANNING: ["WAITING_APPROVAL"],
+  WAITING_APPROVAL: ["APPROVED", "FAILED"],
+  APPROVED: ["EXECUTING"],
+  EXECUTING: ["VERIFYING", "FAILED"],
+  VERIFYING: ["COMPLETED", "ROLLED_BACK"],
+  COMPLETED: [],
+  FAILED: ["PLANNING", "DETECTED"],
+  ROLLED_BACK: ["PLANNING", "DETECTED"],
+};
+
+export function transitionExecutionState(
+  currentState: ExecutionLifecycleState,
+  nextState: ExecutionLifecycleState
+): ExecutionLifecycleState {
+  const allowed = allowedLifecycleTransitions[currentState] || [];
+  if (!allowed.includes(nextState)) {
+    throw new Error(`Invalid state transition: Cannot transition from ${currentState} to ${nextState}`);
   }
-
-  return {
-    ...task,
-    status: nextState,
-  };
+  return nextState;
 }
