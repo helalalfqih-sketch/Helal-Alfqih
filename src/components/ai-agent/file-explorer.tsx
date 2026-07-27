@@ -257,12 +257,30 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
         )}
       </div>
 
-      {/* Active Selected File Info Footer */}
-      {activeFilePath && (
-        <div className="mt-2 pt-2 border-t border-zinc-800/80 text-[10px] text-zinc-400 font-mono dir-ltr flex items-center justify-between truncate">
-          <span className="truncate text-violet-300 font-semibold">{activeFilePath}</span>
-        </div>
-      )}
+      {/* Download Codebase Footer Button matching Lovable IDE */}
+      <div className="mt-2 pt-2 border-t border-zinc-800/80 flex flex-col gap-1.5 dir-ltr">
+        {activeFilePath && (
+          <div className="text-[10px] text-zinc-400 font-mono truncate">
+            <span className="truncate text-violet-300 font-semibold">{activeFilePath}</span>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(projectTree, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "noqta-codebase-manifest.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="w-full py-1.5 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 text-xs font-bold text-zinc-200 flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+        >
+          <HardDrive className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Download codebase</span>
+        </button>
+      </div>
     </div>
   );
 }

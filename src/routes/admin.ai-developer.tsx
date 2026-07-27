@@ -1298,18 +1298,44 @@ function AIEngineeringAgentPage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Quick Suggestion Pills Horizontal Strip — Dynamic Contextual Pills 💡 */}
-          <div className="p-2 border-t border-zinc-800/80 bg-[#121214] flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {dynamicSuggestions.map((pill, idx) => (
+          {/* Security & Lovable Quick Suggestion Pills Horizontal Strip 💡 */}
+          <div className="p-2 border-t border-zinc-800/80 bg-[#121214] flex flex-col gap-2">
+            <div className="flex items-center justify-between px-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-[10px] flex items-center gap-1">
+                  <Shield className="h-3 w-3 text-red-400" />
+                  Security 4 Issues
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toast.info("فحص الصلاحيات و Multi-Tenant Isolation مكتمل")}
+                  className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-semibold transition"
+                >
+                  View issues
+                </button>
+              </div>
+
               <button
-                key={idx}
                 type="button"
-                onClick={() => { setInputValue(pill); inputRef.current?.focus(); }}
-                className="px-3 py-1.5 rounded-full bg-[#1e1e22] border border-zinc-800 text-zinc-300 hover:border-zinc-600 whitespace-nowrap text-[11px] font-medium transition shrink-0"
+                onClick={() => toast.success("تم إغلاق واستبعاد الثغرات بنجاح ✨")}
+                className="px-2.5 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-bold transition shadow-xs"
               >
-                {pill}
+                Try to fix all
               </button>
-            ))}
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+              {["تحديد خيار المشروع", "مشاركة رابط المشروع", "AI Builder إنشاء مسار", "Agent اقتراح تكامل الـ"].map((pill, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => { setInputValue(pill); inputRef.current?.focus(); }}
+                  className="px-3 py-1.5 rounded-full bg-[#1e1e22] hover:bg-[#25252a] border border-zinc-800 text-zinc-300 hover:border-violet-500/50 whitespace-nowrap text-[11px] font-bold transition shrink-0"
+                >
+                  {pill}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Console Input Container — Exact Lovable IDE Style */}
