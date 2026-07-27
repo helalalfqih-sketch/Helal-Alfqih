@@ -417,7 +417,7 @@ export const createAgentSession = createServerFn({ method: "POST" })
         taskErr: taskErr ? { message: taskErr.message, code: taskErr.code, details: taskErr.details } : null,
       });
 
-      console.log("[TASK_VERIFY_AFTER_CREATE]", checkTask);
+      console.log("[TASK_VERIFY_AFTER_CREATE]", createdTask);
       console.log("[TASK_CREATED_VERIFY]", {
         taskId: createdTask?.id,
         sessionId: session.id,
