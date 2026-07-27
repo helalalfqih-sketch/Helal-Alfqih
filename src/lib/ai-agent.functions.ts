@@ -358,6 +358,20 @@ export const createAgentSession = createServerFn({ method: "POST" })
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     try {
+      const sessionTitle = data.title || "جلسة جديدة";
+      const { checkSessionDeduplication, registerSessionFingerprint } = await import("@/services/ai-agent/session-deduplicator");
+      const dedupCheck = checkSessionDeduplication(ctx.userId, tenantId, sessionTitle);
+
+      if (dedupCheck.isDuplicate && dedupCheck.existingSessionId) {
+        const { data: existingSession } = await db
+          .from("ai_agent_sessions")
+          .select("*")
+          .eq("id", dedupCheck.existingSessionId)
+          .maybeSingle();
+
+        if (existingSession) return existingSession as AgentSession;
+      }
+
       const { count } = await db
         .from("ai_agent_sessions")
         .select("id", { count: "exact", head: true })
@@ -371,7 +385,7 @@ export const createAgentSession = createServerFn({ method: "POST" })
         .insert({
           tenant_id: tenantId,
           user_id: ctx.userId,
-          title: data.title || "جلسة جديدة",
+          title: sessionTitle,
           task_id: taskId,
         })
         .select()
@@ -379,6 +393,7 @@ export const createAgentSession = createServerFn({ method: "POST" })
 
       if (error) throw new Error(error.message);
 
+      registerSessionFingerprint(dedupCheck.sessionFingerprint, session.id, ctx.userId, tenantId, sessionTitle);
       await logAudit(db, tenantId, ctx.userId, "session_created", session.id, { task_id: taskId });
 
       return session as AgentSession;
