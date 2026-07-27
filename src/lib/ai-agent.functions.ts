@@ -1460,3 +1460,167 @@ export const getSessionExecutionEventsFn = createServerFn({ method: "GET" })
     return listSessionExecutionEvents(data.sessionId, 100, db);
   });
 
+export interface ProjectFileNode {
+  id: string;
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  updatedAt?: string;
+  children?: ProjectFileNode[];
+}
+
+/** Recursively scan real project directory tree */
+export const getRealProjectTreeFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    if (typeof process === "undefined") {
+      return { tree: [], totalFiles: 0, totalFolders: 0 };
+    }
+
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+
+      const rootDir = process.cwd();
+      const ignoreDirs = new Set([
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        ".output",
+        ".gemini",
+        ".env",
+        "tmp",
+        "secrets",
+        "credentials",
+      ]);
+
+      let totalFiles = 0;
+      let totalFolders = 0;
+
+      async function scanDir(relPath: string, depth = 0): Promise<ProjectFileNode[]> {
+        if (depth > 7) return [];
+        const absPath = path.join(rootDir, relPath);
+        const entries = await fs.readdir(absPath, { withFileTypes: true });
+
+        const nodes: ProjectFileNode[] = [];
+
+        for (const entry of entries) {
+          const entryName = entry.name;
+          if (ignoreDirs.has(entryName) || entryName.startsWith(".env")) continue;
+
+          const childRelPath = relPath ? `${relPath}/${entryName}`.replace(/\\/g, "/") : entryName;
+          const childAbsPath = path.join(rootDir, childRelPath);
+
+          if (entry.isDirectory()) {
+            totalFolders++;
+            const children = await scanDir(childRelPath, depth + 1);
+            nodes.push({
+              id: childRelPath,
+              name: entryName,
+              path: childRelPath,
+              type: "directory",
+              children,
+            });
+          } else if (entry.isFile()) {
+            totalFiles++;
+            let size = 0;
+            let updatedAt = new Date().toISOString();
+            try {
+              const stat = await fs.stat(childAbsPath);
+              size = stat.size;
+              updatedAt = stat.mtime.toISOString();
+            } catch { /* stat fallback */ }
+
+            nodes.push({
+              id: childRelPath,
+              name: entryName,
+              path: childRelPath,
+              type: "file",
+              size,
+              updatedAt,
+            });
+          }
+        }
+
+        return nodes.sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === "directory" ? -1 : 1;
+        });
+      }
+
+      const tree = await scanDir("");
+      return { tree, totalFiles, totalFolders };
+    } catch (err: any) {
+      console.warn("[ProjectExplorer] Tree scan error:", err?.message);
+      return { tree: [], totalFiles: 0, totalFolders: 0 };
+    }
+  });
+
+/** Read content of a specific project file */
+export const readProjectFileContentFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ path: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    if (typeof process === "undefined") {
+      return { content: "", path: data.path, name: "", size: 0, updatedAt: "", language: "plaintext" };
+    }
+
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+
+      const rootDir = process.cwd();
+      const sanitizedRelPath = data.path.replace(/^(\.\.[\/\\])+/, "").replace(/\\/g, "/");
+      const absPath = path.resolve(rootDir, sanitizedRelPath);
+
+      if (!absPath.startsWith(rootDir)) {
+        throw new Error("Access denied: Path outside workspace root");
+      }
+
+      const stat = await fs.stat(absPath);
+      const ext = path.extname(sanitizedRelPath).toLowerCase();
+
+      let language = "plaintext";
+      if (ext === ".ts" || ext === ".tsx") language = "typescript";
+      else if (ext === ".js" || ext === ".jsx") language = "javascript";
+      else if (ext === ".css") language = "css";
+      else if (ext === ".json") language = "json";
+      else if (ext === ".md") language = "markdown";
+      else if (ext === ".sql") language = "sql";
+      else if (ext === ".html") language = "html";
+
+      if (stat.size > 500 * 1024) {
+        return {
+          path: sanitizedRelPath,
+          name: path.basename(sanitizedRelPath),
+          size: stat.size,
+          updatedAt: stat.mtime.toISOString(),
+          content: `// [Large File] Content size (${Math.round(stat.size / 1024)} KB) exceeds editor preview limit.`,
+          language,
+        };
+      }
+
+      const content = await fs.readFile(absPath, "utf-8");
+      return {
+        path: sanitizedRelPath,
+        name: path.basename(sanitizedRelPath),
+        size: stat.size,
+        updatedAt: stat.mtime.toISOString(),
+        content,
+        language,
+      };
+    } catch (err: any) {
+      console.warn("[ProjectExplorer] Read file error:", err?.message);
+      return {
+        path: data.path,
+        name: data.path.split("/").pop() || "",
+        size: 0,
+        updatedAt: new Date().toISOString(),
+        content: `// Error loading file: ${err?.message || "File not found"}`,
+        language: "plaintext",
+      };
+    }
+  });
+
