@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Brain, Trash2, Search, Sparkles } from "lucide-react";
 import { getProjectMemory } from "@/lib/ai-agent.functions";
 
-export const Route = createFileRoute("/admin/ai-memory" as any)({
+export const Route = createFileRoute("/admin/ai-memory")({
   head: () => ({
     meta: [
       { title: "إدارة ذاكرة الذكاء الاصطناعي — لوحة الإدارة" },

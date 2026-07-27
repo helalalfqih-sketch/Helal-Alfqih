@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Bell, ShoppingBag, Cpu, AlertTriangle, ShieldCheck, Check } from "lucide-react";
 import { getNotificationsFn, markNotificationReadFn, AdminNotification } from "@/services/notification.service";
 
-export const Route = createFileRoute("/admin/notifications" as any)({
+export const Route = createFileRoute("/admin/notifications")({
   head: () => ({
     meta: [
       { title: "مركز الإشعارات والتنبيهات — لوحة الإدارة" },

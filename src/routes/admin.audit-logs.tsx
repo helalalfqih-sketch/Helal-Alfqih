@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Shield, UserCheck, HardDrive, CheckCircle } from "lucide-react";
 import { getAuditLogsFn, UserAuditLogEntry } from "@/services/audit.service";
 
-export const Route = createFileRoute("/admin/audit-logs" as any)({
+export const Route = createFileRoute("/admin/audit-logs")({
   head: () => ({
     meta: [
       { title: "سجل العمليات والامتثال — لوحة الإدارة" },

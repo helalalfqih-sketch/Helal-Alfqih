@@ -59,6 +59,7 @@ import { Route as AdminPlatformRouteImport } from './routes/admin.platform'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminPagesRouteImport } from './routes/admin.pages'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
 import { Route as AdminInsightsRouteImport } from './routes/admin.insights'
@@ -69,8 +70,10 @@ import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
 import { Route as AdminBannersRouteImport } from './routes/admin.banners'
+import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
+import { Route as AdminAiMemoryRouteImport } from './routes/admin.ai-memory'
 import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
 import { Route as AdminAiAgentRouteImport } from './routes/admin.ai-agent'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
@@ -333,6 +336,11 @@ const AdminOrdersRoute = AdminOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminMediaRoute = AdminMediaRouteImport.update({
   id: '/media',
   path: '/media',
@@ -383,6 +391,11 @@ const AdminBannersRoute = AdminBannersRouteImport.update({
   path: '/banners',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
@@ -391,6 +404,11 @@ const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
 const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
   id: '/ai-settings',
   path: '/ai-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiMemoryRoute = AdminAiMemoryRouteImport.update({
+  id: '/ai-memory',
+  path: '/ai-memory',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
@@ -469,8 +487,10 @@ export interface FileRoutesByFullPath {
   '/track': typeof TrackRoute
   '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-memory': typeof AdminAiMemoryRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -481,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/media': typeof AdminMediaRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/pages': typeof AdminPagesRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -542,8 +563,10 @@ export interface FileRoutesByTo {
   '/track': typeof TrackRoute
   '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-memory': typeof AdminAiMemoryRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -554,6 +577,7 @@ export interface FileRoutesByTo {
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/media': typeof AdminMediaRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/pages': typeof AdminPagesRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -618,8 +642,10 @@ export interface FileRoutesById {
   '/track': typeof TrackRoute
   '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/ai-developer': typeof AdminAiDeveloperRoute
+  '/admin/ai-memory': typeof AdminAiMemoryRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/appearance': typeof AdminAppearanceRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/branches': typeof AdminBranchesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -630,6 +656,7 @@ export interface FileRoutesById {
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/media': typeof AdminMediaRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/pages': typeof AdminPagesRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -695,8 +722,10 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/ai-agent'
     | '/admin/ai-developer'
+    | '/admin/ai-memory'
     | '/admin/ai-settings'
     | '/admin/appearance'
+    | '/admin/audit-logs'
     | '/admin/banners'
     | '/admin/branches'
     | '/admin/campaigns'
@@ -707,6 +736,7 @@ export interface FileRouteTypes {
     | '/admin/insights'
     | '/admin/inventory'
     | '/admin/media'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/pages'
     | '/admin/payments'
@@ -768,8 +798,10 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/ai-agent'
     | '/admin/ai-developer'
+    | '/admin/ai-memory'
     | '/admin/ai-settings'
     | '/admin/appearance'
+    | '/admin/audit-logs'
     | '/admin/banners'
     | '/admin/branches'
     | '/admin/campaigns'
@@ -780,6 +812,7 @@ export interface FileRouteTypes {
     | '/admin/insights'
     | '/admin/inventory'
     | '/admin/media'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/pages'
     | '/admin/payments'
@@ -843,8 +876,10 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/ai-agent'
     | '/admin/ai-developer'
+    | '/admin/ai-memory'
     | '/admin/ai-settings'
     | '/admin/appearance'
+    | '/admin/audit-logs'
     | '/admin/banners'
     | '/admin/branches'
     | '/admin/campaigns'
@@ -855,6 +890,7 @@ export interface FileRouteTypes {
     | '/admin/insights'
     | '/admin/inventory'
     | '/admin/media'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/pages'
     | '/admin/payments'
@@ -1285,6 +1321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/media': {
       id: '/admin/media'
       path: '/media'
@@ -1355,6 +1398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBannersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/appearance': {
       id: '/admin/appearance'
       path: '/appearance'
@@ -1367,6 +1417,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-settings'
       fullPath: '/admin/ai-settings'
       preLoaderRoute: typeof AdminAiSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-memory': {
+      id: '/admin/ai-memory'
+      path: '/ai-memory'
+      fullPath: '/admin/ai-memory'
+      preLoaderRoute: typeof AdminAiMemoryRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/ai-developer': {
@@ -1464,8 +1521,10 @@ const AdminStoresRouteWithChildren = AdminStoresRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminAiAgentRoute: typeof AdminAiAgentRoute
   AdminAiDeveloperRoute: typeof AdminAiDeveloperRoute
+  AdminAiMemoryRoute: typeof AdminAiMemoryRoute
   AdminAiSettingsRoute: typeof AdminAiSettingsRoute
   AdminAppearanceRoute: typeof AdminAppearanceRoute
+  AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminBannersRoute: typeof AdminBannersRoute
   AdminBranchesRoute: typeof AdminBranchesRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
@@ -1476,6 +1535,7 @@ interface AdminRouteChildren {
   AdminInsightsRoute: typeof AdminInsightsRoute
   AdminInventoryRoute: typeof AdminInventoryRoute
   AdminMediaRoute: typeof AdminMediaRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPagesRoute: typeof AdminPagesRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
@@ -1500,8 +1560,10 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiAgentRoute: AdminAiAgentRoute,
   AdminAiDeveloperRoute: AdminAiDeveloperRoute,
+  AdminAiMemoryRoute: AdminAiMemoryRoute,
   AdminAiSettingsRoute: AdminAiSettingsRoute,
   AdminAppearanceRoute: AdminAppearanceRoute,
+  AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminBannersRoute: AdminBannersRoute,
   AdminBranchesRoute: AdminBranchesRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
@@ -1512,6 +1574,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminInsightsRoute: AdminInsightsRoute,
   AdminInventoryRoute: AdminInventoryRoute,
   AdminMediaRoute: AdminMediaRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPagesRoute: AdminPagesRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,

@@ -49,19 +49,17 @@ export async function approveAndExecuteTask(
 
   try {
     await logExecutionJournal({
-      sessionId,
       taskId,
       stepName: "APPROVAL_GRANTED",
-      status: "COMPLETED",
-      details: { approvedBy, decidedAt: record.decidedAt },
+      status: "SUCCESS",
+      details: { approvedBy, decidedAt: record.decidedAt, sessionId },
     });
 
     await logExecutionJournal({
-      sessionId,
       taskId,
       stepName: "EXECUTION_STARTED",
-      status: "COMPLETED",
-      details: { mode: "orchestrated", state: "EXECUTING" },
+      status: "SUCCESS",
+      details: { mode: "orchestrated", state: "EXECUTING", sessionId },
     });
   } catch {
     /* non-blocking warning fallback */
