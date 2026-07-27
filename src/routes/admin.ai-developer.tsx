@@ -618,7 +618,12 @@ function AIEngineeringAgentPage() {
   const handleApproveTask = async () => {
     let taskIdToRun = pendingTask?.taskId;
     if (!taskIdToRun && activeSessionId) {
-      taskIdToRun = `task-${activeSessionId}`;
+      const activeSess = sessions.find((s: any) => s.id === activeSessionId);
+      taskIdToRun = activeSess?.task_id;
+      if (!taskIdToRun) {
+        toast.error("لم يتم العثور على معرف المهمة الحقيقي");
+        return;
+      }
     }
     if (!taskIdToRun) {
       toast.error("لا يوجد مهمة نشطة لبدء عملية البناء والتنفيذ");
