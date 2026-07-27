@@ -409,19 +409,13 @@ export const createAgentSession = createServerFn({ method: "POST" })
           updated_at: new Date().toISOString(),
         }, { onConflict: "id" })
         .select()
-        .maybeSingle();
+        .single();
 
-      if (taskErr) {
-        console.error("[TASK_CREATION_FAILED]", taskErr.message);
-      } else {
-        console.log("[TASK_CREATED]", createdTask);
-      }
-
-      const { data: checkTask } = await db
-        .from("ai_agent_tasks")
-        .select("*")
-        .or(`id.eq.${taskId},plan_id.eq.${session.id},session_id.eq.${session.id}`)
-        .maybeSingle();
+      console.log("[TASK_INSERT_RESULT]", {
+        taskId,
+        createdTask,
+        taskErr: taskErr ? { message: taskErr.message, code: taskErr.code, details: taskErr.details } : null,
+      });
 
       console.log("[TASK_VERIFY_AFTER_CREATE]", checkTask);
       console.log("[TASK_CREATED_VERIFY]", {
