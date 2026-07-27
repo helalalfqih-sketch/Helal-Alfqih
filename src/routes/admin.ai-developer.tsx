@@ -619,7 +619,7 @@ function AIEngineeringAgentPage() {
     let taskIdToRun = pendingTask?.taskId;
     if (!taskIdToRun && activeSessionId) {
       const activeSess = sessions.find((s: any) => s.id === activeSessionId);
-      taskIdToRun = activeSess?.task_id;
+      taskIdToRun = activeSess?.task_id || undefined;
       if (!taskIdToRun) {
         toast.error("لم يتم العثور على معرف المهمة الحقيقي");
         return;

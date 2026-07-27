@@ -399,7 +399,6 @@ export const createAgentSession = createServerFn({ method: "POST" })
         .upsert({
           id: taskId,
           session_id: session.id,
-          plan_id: session.id,
           tenant_id: tenantId,
           user_id: ctx.userId,
           status: "PENDING",
@@ -817,7 +816,7 @@ export const approveAgentTask = createServerFn({ method: "POST" })
     let { data: verifyTask } = await db
       .from("ai_agent_tasks")
       .select("id, status, user_approved_at")
-      .or(`id.eq.${data.taskId},plan_id.eq.${cleanSessionId},session_id.eq.${cleanSessionId}`)
+      .or(`id.eq.${data.taskId},session_id.eq.${cleanSessionId}`)
       .maybeSingle();
     const { data: verifyPlan } = await db.from("ai_agent_plans").select("id, session_id, status, approved_at").eq("id", cleanSessionId).maybeSingle();
 
@@ -827,7 +826,6 @@ export const approveAgentTask = createServerFn({ method: "POST" })
         .upsert({
           id: data.taskId,
           session_id: cleanSessionId,
-          plan_id: cleanSessionId,
           tenant_id: auth.tenantId,
           status: "executing",
           user_approved_at: nowIso,
