@@ -195,7 +195,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     const { data: tData } = await db
       .from("ai_agent_tasks")
       .select("id, user_approved_at, status, plan_id, tenant_id")
-      .or(`id.eq.${taskId},id.eq.${validUuid}`)
+      .or(`id.eq.${taskId},id.eq.${validUuid},session_id.eq.${validUuid}`)
       .maybeSingle();
     approvedTask = tData;
 
@@ -204,6 +204,20 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     console.warn("[DIAGNOSTIC_EXECUTION] Read error:", err?.message);
     isApproved = true; // Fallback to true after sync attempt
   }
+
+  console.log("[DEBUG_EXECUTION_LOOKUP]", {
+    incoming_task_id: taskId,
+    incoming_session_id: sessionId,
+    task_record: approvedTask?.id ?? null,
+    task_status: approvedTask?.status ?? null,
+    plan_record: approvedPlan?.id ?? null,
+    plan_status: approvedPlan?.status ?? null
+  });
+
+  console.log("[DEBUG_EXECUTION_GUARD_RESULT]", {
+    approved_found: Boolean(approvedPlan && approvedPlan.status === "APPROVED"),
+    execution_allowed: isApproved
+  });
 
   console.log("[DEBUG_EXECUTION_GUARD]", {
     guard_result: isApproved ? "PASSED" : "BLOCKED",
