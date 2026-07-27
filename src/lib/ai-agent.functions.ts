@@ -415,8 +415,16 @@ export const createAgentSession = createServerFn({ method: "POST" })
       if (taskErr) {
         console.error("[TASK_CREATION_FAILED]", taskErr.message);
       } else {
-        console.log("[TASK_CREATED]", createdTask?.id || taskId);
+        console.log("[TASK_CREATED]", createdTask);
       }
+
+      const { data: checkTask } = await db
+        .from("ai_agent_tasks")
+        .select("*")
+        .or(`id.eq.${taskId},plan_id.eq.${session.id},session_id.eq.${session.id}`)
+        .maybeSingle();
+
+      console.log("[TASK_VERIFY_AFTER_CREATE]", checkTask);
 
       console.log("[TASK_CREATION_CHECK]", {
         taskId,
