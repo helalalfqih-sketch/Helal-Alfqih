@@ -614,13 +614,13 @@ function AIEngineeringAgentPage() {
       };
     }
 
-    // 4. WAITING_APPROVAL (DEFAULT)
+    // 4. READY_FOR_APPROVAL / ACTIVE SESSION (DEFAULT)
     return {
       stage: "WAITING_APPROVAL",
-      label: "⏳ بانتظار الموافقة على الخطة",
-      badgeColor: "bg-zinc-800 text-zinc-400 border-zinc-700 font-bold",
-      canExecute: false,
-      helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
+      label: "📋 الخطة جاهزة للاعتماد والتنفيذ",
+      badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold",
+      canExecute: true,
+      helperMsg: "اضغط على Build & Execute لبدء الاعتماد والتنفيذ الفوري.",
     };
   }, [isStreaming, pendingTask, isExecutingTask, persistentEvents, agentEventsLog, failureExplanation]);
 
