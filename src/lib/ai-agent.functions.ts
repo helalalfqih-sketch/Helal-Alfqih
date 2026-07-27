@@ -1624,3 +1624,116 @@ export const readProjectFileContentFn = createServerFn({ method: "POST" })
     }
   });
 
+export interface ProjectFileParsedContext {
+  fileName: string;
+  path: string;
+  type: string;
+  size: number;
+  lineCount: number;
+  language: string;
+  content: string;
+  dependencies: string[];
+  hash: string;
+  updatedAt: string;
+}
+
+const fileParseCache = new Map<string, ProjectFileParsedContext>();
+
+/** Parse and analyze a project file for Drag & Drop AI Intelligence */
+export const parseProjectFileFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ path: z.string().min(1) }))
+  .handler(async ({ data }): Promise<{ success: boolean; fileContext?: ProjectFileParsedContext; error?: string }> => {
+    if (typeof process === "undefined") {
+      return { success: false, error: "Server-side process unavailable" };
+    }
+
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+
+      const rootDir = process.cwd();
+      const sanitizedRelPath = data.path.replace(/^(\.\.[\/\\])+/, "").replace(/\\/g, "/");
+      const absPath = path.resolve(rootDir, sanitizedRelPath);
+
+      if (!absPath.startsWith(rootDir)) {
+        return { success: false, error: "Access denied: Path outside workspace root" };
+      }
+
+      const basename = path.basename(sanitizedRelPath);
+
+      if (
+        basename.startsWith(".env") ||
+        sanitizedRelPath.includes("node_modules") ||
+        sanitizedRelPath.includes(".git") ||
+        sanitizedRelPath.includes("secrets") ||
+        sanitizedRelPath.includes("credentials")
+      ) {
+        return { success: false, error: "Protected file cannot be inspected" };
+      }
+
+      const stat = await fs.stat(absPath);
+      const ext = path.extname(sanitizedRelPath).toLowerCase();
+
+      const cacheKey = `${sanitizedRelPath}:${stat.mtimeMs}`;
+      if (fileParseCache.has(cacheKey)) {
+        return { success: true, fileContext: fileParseCache.get(cacheKey)! };
+      }
+
+      let language = "plaintext";
+      if (ext === ".ts" || ext === ".tsx") language = "typescript";
+      else if (ext === ".js" || ext === ".jsx") language = "javascript";
+      else if (ext === ".css") language = "css";
+      else if (ext === ".json") language = "json";
+      else if (ext === ".md") language = "markdown";
+      else if (ext === ".sql") language = "sql";
+
+      const content = await fs.readFile(absPath, "utf-8");
+      const lines = content.split("\n");
+      const lineCount = lines.length;
+
+      const dependenciesSet = new Set<string>();
+      const importRegex = /(?:import|export)\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
+      const requireRegex = /require\(['"]([^'"]+)['"]\)/g;
+
+      let match;
+      while ((match = importRegex.exec(content)) !== null) {
+        const imp = match[1];
+        if (imp && !imp.startsWith("react") && !imp.startsWith("@tanstack") && !imp.startsWith("lucide")) {
+          dependenciesSet.add(imp.replace(/^@\//, "src/"));
+        }
+      }
+      while ((match = requireRegex.exec(content)) !== null) {
+        const imp = match[1];
+        if (imp && !imp.startsWith("react")) {
+          dependenciesSet.add(imp.replace(/^@\//, "src/"));
+        }
+      }
+
+      let hashNum = 0;
+      for (let i = 0; i < content.length; i++) {
+        hashNum = (hashNum << 5) - hashNum + content.charCodeAt(i);
+        hashNum |= 0;
+      }
+      const hash = `h_${Math.abs(hashNum).toString(36)}`;
+
+      const parsed: ProjectFileParsedContext = {
+        fileName: basename,
+        path: sanitizedRelPath,
+        type: language,
+        size: stat.size,
+        lineCount,
+        language,
+        content: lineCount > 2000 ? lines.slice(0, 2000).join("\n") + "\n// [Truncated at 2000 lines]" : content,
+        dependencies: Array.from(dependenciesSet).slice(0, 15),
+        hash,
+        updatedAt: stat.mtime.toISOString(),
+      };
+
+      fileParseCache.set(cacheKey, parsed);
+      return { success: true, fileContext: parsed };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Error parsing file" };
+    }
+  });
+

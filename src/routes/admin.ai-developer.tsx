@@ -52,6 +52,11 @@ import {
   Eye,
   ArrowLeft,
   SlidersHorizontal,
+  FileUp,
+  FilePlus,
+  UploadCloud,
+  X,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -74,9 +79,11 @@ import {
   getSessionExecutionEventsFn,
   getImpactAnalysisFn,
   getAgentPerformanceFn,
+  parseProjectFileFn,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
+  type ProjectFileParsedContext,
 } from "@/lib/ai-agent.functions";
 import { listAIProvidersFn } from "@/lib/ai-provider.server";
 import { getQualityIncidentsFn } from "@/lib/quality-api.server";
@@ -168,6 +175,93 @@ function AIEngineeringAgentPage() {
   });
   const [editorCode, setEditorCode] = useState(selectedFile.content || "");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Drag & Drop File Intelligence State
+  const parseFileServerFn = useServerFn(parseProjectFileFn);
+  const [attachedFiles, setAttachedFiles] = useState<ProjectFileParsedContext[]>([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingOver(false);
+  };
+
+  const processFilePaths = async (targetPaths: string[]) => {
+    if (targetPaths.length === 0) return;
+    setIsParsingFile(true);
+    try {
+      for (const p of targetPaths) {
+        const res = await parseFileServerFn({ data: { path: p } });
+        if (res.success && res.fileContext) {
+          setAttachedFiles((prev) => {
+            if (prev.some((f) => f.path === res.fileContext!.path)) return prev;
+            return [...prev, res.fileContext!];
+          });
+          toast.success(`تم استخراج وتحليل علاقات: ${res.fileContext.fileName}`);
+        } else if (res.error) {
+          toast.error(res.error);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "فشل تحليل الملف المسحوب");
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  const handleDropFile = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const jsonString = e.dataTransfer.getData("application/json");
+    const plainPath = e.dataTransfer.getData("text/plain");
+
+    let targetPaths: string[] = [];
+
+    if (jsonString) {
+      try {
+        const parsed = JSON.parse(jsonString);
+        if (parsed?.path) targetPaths.push(parsed.path);
+      } catch { /* fallback */ }
+    }
+
+    if (targetPaths.length === 0 && plainPath && (plainPath.includes("/") || plainPath.includes("."))) {
+      targetPaths.push(plainPath);
+    }
+
+    if (targetPaths.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const f = e.dataTransfer.files[i];
+        const pathCandidate = (f as any).path || (f as any).webkitRelativePath || f.name;
+        if (pathCandidate) targetPaths.push(pathCandidate);
+      }
+    }
+
+    await processFilePaths(targetPaths);
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const paths: string[] = [];
+      for (let i = 0; i < e.target.files.length; i++) {
+        const f = e.target.files[i];
+        const pathCandidate = (f as any).path || (f as any).webkitRelativePath || f.name;
+        if (pathCandidate) paths.push(pathCandidate);
+      }
+      await processFilePaths(paths);
+    }
+  };
 
   // Queries
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
@@ -350,16 +444,29 @@ function AIEngineeringAgentPage() {
       content: m.content,
     }));
 
+    // Build attached files project context layer
+    let effectiveMessage = userMessage;
+    if (attachedFiles.length > 0) {
+      effectiveMessage += `\n\n--- ATTACHED REAL PROJECT FILE CONTEXTS ---\n` +
+        attachedFiles
+          .map(
+            (f) =>
+              `[PROJECT_FILE_CONTEXT]\nFile: ${f.fileName}\nPath: ${f.path}\nSize: ${f.size} Bytes | Lines: ${f.lineCount} | Language: ${f.language}\nImports/Dependencies: ${f.dependencies.join(", ") || "None"}\nContent:\n${f.content}`
+          )
+          .join("\n\n");
+      setAttachedFiles([]);
+    }
+
     // Stream AI response with Activity Events
     try {
-      setAgentActivity({ status: "receiving_request", label: "جاري استقبال طلبك..." });
+      setAgentActivity({ status: "receiving_request", label: "جاري استقبال طلبك والملفات المرفقة..." });
       const base = (typeof window !== "undefined" ? window.location.origin : "") || "";
       const res = await fetch(`${base}/api/ai/agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
-          message: userMessage,
+          message: effectiveMessage,
           history,
           projectMemory: memoryStr,
           agentRole,
@@ -926,7 +1033,41 @@ function AIEngineeringAgentPage() {
         )}
 
         {/* ═══ Center Workspace: Monaco Editor or AI Plan Stream ═══ */}
-        <div className={`${showSessions && showFileExplorer ? "lg:col-span-5" : showSessions || showFileExplorer ? "lg:col-span-7" : "lg:col-span-9"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)] space-y-3 p-3`}>
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDropFile}
+          className={`relative ${showSessions && showFileExplorer ? "lg:col-span-5" : showSessions || showFileExplorer ? "lg:col-span-7" : "lg:col-span-9"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)] space-y-3 p-3`}
+        >
+          {/* Hidden File Picker Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
+          {/* Drag & Drop Visual Overlay Zone */}
+          {(isDraggingOver || isParsingFile) && (
+            <div className="absolute inset-0 z-50 rounded-2xl bg-violet-950/85 border-2 border-dashed border-violet-400 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in duration-150 pointer-events-none">
+              <div className="p-4 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/40 animate-bounce">
+                {isParsingFile ? (
+                  <Loader2 className="h-10 w-10 text-violet-300 animate-spin" />
+                ) : (
+                  <UploadCloud className="h-10 w-10 text-violet-300" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-white">
+                  {isParsingFile ? "جاري تحليل علاقات الملف واستخراج الـ Imports..." : "اسحب الملفات هنا لتحليلها وتطويرها بواسطة AI"}
+                </h3>
+                <p className="text-xs text-violet-200">
+                  {isParsingFile ? "Parsing AST & Dependencies..." : "Drag & Drop Project Files / Code Assets into Workspace"}
+                </p>
+              </div>
+            </div>
+          )}
           {workMode === "BUILD" ? (
             <div className="flex flex-col h-full space-y-3 overflow-hidden">
               {/* Monaco Code Editor */}
@@ -1088,6 +1229,70 @@ function AIEngineeringAgentPage() {
                 </span>
               </div>
 
+              {/* Attached Project File Cards — Drag & Drop Intelligence Preview 📄 */}
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-col gap-2 p-2 bg-[#121215] border border-violet-500/30 rounded-xl dir-ltr">
+                  <div className="text-[10px] font-bold text-violet-300 flex items-center gap-1 font-mono">
+                    <FileCode className="h-3 w-3 text-cyan-400" />
+                    Attached Project Files Context ({attachedFiles.length}):
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {attachedFiles.map((file) => (
+                      <div
+                        key={file.path}
+                        className="flex flex-col gap-1 p-2 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-violet-500/50 text-xs font-mono max-w-full shadow-md transition"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FileCode className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                            <span className="font-bold text-zinc-100 truncate">{file.fileName}</span>
+                            <span className="text-[10px] text-zinc-500">
+                              ({file.lineCount} lines | {Math.round(file.size / 1024)} KB)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedFile({
+                                  id: file.path,
+                                  name: file.fileName,
+                                  path: file.path,
+                                  type: "file",
+                                  language: file.language,
+                                  content: file.content,
+                                });
+                                setEditorCode(file.content);
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-violet-600/30 hover:bg-violet-600/60 text-violet-200 text-[10px] font-semibold transition"
+                            >
+                              عرض
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAttachedFiles((prev) => prev.filter((f) => f.path !== file.path))}
+                              className="p-1 text-zinc-500 hover:text-red-400 transition"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {file.dependencies.length > 0 && (
+                          <div className="flex items-center gap-1 text-[9px] text-zinc-500 flex-wrap pt-0.5 border-t border-zinc-800/60">
+                            <span className="text-zinc-400 font-bold">Related Imports:</span>
+                            {file.dependencies.slice(0, 4).map((dep, idx) => (
+                              <span key={idx} className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-mono">
+                                {dep.split("/").pop()}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Textarea Input */}
               <textarea
                 ref={inputRef as any}
@@ -1100,7 +1305,7 @@ function AIEngineeringAgentPage() {
                     handleSend();
                   }
                 }}
-                placeholder={canSend ? "Ask Lovable / Indexes AI..." : "ليس لديك صلاحية الإرسال"}
+                placeholder={canSend ? "Ask Lovable / Indexes AI (Drag & Drop files anywhere)..." : "ليس لديك صلاحية الإرسال"}
                 disabled={!canSend || isStreaming}
                 className="w-full bg-transparent border-none text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed text-right"
               />
@@ -1108,8 +1313,18 @@ function AIEngineeringAgentPage() {
               {/* Bottom Toolbar inside Input Box */}
               <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
                 <div className="flex items-center gap-1.5">
-                  <button type="button" className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                    <Plus className="w-4 h-4" />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="إرفاق ملف من الجهاز (Attach File)"
+                    className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition flex items-center gap-1 text-xs"
+                  >
+                    <Paperclip className="w-4 h-4 text-violet-400" />
+                    {attachedFiles.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-violet-500 text-white text-[9px] font-bold">
+                        {attachedFiles.length}
+                      </span>
+                    )}
                   </button>
                 </div>
 

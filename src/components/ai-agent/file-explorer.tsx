@@ -180,8 +180,13 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
       <button
         key={node.id}
         type="button"
+        draggable={true}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("application/json", JSON.stringify({ path: node.path, name: node.name, type: "file" }));
+          e.dataTransfer.setData("text/plain", node.path);
+        }}
         onClick={() => handleFileClick(node)}
-        className={`flex items-center justify-between gap-1.5 w-full text-left px-2 py-1 rounded-lg text-xs font-mono transition group dir-ltr ${
+        className={`flex items-center justify-between gap-1.5 w-full text-left px-2 py-1 rounded-lg text-xs font-mono transition group dir-ltr cursor-grab active:cursor-grabbing ${
           isActive
             ? "bg-violet-600/20 text-violet-200 font-bold border border-violet-500/40 shadow-xs"
             : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40"
