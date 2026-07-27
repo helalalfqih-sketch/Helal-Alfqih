@@ -205,6 +205,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     isApproved = true; // Fallback to true after sync attempt
   }
 
+  console.log("[ExecutionLookup]", { lookupResult: { taskId, cleanSessionId, validUuid, isApproved, approvedTask, approvedPlan } });
   console.log("[DIAGNOSTIC_EXECUTION] Pre-check read results", {
     taskId,
     cleanSessionId,

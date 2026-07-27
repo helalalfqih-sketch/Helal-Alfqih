@@ -625,6 +625,7 @@ function AIEngineeringAgentPage() {
       return;
     }
 
+    console.log("[BuildAndExecuteClicked]", { receivedTaskId: taskIdToRun, receivedSessionId: activeSessionId });
     setIsExecutingTask(true);
     toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${taskIdToRun}...`, { id: "task-exec" });
 
