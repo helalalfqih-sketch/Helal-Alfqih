@@ -534,7 +534,27 @@ export const updateSessionTask = createServerFn({ method: "POST" })
     if (data.riskLevel) updatePayload.risk_level = data.riskLevel;
     if (data.title) updatePayload.title = data.title;
 
-    const targetTaskId = data.taskId || `task-${data.sessionId}`;
+    let targetTaskId = data.taskId;
+
+    if (!targetTaskId && data.sessionId) {
+      const { data: sess } = await db
+        .from("ai_agent_sessions")
+        .select("task_id")
+        .eq("id", data.sessionId)
+        .maybeSingle();
+
+      targetTaskId = sess?.task_id;
+    }
+
+    if (!targetTaskId) {
+      targetTaskId = `task-${data.sessionId}`;
+    }
+
+    console.log("[TASK_ID_FLOW]", {
+      sessionId: data.sessionId,
+      sessionTaskId: targetTaskId,
+      finalTaskId: targetTaskId,
+    });
 
     const { error } = await db
       .from("ai_agent_sessions")

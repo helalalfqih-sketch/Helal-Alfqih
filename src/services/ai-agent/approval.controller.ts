@@ -91,17 +91,3 @@ export async function evaluateAutoApproveGate(
     record,
   };
 }
-
-export const approvePlanFn = createServerFn({ method: "POST" })
-  .validator(z.object({ taskId: z.string(), sessionId: z.string() }))
-  .handler(async ({ data }) => {
-    const result = await approveAndExecuteTask(data.taskId, data.sessionId);
-    return { success: true, record: result.record };
-  });
-
-export const rejectPlanFn = createServerFn({ method: "POST" })
-  .validator(z.object({ taskId: z.string(), sessionId: z.string(), reason: z.string().optional() }))
-  .handler(async ({ data }) => {
-    const record = await processPlanApproval(data.taskId, data.sessionId, false, "quality.executor", data.reason);
-    return { success: true, record };
-  });
