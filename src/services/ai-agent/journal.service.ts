@@ -12,7 +12,7 @@ export interface AgentExecutionError {
 export interface ExecutionJournalLog {
   id?: string;
   taskId?: string;
-  tenantId: string;
+  tenantId?: string;
   action: string;
   tool?: string;
   input?: any;
