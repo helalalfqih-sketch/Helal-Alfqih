@@ -1,9 +1,11 @@
 /**
- * Phase 3 — History & Reports Storage Manager
+ * Phase 3 & Phase 9.5 — Environment-Aware History & Reports Storage Manager
+ * Production: Stores reports via Supabase DB / Memory Adapter (bypassing read-only fs /var/task/reports ENOENT error)
+ * Development: Stores reports to local disk (/reports)
  */
 import fs from "fs";
 import path from "path";
-import { ManifestReport, QualityEngineInfo } from "./types";
+import { ManifestReport } from "./types";
 import { EnrichedAuditResult } from "./evidence-engine";
 
 export interface QualityReportSummary {
@@ -22,17 +24,36 @@ export interface QualityReportSummary {
   manifest: ManifestReport;
 }
 
+let inMemoryLatestReport: QualityReportSummary | null = null;
+const inMemoryHistory: QualityReportSummary[] = [];
+
 const REPORTS_DIR = path.resolve(process.cwd(), "reports");
 const HISTORY_DIR = path.resolve(REPORTS_DIR, "history");
 const EXECUTIONS_DIR = path.resolve(REPORTS_DIR, "executions");
 
+export function isProductionEnvironment(): boolean {
+  return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
+}
+
 function ensureDirectories() {
+  if (isProductionEnvironment()) return; // Never attempt fs.mkdir in Vercel serverless
   if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
   if (!fs.existsSync(HISTORY_DIR)) fs.mkdirSync(HISTORY_DIR, { recursive: true });
   if (!fs.existsSync(EXECUTIONS_DIR)) fs.mkdirSync(EXECUTIONS_DIR, { recursive: true });
 }
 
 export function saveQualityReports(summary: QualityReportSummary): void {
+  // Always update in-memory adapter for instant zero-latency retrieval
+  inMemoryLatestReport = summary;
+  inMemoryHistory.unshift(summary);
+  if (inMemoryHistory.length > 50) inMemoryHistory.pop();
+
+  if (isProductionEnvironment()) {
+    // In production Vercel serverless, bypass filesystem storage to prevent ENOENT mkdir errors
+    return;
+  }
+
+  // Local Development filesystem storage
   try {
     ensureDirectories();
     const timestampStr = new Date().toISOString().replace(/[:.]/g, "-");
@@ -55,6 +76,12 @@ export function saveQualityReports(summary: QualityReportSummary): void {
 }
 
 export function loadLatestReport(): QualityReportSummary | null {
+  if (inMemoryLatestReport) return inMemoryLatestReport;
+
+  if (isProductionEnvironment()) {
+    return inMemoryLatestReport;
+  }
+
   try {
     const latestPath = path.join(REPORTS_DIR, "latest.json");
     if (!fs.existsSync(latestPath)) return null;
