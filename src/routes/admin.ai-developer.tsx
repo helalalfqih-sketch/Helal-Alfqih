@@ -77,8 +77,6 @@ import {
   listExecutionHistoryFn,
   listExecutionJournalFn,
   getSessionExecutionEventsFn,
-  getImpactAnalysisFn,
-  getAgentPerformanceFn,
   parseProjectFileFn,
   applyCodePatchFn,
   validateBuildStateFn,
@@ -89,7 +87,6 @@ import {
   type ProjectFileParsedContext,
 } from "@/lib/ai-agent.functions";
 import { listAIProvidersFn } from "@/lib/ai-provider.server";
-import { getQualityIncidentsFn } from "@/lib/quality-api.server";
 import { MonacoCodeEditor } from "@/components/ai-agent/monaco-code-editor";
 import { FileExplorer, type FileItem } from "@/components/ai-agent/file-explorer";
 import { ExecutionJournalPanel } from "@/components/ai-agent/execution-journal-panel";
