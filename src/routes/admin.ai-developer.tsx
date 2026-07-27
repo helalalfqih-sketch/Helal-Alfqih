@@ -79,6 +79,11 @@ import {
   type AgentMemoryEntry,
 } from "@/lib/ai-agent.functions";
 import { listAIProvidersFn } from "@/lib/ai-provider.server";
+import { getQualityIncidentsFn } from "@/lib/quality-api.server";
+import { MonacoCodeEditor } from "@/components/ai-agent/monaco-code-editor";
+import { FileExplorer, type FileItem } from "@/components/ai-agent/file-explorer";
+import { ExecutionJournalPanel } from "@/components/ai-agent/execution-journal-panel";
+import { CommandPalette } from "@/components/ai-agent/command-palette";
 
 export const Route = createFileRoute("/admin/ai-developer")({
   head: () => ({
@@ -150,6 +155,20 @@ function AIEngineeringAgentPage() {
   }[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Lovable IDE States
+  const [workMode, setWorkMode] = useState<"PLAN" | "BUILD">("BUILD");
+  const [showFileExplorer, setShowFileExplorer] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<FileItem>({
+    id: "execution-controller",
+    name: "execution.controller.ts",
+    path: "src/services/ai-agent/execution.controller.ts",
+    type: "file",
+    language: "typescript",
+    content: `// Execution Controller Orchestrator\nexport async function verifyProjectStructure(options: ExecutionControllerOptions) {\n  // Verified project structure backend check\n}`,
+  });
+  const [editorCode, setEditorCode] = useState(selectedFile.content || "");
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
   // Queries
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
     queryKey: ["ai-agent-sessions"],
@@ -194,6 +213,14 @@ function AIEngineeringAgentPage() {
     enabled: !!activeSessionId,
   });
   const persistentEvents = (rawPersistentEvents || []) as any[];
+
+  const getQualityIncidentsServerFn = useServerFn(getQualityIncidentsFn);
+  const { data: qualityData } = useQuery({
+    queryKey: ["quality-incidents-data"],
+    queryFn: () => getQualityIncidentsServerFn(),
+    refetchInterval: 10000,
+  });
+  const qualityRecommendations = qualityData?.recommendations || [];
 
   const { data: perfOverview } = useQuery({
     queryKey: ["ai-agent-performance"],
@@ -737,21 +764,61 @@ function AIEngineeringAgentPage() {
             </button>
             <button
               type="button"
-              onClick={() => setShowContext((prev) => !prev)}
+              onClick={() => setShowFileExplorer((prev) => !prev)}
               className={`p-2 rounded-xl border transition ${
-                showContext
+                showFileExplorer
                   ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
                   : "bg-[#141417] border-zinc-800 text-zinc-400 hover:text-white"
               }`}
-              title="لوحة التفاصيل (Details Panel)"
+              title="مستكشف الملفات (File Explorer)"
             >
-              <Layers className="h-4 w-4" />
+              <FileCode className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Mode Switcher Toggle: Plan vs Build */}
+          <div className="flex items-center gap-1 bg-[#141418] p-1 rounded-2xl border border-zinc-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setWorkMode("PLAN")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-bold transition ${
+                workMode === "PLAN"
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Plan Mode 📋
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkMode("BUILD")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-bold transition ${
+                workMode === "BUILD"
+                  ? "bg-gradient-to-r from-amber-500 to-violet-600 text-white shadow-md"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Build Mode ⚡
             </button>
           </div>
         </div>
 
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
+          {/* Command Palette Button */}
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="flex items-center gap-2 bg-[#18181c] border border-zinc-800 px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+            <span>لوحة الأوامر...</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400 border border-zinc-700 font-mono">
+              Ctrl+Shift+P
+            </kbd>
+          </button>
           {providers.length > 0 && (
             <select
               value={selectedProviderId}
@@ -843,8 +910,46 @@ function AIEngineeringAgentPage() {
           </div>
         )}
 
-        {/* ═══ Left Column: Stream & Prompts Console Panel ═══ */}
-        <div className={`${showSessions ? "lg:col-span-5" : "lg:col-span-6"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)]`}>
+        {/* Optional File Explorer Sidebar (2 Cols) */}
+        {showFileExplorer && (
+          <div className="lg:col-span-2 min-w-0 h-full max-h-[calc(100vh-160px)]">
+            <FileExplorer
+              activeFilePath={selectedFile.path}
+              onSelectFile={(file) => {
+                setSelectedFile(file);
+                if (file.content) {
+                  setEditorCode(file.content);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* ═══ Center Workspace: Monaco Editor or AI Plan Stream ═══ */}
+        <div className={`${showSessions && showFileExplorer ? "lg:col-span-5" : showSessions || showFileExplorer ? "lg:col-span-7" : "lg:col-span-9"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)] space-y-3 p-3`}>
+          {workMode === "BUILD" ? (
+            <div className="flex flex-col h-full space-y-3 overflow-hidden">
+              {/* Monaco Code Editor */}
+              <div className="flex-1 min-h-[350px]">
+                <MonacoCodeEditor
+                  filePath={selectedFile.path}
+                  initialCode={editorCode}
+                  language={selectedFile.language || "typescript"}
+                  onCodeChange={(newCode) => setEditorCode(newCode)}
+                  onSave={(savedCode) => {
+                    setSelectedFile((prev) => ({ ...prev, content: savedCode }));
+                  }}
+                />
+              </div>
+
+              {/* Execution Journal Stream Panel */}
+              <ExecutionJournalPanel
+                logs={journalLogs}
+                persistentEvents={persistentEvents}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col h-full overflow-hidden">
           {/* Message Stream */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && !streamingContent && (
@@ -1055,6 +1160,8 @@ function AIEngineeringAgentPage() {
               )}
             </div>
           </div>
+        </div>
+        )}
         </div>
 
         {/* ═══ Right Column: "Details" Execution, Thought Engine & Plan View Panel ═══ */}
@@ -1333,11 +1440,44 @@ function AIEngineeringAgentPage() {
                 <div className="text-xs font-bold text-zinc-200">{activeSession.title}</div>
               </div>
             )}
-
           </div>
         </div>
-
       </div>
+
+      {/* Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        actions={[
+          {
+            id: "verify-project",
+            label: "فحص هيكل المشروع (verifyProjectStructure)",
+            icon: <CheckCircle className="h-4 w-4 text-emerald-400" />,
+            shortcut: "Ctrl+V",
+            action: () => handleApproveTask(),
+          },
+          {
+            id: "switch-build",
+            label: "التبديل إلى وضع البناء والتنفيذ (Build Mode ⚡)",
+            icon: <Zap className="h-4 w-4 text-amber-400" />,
+            shortcut: "Alt+B",
+            action: () => setWorkMode("BUILD"),
+          },
+          {
+            id: "switch-plan",
+            label: "التبديل إلى وضع التخطيط الهندسي (Plan Mode 📋)",
+            icon: <FileText className="h-4 w-4 text-violet-400" />,
+            shortcut: "Alt+P",
+            action: () => setWorkMode("PLAN"),
+          },
+          {
+            id: "new-session",
+            label: "إنشاء جلسة عمل جديدة",
+            icon: <Plus className="h-4 w-4 text-cyan-400" />,
+            action: () => handleNewSession(),
+          },
+        ]}
+      />
     </div>
   );
 }

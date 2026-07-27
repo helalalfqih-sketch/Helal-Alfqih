@@ -40,6 +40,110 @@ export async function approvePlan(options: ExecutionControllerOptions): Promise<
   return { success: true, taskId };
 }
 
+export async function verifyProjectStructure(options: ExecutionControllerOptions): Promise<{ success: boolean; details?: any }> {
+  const db = await getAdminDb(options);
+  const { taskId, tenantId, sessionId } = options;
+
+  try {
+    // 1. Log verification initialization in Execution Journal
+    await logExecutionJournal({
+      taskId,
+      tenantId: tenantId || "default",
+      action: "PROJECT_VERIFICATION",
+      tool: "verifyProjectStructure",
+      input: { taskId, sessionId },
+      output: { status: "checking" },
+      status: "PENDING",
+    }, db);
+
+    // 2. Perform project/database structure checks
+    const { data: ordersTable, error: ordersErr } = await db.from("orders").select("id").limit(1);
+    const { data: usersTable, error: usersErr } = await db.from("users").select("id").limit(1);
+    const { data: tasksTable, error: tasksErr } = await db.from("ai_agent_tasks").select("id").limit(1);
+
+    const ordersTableExists = !ordersErr;
+    const usersTableExists = !usersErr;
+    const tasksTableExists = !tasksErr;
+
+    const isSuccess = tasksTableExists || ordersTableExists || usersTableExists;
+    const details = {
+      ordersTableExists,
+      usersTableExists,
+      tasksTableExists,
+      errors: [ordersErr, usersErr, tasksErr].filter(Boolean).map((e: any) => e?.message),
+    };
+
+    if (isSuccess) {
+      await logExecutionJournal({
+        taskId,
+        tenantId: tenantId || "default",
+        action: "PROJECT_VERIFICATION",
+        tool: "verifyProjectStructure",
+        input: { taskId },
+        output: { status: "verified", details },
+        status: "SUCCESS",
+      }, db);
+
+      await savePersistentExecutionEvent({
+        sessionId: sessionId || "default",
+        taskId,
+        tenantId: tenantId || "default",
+        eventType: "STATE_CHANGE",
+        state: AgentTaskState.EXECUTING,
+        message: "✔️ Project structure verified successfully.",
+        progress: 58,
+      }, db);
+
+      return { success: true, details };
+    } else {
+      await logExecutionJournal({
+        taskId,
+        tenantId: tenantId || "default",
+        action: "PROJECT_VERIFICATION",
+        tool: "verifyProjectStructure",
+        input: { taskId },
+        output: { status: "failed", details },
+        status: "FAILED",
+      }, db);
+
+      await savePersistentExecutionEvent({
+        sessionId: sessionId || "default",
+        taskId,
+        tenantId: tenantId || "default",
+        eventType: "ERROR",
+        state: AgentTaskState.FAILED,
+        message: "❌ Project verification failed: missing core tables or connection error.",
+        progress: 0,
+      }, db);
+
+      return { success: false, details };
+    }
+  } catch (err: any) {
+    const errorMsg = err?.message || String(err);
+    await logExecutionJournal({
+      taskId,
+      tenantId: tenantId || "default",
+      action: "PROJECT_VERIFICATION",
+      tool: "verifyProjectStructure",
+      input: { taskId },
+      output: { status: "error", error: errorMsg },
+      status: "FAILED",
+    }, db);
+
+    await savePersistentExecutionEvent({
+      sessionId: sessionId || "default",
+      taskId,
+      tenantId: tenantId || "default",
+      eventType: "ERROR",
+      state: AgentTaskState.FAILED,
+      message: `❌ Project verification failed: ${errorMsg}`,
+      progress: 0,
+    }, db);
+
+    return { success: false, details: { error: errorMsg } };
+  }
+}
+
 export async function startExecution(options: ExecutionControllerOptions): Promise<{ success: boolean; output?: string; failureDetails?: any }> {
   const { executeApprovedTask } = await import("@/lib/ai-agent.functions");
   const db = await getAdminDb(options);
@@ -148,6 +252,21 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
       message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
       progress: 60,
     }, db);
+  }
+
+  // Project Verification Step
+  const verificationResult = await verifyProjectStructure(options);
+  if (!verificationResult.success) {
+    console.warn("[EXECUTION_CONTROLLER] Execution halted: Project structure verification failed", verificationResult.details);
+    return {
+      success: false,
+      output: "Execution blocked: Project structure verification failed",
+      failureDetails: {
+        reason: "Project structure verification failed",
+        errorType: "VERIFICATION_FAILED",
+        details: verificationResult.details,
+      },
+    };
   }
 
   try {
