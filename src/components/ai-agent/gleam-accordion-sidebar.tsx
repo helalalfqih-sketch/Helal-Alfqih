@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, History, FolderTree, Layers, ShieldCheck, Activity } from "lucide-react";
+import { ChevronDown, ChevronUp, History, FolderTree, Layers } from "lucide-react";
 import { FileExplorer, FileItem } from "@/components/ai-agent/file-explorer";
 
 interface GleamAccordionSidebarProps {
