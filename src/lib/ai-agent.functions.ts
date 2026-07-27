@@ -1789,4 +1789,99 @@ export const publishToProductionFn = createServerFn({ method: "POST" })
     }
   });
 
+/** Index project file AST symbols & store memory in ai_project_files */
+export const indexProjectFileFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ sessionId: z.string().optional(), filePath: z.string(), content: z.string() }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { indexProjectFileRecord } = await import("@/services/ai-agent/project-indexer.service");
+    return indexProjectFileRecord({
+      db,
+      tenantId,
+      sessionId: data.sessionId,
+      filePath: data.filePath,
+      content: data.content,
+    });
+  });
+
+/** Fetch all indexed/attached project files for a session */
+export const getSessionAttachedFilesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ sessionId: z.string() }))
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { data: records, error } = await db
+      .from("ai_project_files")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("session_id", data.sessionId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return { success: false, files: [], error: error.message };
+    }
+
+    return { success: true, files: records || [] };
+  });
+
+/** Create a Git-like patch record in ai_code_changes table */
+export const createCodePatchRecordFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      sessionId: z.string(),
+      filePath: z.string(),
+      operation: z.enum(["create", "modify", "delete"]).optional(),
+      afterContent: z.string(),
+    })
+  )
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { createPatchRecord } = await import("@/services/ai-agent/patch-engine.service");
+    return createPatchRecord({
+      db,
+      tenantId,
+      sessionId: data.sessionId,
+      filePath: data.filePath,
+      operation: data.operation || "modify",
+      afterContent: data.afterContent,
+    });
+  });
+
+/** Approve and apply a code patch record from ai_code_changes to disk */
+export const applyCodePatchRecordFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      patchId: z.string(),
+      targetFile: z.string().optional(),
+      newContent: z.string().optional(),
+    })
+  )
+  .handler(async ({ data, context }) => {
+    const ctx = context as any;
+    const db = await getAdminDb(ctx);
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+    const { applyPatchRecord } = await import("@/services/ai-agent/patch-engine.service");
+    return applyPatchRecord({
+      db,
+      tenantId,
+      patchId: data.patchId,
+      targetFile: data.targetFile,
+      newContent: data.newContent,
+    });
+  });
+
+
 
