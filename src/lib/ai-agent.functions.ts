@@ -394,14 +394,15 @@ export const createAgentSession = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
 
       // Guarantee initial task row creation in public.ai_agent_tasks
-      const { data: createdTask } = await db
+      const { data: createdTask, error: taskErr } = await db
         .from("ai_agent_tasks")
         .upsert({
           id: taskId,
           session_id: session.id,
+          plan_id: session.id,
           tenant_id: tenantId,
           user_id: ctx.userId,
-          status: "planning",
+          status: "PENDING",
           plan: [],
           affected_files: [],
           risk_level: "low",
@@ -410,6 +411,12 @@ export const createAgentSession = createServerFn({ method: "POST" })
         }, { onConflict: "id" })
         .select()
         .maybeSingle();
+
+      if (taskErr) {
+        console.error("[TASK_CREATION_FAILED]", taskErr.message);
+      } else {
+        console.log("[TASK_CREATED]", createdTask?.id || taskId);
+      }
 
       console.log("[TASK_CREATION_CHECK]", {
         taskId,
@@ -793,7 +800,11 @@ export const approveAgentTask = createServerFn({ method: "POST" })
       status: planUpsertRes.status,
     });
 
-    const { data: verifyTask } = await db.from("ai_agent_tasks").select("id, status, user_approved_at").eq("id", data.taskId).maybeSingle();
+    const { data: verifyTask } = await db
+      .from("ai_agent_tasks")
+      .select("id, status, user_approved_at")
+      .or(`id.eq.${data.taskId},plan_id.eq.${cleanSessionId},session_id.eq.${cleanSessionId}`)
+      .maybeSingle();
     const { data: verifyPlan } = await db.from("ai_agent_plans").select("id, session_id, status, approved_at").eq("id", cleanSessionId).maybeSingle();
 
     console.log("[DIAGNOSTIC_APPROVE] Final statuses after update", {
