@@ -393,6 +393,30 @@ export const createAgentSession = createServerFn({ method: "POST" })
 
       if (error) throw new Error(error.message);
 
+      // Guarantee initial task row creation in public.ai_agent_tasks
+      const { data: createdTask } = await db
+        .from("ai_agent_tasks")
+        .upsert({
+          id: taskId,
+          session_id: session.id,
+          tenant_id: tenantId,
+          user_id: ctx.userId,
+          status: "planning",
+          plan: [],
+          affected_files: [],
+          risk_level: "low",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "id" })
+        .select()
+        .maybeSingle();
+
+      console.log("[TASK_CREATION_CHECK]", {
+        taskId,
+        sessionId: session.id,
+        created: Boolean(createdTask),
+      });
+
       console.log("[DEBUG_PLAN_CREATED]", {
         plan_id: taskId,
         session_id: session.id,
@@ -723,6 +747,10 @@ export const approveAgentTask = createServerFn({ method: "POST" })
     const cleanSessionId = data.taskId.replace(/^task-/, "");
     const nowIso = new Date().toISOString();
 
+    console.log("[APPROVAL_LOOKUP_INPUT]", {
+      taskId: data.taskId,
+      sessionId: cleanSessionId,
+    });
     console.log("[DEBUG_APPROVE_EXECUTE]", {
       plan_id: data.taskId,
       previous_status: "planning",
