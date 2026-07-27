@@ -625,6 +625,11 @@ function AIEngineeringAgentPage() {
       return;
     }
 
+    console.log("[DEBUG_UI_BUILD_EXECUTE_OPEN]", {
+      current_plan_id: taskIdToRun,
+      current_session_id: activeSessionId,
+      approval_status: executionStageInfo.stage,
+    });
     console.log("[BuildAndExecuteClicked]", { receivedTaskId: taskIdToRun, receivedSessionId: activeSessionId });
     setIsExecutingTask(true);
     toast.loading(`جاري اعتماد المهمة وتفعيل محرك التنفيذ ${taskIdToRun}...`, { id: "task-exec" });

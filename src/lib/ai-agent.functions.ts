@@ -393,6 +393,11 @@ export const createAgentSession = createServerFn({ method: "POST" })
 
       if (error) throw new Error(error.message);
 
+      console.log("[DEBUG_PLAN_CREATED]", {
+        plan_id: taskId,
+        session_id: session.id,
+        status: "planning",
+      });
       console.log("[PlanCreated]", { planId: taskId, sessionId: session.id, status: "planning" });
       registerSessionFingerprint(dedupCheck.sessionFingerprint, session.id, ctx.userId, tenantId, sessionTitle);
       await logAudit(db, tenantId, ctx.userId, "session_created", session.id, { task_id: taskId });
@@ -718,6 +723,12 @@ export const approveAgentTask = createServerFn({ method: "POST" })
     const cleanSessionId = data.taskId.replace(/^task-/, "");
     const nowIso = new Date().toISOString();
 
+    console.log("[DEBUG_APPROVE_EXECUTE]", {
+      plan_id: data.taskId,
+      previous_status: "planning",
+      new_status: "APPROVED",
+      approval_saved: true,
+    });
     console.log("[PlanApproved]", { approvedTaskId: data.taskId, approvedSessionId: cleanSessionId });
     console.log("[DIAGNOSTIC_APPROVE] Starting plan/task approval", {
       taskId: data.taskId,

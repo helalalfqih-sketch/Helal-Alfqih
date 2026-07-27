@@ -205,6 +205,10 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     isApproved = true; // Fallback to true after sync attempt
   }
 
+  console.log("[DEBUG_EXECUTION_GUARD]", {
+    guard_result: isApproved ? "PASSED" : "BLOCKED",
+    blocked_reason: isApproved ? null : "Engineering plan approval required",
+  });
   console.log("[ExecutionLookup]", { lookupResult: { taskId, cleanSessionId, validUuid, isApproved, approvedTask, approvedPlan } });
   console.log("[DIAGNOSTIC_EXECUTION] Pre-check read results", {
     taskId,
