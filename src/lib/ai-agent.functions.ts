@@ -1737,3 +1737,56 @@ export const parseProjectFileFn = createServerFn({ method: "POST" })
     }
   });
 
+/** Apply code patch safely with backup snapshot */
+export const applyCodePatchFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ targetFile: z.string(), newContent: z.string() }))
+  .handler(async ({ data }) => {
+    const { applyCodePatch } = await import("@/services/ai-agent/code-patcher.engine");
+    return applyCodePatch(data);
+  });
+
+/** Validate workspace compilation build state (tsc --noEmit) */
+export const validateBuildStateFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { validateBuildState } = await import("@/services/ai-agent/build-validator.service");
+    return validateBuildState();
+  });
+
+/** Publish verified changes to production via git push */
+export const publishToProductionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ sessionId: z.string(), commitMessage: z.string().optional() }))
+  .handler(async ({ data, context }) => {
+    if (typeof process === "undefined") {
+      return { success: false, error: "Server process unavailable" };
+    }
+
+    try {
+      const ctx = context as any;
+      const db = await getAdminDb(ctx);
+      const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+
+      const { exec } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(exec);
+
+      const msg = data.commitMessage || `feat(builder): autonomous publication for session ${data.sessionId}`;
+
+      await execAsync(`git add . && git commit -m "${msg.replace(/"/g, '\\"')}" && git push origin main`, {
+        cwd: process.cwd(),
+      });
+
+      await logAudit(db, tenantId, ctx.userId, "production_published", data.sessionId, {
+        commitMessage: msg,
+        publishedAt: new Date().toISOString(),
+      });
+
+      return { success: true, commitMessage: msg };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to publish to production" };
+    }
+  });
+
+

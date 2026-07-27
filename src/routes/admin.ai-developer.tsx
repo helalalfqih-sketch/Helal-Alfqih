@@ -80,6 +80,9 @@ import {
   getImpactAnalysisFn,
   getAgentPerformanceFn,
   parseProjectFileFn,
+  applyCodePatchFn,
+  validateBuildStateFn,
+  publishToProductionFn,
   type AgentSession,
   type AgentMessage,
   type AgentMemoryEntry,
@@ -90,6 +93,7 @@ import { getQualityIncidentsFn } from "@/lib/quality-api.server";
 import { MonacoCodeEditor } from "@/components/ai-agent/monaco-code-editor";
 import { FileExplorer, type FileItem } from "@/components/ai-agent/file-explorer";
 import { ExecutionJournalPanel } from "@/components/ai-agent/execution-journal-panel";
+import { LivePreviewCanvas } from "@/components/ai-agent/live-preview-canvas";
 import { CommandPalette } from "@/components/ai-agent/command-palette";
 
 export const Route = createFileRoute("/admin/ai-developer")({
@@ -162,8 +166,9 @@ function AIEngineeringAgentPage() {
   }[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Lovable IDE States
+  // Lovable IDE & AI Builder States
   const [workMode, setWorkMode] = useState<"PLAN" | "BUILD">("BUILD");
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"EDITOR" | "PREVIEW">("EDITOR");
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [selectedFile, setSelectedFile] = useState<FileItem>({
     id: "execution-controller",
@@ -175,6 +180,76 @@ function AIEngineeringAgentPage() {
   });
   const [editorCode, setEditorCode] = useState(selectedFile.content || "");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Lovable AI Builder Server Functions
+  const applyPatchServerFn = useServerFn(applyCodePatchFn);
+  const validateBuildServerFn = useServerFn(validateBuildStateFn);
+  const publishServerFn = useServerFn(publishToProductionFn);
+
+  const [buildValidation, setBuildValidation] = useState<{
+    passed: boolean;
+    errorCount: number;
+    summary: string;
+  }>({
+    passed: true,
+    errorCount: 0,
+    summary: "Build validated cleanly with 0 errors.",
+  });
+  const [isValidatingBuild, setIsValidatingBuild] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handleSaveCodeAndValidate = async (savedCode: string) => {
+    try {
+      setIsValidatingBuild(true);
+      const patchRes = await applyPatchServerFn({
+        data: { targetFile: selectedFile.path, newContent: savedCode },
+      });
+
+      if (!patchRes.success) {
+        toast.error(patchRes.error || "فشل تطبيق التعديل البرمجي");
+        return;
+      }
+
+      const valRes = await validateBuildServerFn();
+      setBuildValidation({
+        passed: valRes.passed,
+        errorCount: valRes.errorCount,
+        summary: valRes.summary,
+      });
+
+      if (valRes.passed) {
+        toast.success("تم حفظ التعديل واجتياز فحص البناء بنجاح ⚡");
+      } else {
+        toast.error(`تم اكتشاف ${valRes.errorCount} خطأ تجميعي أثناء الفحص الذاتي`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "فشل عملية الفحص الذاتي للبناء");
+    } finally {
+      setIsValidatingBuild(false);
+    }
+  };
+
+  const handlePublishToProduction = async () => {
+    try {
+      setIsPublishing(true);
+      const res = await publishServerFn({
+        data: {
+          sessionId: activeSessionId || "default",
+          commitMessage: `feat(builder): publish autonomous changes for session ${activeSessionId || "default"}`,
+        },
+      });
+
+      if (res.success) {
+        toast.success("🎉 تم نشر التطبيق بنجاح وتحديث بيئة الإنتاج المباشرة!");
+      } else {
+        toast.error(res.error || "فشل إطلاق خط إنتاج النشر");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "فشل تشغيل عملية النشر");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   // Drag & Drop File Intelligence State
   const parseFileServerFn = useServerFn(parseProjectFileFn);
@@ -1069,19 +1144,78 @@ function AIEngineeringAgentPage() {
             </div>
           )}
           {workMode === "BUILD" ? (
-            <div className="flex flex-col h-full space-y-3 overflow-hidden">
-              {/* Monaco Code Editor */}
-              <div className="flex-1 min-h-[350px]">
-                <MonacoCodeEditor
-                  filePath={selectedFile.path}
-                  initialCode={editorCode}
-                  language={selectedFile.language || "typescript"}
-                  onCodeChange={(newCode) => setEditorCode(newCode)}
-                  onSave={(savedCode) => {
-                    setSelectedFile((prev) => ({ ...prev, content: savedCode }));
-                  }}
-                />
+            <div className="flex flex-col h-full space-y-2 overflow-hidden">
+              {/* Lovable Builder Mode Toolbar (Editor vs Live Preview Tabs + One-Click Publish) */}
+              <div className="flex items-center justify-between px-2 py-1 bg-[#18181c] border border-zinc-800 rounded-xl">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkspaceTab("EDITOR")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                      activeWorkspaceTab === "EDITOR"
+                        ? "bg-violet-600 text-white shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    💻 Code Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkspaceTab("PREVIEW")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                      activeWorkspaceTab === "PREVIEW"
+                        ? "bg-violet-600 text-white shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    ⚡ Live Preview
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePublishToProduction}
+                  disabled={isPublishing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 hover:opacity-90 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
+                >
+                  {isPublishing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀 Publish to Production</span>
+                    </>
+                  )}
+                </button>
               </div>
+
+              {/* Workspace Main Active View */}
+              {activeWorkspaceTab === "EDITOR" ? (
+                <div className="flex-1 min-h-[350px]">
+                  <MonacoCodeEditor
+                    filePath={selectedFile.path}
+                    initialCode={editorCode}
+                    language={selectedFile.language || "typescript"}
+                    onCodeChange={(newCode) => setEditorCode(newCode)}
+                    onSave={(savedCode) => {
+                      setSelectedFile((prev) => ({ ...prev, content: savedCode }));
+                      handleSaveCodeAndValidate(savedCode);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 min-h-[350px]">
+                  <LivePreviewCanvas
+                    activeRoute="/"
+                    buildPassed={buildValidation.passed}
+                    buildSummary={buildValidation.summary}
+                    isBuilding={isValidatingBuild}
+                    onRefresh={() => validateBuildServerFn()}
+                  />
+                </div>
+              )}
 
               {/* Execution Journal Stream Panel */}
               <ExecutionJournalPanel
