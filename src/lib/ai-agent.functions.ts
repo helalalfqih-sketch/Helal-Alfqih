@@ -425,6 +425,12 @@ export const createAgentSession = createServerFn({ method: "POST" })
         .maybeSingle();
 
       console.log("[TASK_VERIFY_AFTER_CREATE]", checkTask);
+      console.log("[TASK_CREATED_VERIFY]", {
+        taskId: createdTask?.id,
+        sessionId: session.id,
+        planId: session.id,
+        status: createdTask?.status
+      });
 
       console.log("[TASK_CREATION_CHECK]", {
         taskId,
@@ -808,12 +814,37 @@ export const approveAgentTask = createServerFn({ method: "POST" })
       status: planUpsertRes.status,
     });
 
-    const { data: verifyTask } = await db
+    let { data: verifyTask } = await db
       .from("ai_agent_tasks")
       .select("id, status, user_approved_at")
       .or(`id.eq.${data.taskId},plan_id.eq.${cleanSessionId},session_id.eq.${cleanSessionId}`)
       .maybeSingle();
     const { data: verifyPlan } = await db.from("ai_agent_plans").select("id, session_id, status, approved_at").eq("id", cleanSessionId).maybeSingle();
+
+    if (!verifyTask) {
+      const { data: autoCreatedTask, error: autoErr } = await db
+        .from("ai_agent_tasks")
+        .upsert({
+          id: data.taskId,
+          session_id: cleanSessionId,
+          plan_id: cleanSessionId,
+          tenant_id: auth.tenantId,
+          status: "executing",
+          user_approved_at: nowIso,
+          updated_at: nowIso,
+        }, { onConflict: "id" })
+        .select()
+        .maybeSingle();
+
+      console.log("[TASK_AUTO_CREATED_ON_APPROVAL]", {
+        createdTask: autoCreatedTask,
+        error: autoErr?.message || null,
+      });
+
+      if (autoCreatedTask) {
+        verifyTask = autoCreatedTask;
+      }
+    }
 
     console.log("[DIAGNOSTIC_APPROVE] Final statuses after update", {
       verifiedTask: verifyTask,
