@@ -548,24 +548,13 @@ function AIEngineeringAgentPage() {
 
       const evtMsg = (latestEvent?.message || latestEvent?.label || "").toLowerCase();
 
-      // 1. PROJECT_ANALYSIS
-      if (evtMsg.includes("inspecting") || evtMsg.includes("فحص") || evtMsg.includes("inspect_project") || evtMsg.includes("analysis")) {
-        return {
-          stage: "PROJECT_ANALYSIS",
-          label: "🔍 جاري تحليل المشروع",
-          badgeColor: "bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-bold animate-pulse",
-          canExecute: false,
-          helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
-        };
-      }
-
-      // 2. GENERATING_PLAN
+      // 1. PROJECT_ANALYSIS / GENERATING_PLAN
       return {
-        stage: "GENERATING_PLAN",
-        label: "🧠 جاري إنشاء Engineering Plan",
-        badgeColor: "bg-violet-500/20 text-violet-400 border-violet-500/40 font-bold animate-pulse",
-        canExecute: false,
-        helperMsg: "يرجى الانتظار حتى تكتمل الخطة الهندسية وتتم الموافقة عليها.",
+        stage: "PLAN_READY",
+        label: "📋 الخطة الهندسية جاهزة للمراجعة والاعتماد",
+        badgeColor: "bg-violet-500/20 text-violet-400 border-violet-500/40 font-bold",
+        canExecute: true,
+        helperMsg: "اضغط على Build & Execute لبدء الاعتماد والتنفيذ الفوري.",
       };
     }
 
