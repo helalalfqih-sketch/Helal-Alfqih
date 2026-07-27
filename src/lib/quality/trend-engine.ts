@@ -1,10 +1,11 @@
 /**
- * Phase 3 — Trend Engine
+ * Phase 3 & Phase 9.5 — Trend Engine
  * Analyzes quality trends across historical runs
+ * Production Mode: Reads from in-memory history adapter without touching disk
  */
 import fs from "fs";
 import path from "path";
-import { QualityReportSummary } from "./history";
+import { QualityReportSummary, isProductionEnvironment, loadLatestReport } from "./history";
 
 export interface QualityTrendPoint {
   timestamp: string;
@@ -22,6 +23,25 @@ export interface TrendAnalysis {
 }
 
 export function analyzeQualityTrends(limit = 30): TrendAnalysis {
+  if (isProductionEnvironment()) {
+    const latest = loadLatestReport();
+    if (!latest) return { totalRunsScanned: 0, trendDirection: "STABLE", points: [] };
+
+    const point: QualityTrendPoint = {
+      timestamp: latest.lastVerifiedAt,
+      overallScore: latest.overallScore,
+      grade: latest.grade,
+      status: latest.status,
+      passedCount: latest.passedCount,
+      failedCount: latest.failedCount,
+    };
+    return {
+      totalRunsScanned: 1,
+      trendDirection: "STABLE",
+      points: [point],
+    };
+  }
+
   const historyDir = path.resolve(process.cwd(), "reports", "history");
   if (!fs.existsSync(historyDir)) {
     return { totalRunsScanned: 0, trendDirection: "STABLE", points: [] };

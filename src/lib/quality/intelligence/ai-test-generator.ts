@@ -1,9 +1,11 @@
 /**
- * Phase 7.1 — AI Automated Test Generator
+ * Phase 7.1 & Phase 9.5 — AI Automated Test Generator
  * Generates automated verification test scripts for reported incidents
+ * Production Mode: Returns generated test objects without attempting filesystem writes
  */
 import fs from "fs";
 import path from "path";
+import { isProductionEnvironment } from "../history";
 
 export interface GeneratedTestScript {
   testId: string;
@@ -17,6 +19,7 @@ export interface GeneratedTestScript {
 const TESTS_DIR = path.resolve(process.cwd(), "reports", "generated-tests");
 
 function ensureTestsDir() {
+  if (isProductionEnvironment()) return;
   if (!fs.existsSync(TESTS_DIR)) fs.mkdirSync(TESTS_DIR, { recursive: true });
 }
 
@@ -24,8 +27,6 @@ export function generateAutomatedTestForIncident(
   incidentId: string,
   targetFile: string
 ): GeneratedTestScript {
-  ensureTestsDir();
-
   const testId = `TEST-${Date.now()}`;
   const testName = `Automated regression test for ${incidentId}`;
   const testCode = `
@@ -47,7 +48,13 @@ test('${testName}', async () => {
     generatedAt: new Date().toISOString(),
   };
 
+  if (isProductionEnvironment()) {
+    // In production Vercel serverless, bypass filesystem writes
+    return testScript;
+  }
+
   try {
+    ensureTestsDir();
     fs.writeFileSync(path.join(TESTS_DIR, `${testId}.spec.ts`), testCode);
   } catch (err) {
     console.warn("[AITestGenerator] Soft warning saving generated test:", err);
