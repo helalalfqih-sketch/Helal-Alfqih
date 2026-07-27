@@ -95,6 +95,9 @@ import { FileExplorer, type FileItem } from "@/components/ai-agent/file-explorer
 import { ExecutionJournalPanel } from "@/components/ai-agent/execution-journal-panel";
 import { LivePreviewCanvas } from "@/components/ai-agent/live-preview-canvas";
 import { CommandPalette } from "@/components/ai-agent/command-palette";
+import { GleamPerformancePanel } from "@/components/ai-agent/gleam-performance-panel";
+import { GleamDevicePreview } from "@/components/ai-agent/gleam-device-preview";
+import { GleamAccordionSidebar } from "@/components/ai-agent/gleam-accordion-sidebar";
 
 export const Route = createFileRoute("/admin/ai-developer")({
   head: () => ({
@@ -1038,82 +1041,45 @@ function AIEngineeringAgentPage() {
         </div>
       </div>
 
-      {/* Main 2-Column IDE Split View Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-[calc(100vh-140px)] w-full items-start">
-        
-        {/* Optional Session Sidebar */}
-        {showSessions && (
-          <div className="lg:col-span-2 min-w-0 rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-160px)]">
-            <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="text-xs font-black text-zinc-400 flex items-center gap-1.5">
-                <History className="h-3.5 w-3.5 text-violet-400" /> الجلسات ({activeSessions.length})
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {loadingSessions ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
-                </div>
-              ) : activeSessions.length === 0 ? (
-                <div className="text-center py-8 text-xs text-zinc-500">لا توجد جلسات بعد</div>
-              ) : (
-                activeSessions.map((session: AgentSession) => (
-                  <motion.button
-                    key={session.id}
-                    type="button"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    onClick={() => loadSession(session.id)}
-                    className={`w-full text-start rounded-xl p-2.5 transition group ${
-                      activeSessionId === session.id
-                        ? "bg-violet-500/10 border border-violet-500/30 text-zinc-100"
-                        : "hover:bg-zinc-800/60 border border-transparent text-zinc-400"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-1">
-                      <span className="text-[11px] font-bold text-zinc-200 line-clamp-1">
-                        {session.title}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleArchive(session.id); }}
-                        className="opacity-0 group-hover:opacity-100 transition shrink-0"
-                      >
-                        <Archive className="h-3 w-3 text-zinc-500 hover:text-red-400" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <TaskStatusBadge status={session.task_status} />
-                    </div>
-                  </motion.button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+      {/* Main Gleam Design 3-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[calc(100vh-140px)] w-full items-start">
 
-        {/* Optional File Explorer Sidebar (2 Cols) */}
-        {showFileExplorer && (
-          <div className="lg:col-span-2 min-w-0 h-full max-h-[calc(100vh-160px)]">
-            <FileExplorer
-              activeFilePath={selectedFile.path}
-              onSelectFile={(file) => {
-                setSelectedFile(file);
-                if (file.content) {
-                  setEditorCode(file.content);
-                }
-              }}
-            />
-          </div>
-        )}
+        {/* 📱 Left Column (3 Cols): Live Device Preview + AI & Performance Panel */}
+        <div className="lg:col-span-3 flex flex-col items-center gap-4">
+          <GleamDevicePreview
+            activeRoute="/"
+            projectName="INDEXES - SHOWCASE"
+          />
+          <GleamPerformancePanel
+            lighthouseScore={98}
+            buildTime="1.2s"
+            securityPass={true}
+          />
+        </div>
 
-        {/* ═══ Center Workspace: Monaco Editor or AI Plan Stream ═══ */}
+        {/* 💬 Center Column (6 Cols): Clean Wide Noqta AI Developer Studio */}
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDropFile}
-          className={`relative ${showSessions && showFileExplorer ? "lg:col-span-5" : showSessions || showFileExplorer ? "lg:col-span-7" : "lg:col-span-9"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)] space-y-3 p-3`}
+          className="lg:col-span-6 relative bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl shadow-xl shadow-purple-500/5 p-3.5 flex flex-col justify-between h-full min-h-[680px] max-h-[calc(100vh-160px)] overflow-hidden text-slate-800"
         >
+          {/* Header Bar */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-slate-800">Indexes AI Engineering Agent</h3>
+                <p className="text-[10px] text-slate-500 font-medium">مساعد تطوير محترف لمشروع Indexes Store</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AI Online
+            </span>
+          </div>
           {/* Hidden File Picker Input */}
           <input
             ref={fileInputRef}
@@ -1510,288 +1476,23 @@ function AIEngineeringAgentPage() {
             </div>
           </div>
         </div>
-        )}
-        </div>
 
-        {/* ═══ Right Column: "Details" Execution, Thought Engine & Plan View Panel ═══ */}
-        <div className={`${showSessions ? "lg:col-span-5" : "lg:col-span-6"} rounded-2xl border border-zinc-800 bg-[#121214] shadow-xl flex flex-col overflow-hidden h-full max-h-[calc(100vh-160px)]`}>
-          {/* Header over Details Panel matching image */}
-          <div className="p-3 border-b border-zinc-800 flex items-center justify-between bg-[#16161a]">
-            <div className="flex items-center gap-2 text-xs">
-              <button type="button" className="flex items-center gap-1 text-zinc-400 hover:text-white transition font-medium">
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to latest
-              </button>
-              <span className="text-zinc-600">|</span>
-              <span className="flex items-center gap-1 text-zinc-400 text-[11px]">
-                <Clock className="w-3 h-3 text-zinc-500" /> 1m 57s
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-xs text-zinc-100">Details</span>
-              <div className="flex items-center gap-1">
-                <button type="button" className="px-2.5 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-semibold hover:bg-zinc-700 flex items-center gap-1">
-                  <History className="w-3 h-3" /> Timeline
-                </button>
-                <button type="button" onClick={() => setShowDiffModal(true)} className="px-2.5 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-semibold hover:bg-zinc-700 flex items-center gap-1">
-                  <Code2 className="w-3 h-3" /> Changes
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            
-            {/* Thought Engine Accordion matching image (e.g. "Thought for 47s") */}
-            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-3 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-zinc-300 cursor-pointer">
-                <span className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-violet-400" />
-                  Thought for 47s
-                </span>
-                <ChevronDown className="w-4 h-4 text-zinc-500" />
-              </div>
-            </div>
-
-            {/* Plan Card Panel matching image */}
-            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-violet-400" />
-                  {pendingTask ? "Plan" : "Architectural Plan Required"}
-                </span>
-              </div>
-
-              <div className="bg-[#121214] border border-zinc-800/80 rounded-xl p-3 space-y-3 text-right">
-                <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-                  تقرير شامل بالفجوات والتحسينات المطلوبة لموقعك ليصبح متجراً إلكترونياً حديثاً متكاملاً
-                </p>
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowDiffModal(true)}
-                    className="px-4 py-1 rounded-xl bg-[#242429] border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-200 font-bold transition shadow-sm"
-                  >
-                    View
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Single Approval Gate Card — Single Approval → Autonomous Execution 🚀 */}
-            {pendingTask && (
-              <div className="bg-[#18181c] border border-violet-500/30 p-4 rounded-2xl space-y-4 text-start shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-xl bg-violet-500/20 text-violet-400">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-xs text-zinc-100 flex items-center gap-1.5">
-                        Single Engineering Plan ({pendingTask.taskId})
-                      </h3>
-                      <p className="text-[10px] text-zinc-400">خطة تنفيذ هندسية شاملة وموحدة لموافقات المشروع</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md font-bold">
-                      ⏱ المتوقع: 30-60s
-                    </span>
-                    <RiskBadge level={pendingTask.riskLevel} />
-                  </div>
-                </div>
-
-                {/* Executive Summary */}
-                <div className="p-3 rounded-xl bg-[#121214] border border-zinc-800/80 space-y-1.5 text-xs">
-                  <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">الملخص التنفيذي (Executive Summary)</div>
-                  <p className="text-zinc-200 text-[11px] leading-relaxed">
-                    تحليل شامل للمشروع والاعتماديات وتوليد خطة عمل هندسية موحدة تعود بالتعديلات المباشرة على المكونات وقواعد البيانات والـ APIs بحماية Multi-Tenant RLS الكاملة.
-                  </p>
-                </div>
-
-                {/* Impact Analysis Breakdown */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2.5 rounded-xl bg-[#121214] border border-zinc-800 text-[10px]">
-                  <div>
-                    <div className="text-zinc-500 font-bold">الملفات (Files)</div>
-                    <div className="text-zinc-200 font-bold font-mono">{pendingTask.affectedFiles.length} ملفات</div>
-                  </div>
-                  <div>
-                    <div className="text-zinc-500 font-bold">المكونات (UI Components)</div>
-                    <div className="text-violet-400 font-bold">تحديث متكامل</div>
-                  </div>
-                  <div>
-                    <div className="text-zinc-500 font-bold">قواعد البيانات (Database)</div>
-                    <div className="text-emerald-400 font-bold">Migrations + RLS</div>
-                  </div>
-                  <div>
-                    <div className="text-zinc-500 font-bold">الـ APIs</div>
-                    <div className="text-cyan-400 font-bold">Server Functions</div>
-                  </div>
-                </div>
-
-                {/* Affected Files List */}
-                {pendingTask.affectedFiles.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold text-zinc-400">الملفات المتأثرة (Affected Files):</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {pendingTask.affectedFiles.map((file) => (
-                        <span key={file} className="text-[10px] font-mono bg-black/60 border border-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md">
-                          {file}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Single Approval Buttons */}
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowDiffModal(true)}
-                    className="px-4 py-1.5 rounded-xl border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-300 hover:bg-zinc-800 transition font-bold flex items-center gap-1.5"
-                  >
-                    <Code2 className="w-3.5 h-3.5 text-violet-400" />
-                    Review Plan
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={!executionStageInfo.canExecute}
-                      onClick={handleApproveTask}
-                      title={!executionStageInfo.canExecute ? executionStageInfo.helperMsg : "اعتماد وتنفيذ الخطة الهندسية"}
-                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {isExecutingTask ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Executing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Approve & Execute</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Execution Journal (Production Audit Log) Card 📜 */}
-            <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-                  <History className="w-4 h-4 text-emerald-400" />
-                  Execution Journal (سجل التنفيذ الإنتاجي)
-                </span>
-                <span className="text-[10px] font-mono text-zinc-400 font-semibold bg-zinc-800 px-2 py-0.5 rounded-md">
-                  {journalLogs.length} سجلات
-                </span>
-              </div>
-
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 no-scrollbar text-start">
-                {journalLogs.length === 0 ? (
-                  <div className="text-[11px] text-zinc-500 py-3 text-center font-mono">
-                    لا توجد سجلات تنفيذ حتى الآن
-                  </div>
-                ) : (
-                  journalLogs.map((log: any) => {
-                    const timeStr = log.createdAt
-                      ? new Date(log.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-                      : "--:--:--";
-                    const isPending = log.status === "PENDING";
-                    const isSuccess = log.status === "SUCCESS";
-                    return (
-                      <div key={log.id || log.createdAt} className="p-2.5 rounded-xl bg-[#121214] border border-zinc-800/80 flex items-center justify-between text-xs font-mono">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                            isSuccess
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : isPending
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-red-500/20 text-red-400"
-                          }`}>
-                            {log.status}
-                          </span>
-                          <span className="font-bold text-zinc-200 truncate">{log.action}</span>
-                          {log.tool && (
-                            <span className="text-[10px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded border border-violet-500/20">
-                              {log.tool}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-zinc-500 shrink-0">{timeStr}</span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Failure Explanation Panel */}
-            {failureExplanation && (
-              <div className="bg-[#1c1c1e] border border-red-500/30 bg-red-950/20 p-4 rounded-2xl space-y-3 text-start">
-                <div className="flex items-center justify-between border-b border-red-500/20 pb-2">
-                  <h3 className="font-bold text-xs text-red-400 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    Failure Explanation Panel ({failureExplanation.errorType || failureExplanation.failed_step || "Build Failure"})
-                  </h3>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 uppercase">
-                    {failureExplanation.riskLevel || "HIGH"} RISK
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                  <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
-                    <div className="text-[10px] font-bold text-zinc-400">السبب (Reason):</div>
-                    <div className="text-zinc-200 font-semibold">{failureExplanation.reason || failureExplanation.message}</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-zinc-800 space-y-1">
-                    <div className="text-[10px] font-bold text-zinc-400">النظام المتأثر / الأداة:</div>
-                    <div className="text-cyan-400 font-semibold">{failureExplanation.affectedSystem || failureExplanation.tool_name || "Engine Pipeline"}</div>
-                  </div>
-                </div>
-
-                {/* Additional rich error details: stdout, stderr, stack */}
-                {(failureExplanation.stdout || failureExplanation.stderr || failureExplanation.stack) && (
-                  <div className="p-2.5 rounded-xl bg-black/60 border border-zinc-800 space-y-1 font-mono text-[10px] dir-ltr text-start">
-                    <div className="text-zinc-400 font-bold">Terminal / Error Log Output:</div>
-                    {failureExplanation.stdout && (
-                      <pre className="text-zinc-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-zinc-900 leading-tight">
-                        {failureExplanation.stdout.slice(0, 1500)}
-                      </pre>
-                    )}
-                    {failureExplanation.stderr && (
-                      <pre className="text-red-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-red-950 leading-tight">
-                        {failureExplanation.stderr.slice(0, 1500)}
-                      </pre>
-                    )}
-                    {failureExplanation.stack && !failureExplanation.stdout && !failureExplanation.stderr && (
-                      <pre className="text-amber-300 overflow-x-auto p-1.5 bg-black/40 rounded border border-amber-950 leading-tight">
-                        {failureExplanation.stack.slice(0, 1000)}
-                      </pre>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Active Session Context */}
-            {activeSession && (
-              <div className="rounded-2xl border border-zinc-800 bg-[#18181c] p-3 space-y-2 text-start">
-                <div className="text-[11px] font-bold text-zinc-400 flex items-center justify-between">
-                  <span>سياق الجلسة الحالية</span>
-                  <TaskStatusBadge status={activeSession.task_status} />
-                </div>
-                <div className="text-xs font-bold text-zinc-200">{activeSession.title}</div>
-              </div>
-            )}
-          </div>
+        {/* 📁 Right Column (3 Cols): Gleam Accordion Sidebar (Project Context, Sessions, Project Explorer) */}
+        <div className="lg:col-span-3 min-w-0">
+          <GleamAccordionSidebar
+            sessions={activeSessions}
+            activeSessionId={activeSessionId}
+            onSelectSession={(id) => loadSession(id)}
+            activeFilePath={selectedFile.path}
+            onSelectFile={(file) => {
+              setSelectedFile(file);
+              if (file.content) setEditorCode(file.content);
+            }}
+            pendingTask={pendingTask}
+          />
         </div>
       </div>
+
 
       {/* Command Palette Modal */}
       <CommandPalette
