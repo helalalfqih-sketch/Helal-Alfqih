@@ -96,6 +96,7 @@ import { CommandPalette } from "@/components/ai-agent/command-palette";
 import { GleamPerformancePanel } from "@/components/ai-agent/gleam-performance-panel";
 import { GleamDevicePreview } from "@/components/ai-agent/gleam-device-preview";
 import { GleamAccordionSidebar } from "@/components/ai-agent/gleam-accordion-sidebar";
+import { VisualArchitectureMap } from "@/components/ai-agent/visual-architecture-map";
 
 export const Route = createFileRoute("/admin/ai-developer")({
   head: () => ({
@@ -902,7 +903,7 @@ function AIEngineeringAgentPage() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isBottomConsoleOpen, setIsBottomConsoleOpen] = useState(true);
   const [activeConsoleTab, setActiveConsoleTab] = useState<"terminal" | "journal" | "build" | "errors">("journal");
-  const [rightContextTab, setRightContextTab] = useState<"preview" | "diff" | "build" | "whatsapp_sync">("preview");
+  const [rightContextTab, setRightContextTab] = useState<"preview" | "diff" | "build" | "whatsapp_sync" | "architecture_map">("preview");
   const [mobileDrawer, setMobileDrawer] = useState<"files" | "preview" | "logs" | null>(null);
 
   // ──────────────────────────────────────────────────────────────
@@ -1317,6 +1318,7 @@ function AIEngineeringAgentPage() {
               {isRightPanelOpen && (
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                   <button onClick={() => setRightContextTab("preview")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "preview" ? "bg-cyan-500/20 text-cyan-400" : "hover:bg-zinc-800"}`}>المعاينة</button>
+                  <button onClick={() => setRightContextTab("architecture_map")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "architecture_map" ? "bg-violet-500/20 text-violet-400 font-bold" : "hover:bg-zinc-800"}`}>🗺️ Project Map</button>
                   <button onClick={() => setRightContextTab("diff")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "diff" ? "bg-amber-500/20 text-amber-400" : "hover:bg-zinc-800"}`}>التغييرات</button>
                   <button onClick={() => setRightContextTab("whatsapp_sync")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "whatsapp_sync" ? "bg-emerald-500/20 text-emerald-400" : "hover:bg-zinc-800 flex flex-col items-center gap-1"}`}>
                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WhatsApp Sync</span>
@@ -1340,6 +1342,10 @@ function AIEngineeringAgentPage() {
                   />
                   <GleamPerformancePanel lighthouseScore={98} buildTime="1.2s" securityPass={true} />
                 </div>
+              )}
+
+              {rightContextTab === "architecture_map" && (
+                <VisualArchitectureMap />
               )}
 
               {rightContextTab === "diff" && (

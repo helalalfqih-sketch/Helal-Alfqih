@@ -363,6 +363,28 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
       return { status: "HEALTHY", uptime: "99.99%", latencyMs: 24, timestamp: new Date().toISOString() };
     },
   },
+
+  architecture_audit: {
+    category: "Runtime",
+    name: "architecture_audit",
+    description: "Audit project architectural health, RLS compliance, and generate Architecture Score (0-100)",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { auditProjectArchitecture } = await import("./architecture.service");
+      return await auditProjectArchitecture();
+    },
+  },
+
+  multi_agent_pipeline: {
+    category: "Runtime",
+    name: "multi_agent_pipeline",
+    description: "Run multi-agent orchestration pipeline (Planner, Architect, Backend, Frontend, Reviewer, Deployer)",
+    inputSchema: z.object({ sessionId: z.string(), prompt: z.string() }),
+    execute: async ({ sessionId, prompt }) => {
+      const { runMultiAgentPipeline } = await import("./multi-agent.engine");
+      return await runMultiAgentPipeline(sessionId, prompt);
+    },
+  },
 };
 
 /**
