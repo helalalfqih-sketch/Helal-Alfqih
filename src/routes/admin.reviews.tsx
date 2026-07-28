@@ -12,100 +12,79 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listTenantReviews, moderateReview, deleteReview, type ReviewRow } from "@/lib/reviews.functions";
+import { useStoreContext } from "@/components/store/store-shell";
 
 export const Route = createFileRoute("/admin/reviews")({
   component: ReviewsPage,
 });
 
-type Review = {
-  id: string;
-  product_name: string;
-  customer_name: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-  status: "pending" | "approved" | "rejected";
-};
-
-const DEMO_REVIEWS: Review[] = [
-  {
-    id: "1",
-    product_name: "ماكينة حلاقة وتشذيب Kemei KM-2299",
-    customer_name: "محمد علي",
-    rating: 5,
-    comment: "منتج ممتاز! جودة عالية وسعر مناسب جداً. أنصح به بشدة.",
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    status: "pending",
-  },
-  {
-    id: "2",
-    product_name: "جهاز تدليك الرقبة الحراري",
-    customer_name: "أحمد سالم",
-    rating: 4,
-    comment: "جيد لكن التعليمات باللغة الصينية فقط.",
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    status: "pending",
-  },
-  {
-    id: "3",
-    product_name: "مسدس غسيل سيارات لاسلكي",
-    customer_name: "سارة محمد",
-    rating: 5,
-    comment: "وصل سريع والمنتج احترافي.",
-    created_at: new Date(Date.now() - 259200000).toISOString(),
-    status: "approved",
-  },
-  {
-    id: "4",
-    product_name: "بدلة مطر كاملة",
-    customer_name: "خالد عمر",
-    rating: 2,
-    comment: "الحجم لا يطابق المواصفات المذكورة.",
-    created_at: new Date(Date.now() - 345600000).toISOString(),
-    status: "rejected",
-  },
-];
-
-const STATUS_LABELS: Record<Review["status"], string> = {
+const STATUS_LABELS: Record<ReviewRow["status"], string> = {
   pending: "بانتظار المراجعة",
   approved: "موافق عليه",
   rejected: "مرفوض",
 };
 
-const STATUS_COLORS: Record<Review["status"], string> = {
+const STATUS_COLORS: Record<ReviewRow["status"], string> = {
   pending: "bg-warning/10 text-warning",
   approved: "bg-success/10 text-success",
   rejected: "bg-destructive/10 text-destructive",
 };
 
 function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>(DEMO_REVIEWS);
-  const [filter, setFilter] = useState<"all" | Review["status"]>("all");
+  const { can } = useStoreContext();
+  const fetchReviews = useServerFn(listTenantReviews);
+  const modReviewFn = useServerFn(moderateReview);
+  const delReviewFn = useServerFn(deleteReview);
+
+  const { data: reviews = [], refetch, isLoading } = useQuery({
+    queryKey: ["admin-reviews"],
+    queryFn: () => fetchReviews(),
+  });
+
+  const [filter, setFilter] = useState<"all" | ReviewRow["status"]>("all");
 
   const filtered =
     filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
 
-  const approve = (id: string) => {
-    setReviews((rs) =>
-      rs.map((r) => (r.id === id ? { ...r, status: "approved" as const } : r)),
-    );
-    toast.success("تمت الموافقة على التقييم");
-  };
+  const modMut = useMutation({
+    mutationFn: (args: { id: string; status: "approved" | "rejected" }) => modReviewFn({ data: args }),
+    onSuccess: (r, args) => {
+      if (r.success) {
+        toast.success(args.status === "approved" ? "تمت الموافقة على التقييم" : "تم رفض التقييم");
+        refetch();
+      } else {
+        toast.error(r.message ?? "فشل التحديث");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  const reject = (id: string) => {
-    setReviews((rs) =>
-      rs.map((r) => (r.id === id ? { ...r, status: "rejected" as const } : r)),
-    );
-    toast.success("تم رفض التقييم");
-  };
-
-  const remove = (id: string) => {
-    setReviews((rs) => rs.filter((r) => r.id !== id));
-    toast.success("تم حذف التقييم");
-  };
+  const delMut = useMutation({
+    mutationFn: (id: string) => delReviewFn({ data: { id } }),
+    onSuccess: (r) => {
+      if (r.success) {
+        toast.success("تم حذف التقييم");
+        refetch();
+      } else {
+        toast.error(r.message ?? "فشل الحذف");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const pending = reviews.filter((r) => r.status === "pending").length;
   const approved = reviews.filter((r) => r.status === "approved").length;
+
+  if (!can("staff")) {
+    return (
+      <div className="rounded-2xl glass p-10 text-center text-sm text-muted-foreground">
+        هذه الصفحة متاحة لفريق العمل فقط.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -157,7 +136,11 @@ function ReviewsPage() {
 
       {/* Reviews */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-border bg-surface p-12 text-center text-muted-foreground">
             <MessageSquare className="mx-auto h-8 w-8 mb-3 opacity-40" />
             <p className="text-sm">لا توجد تقييمات في هذه الفئة</p>
@@ -182,12 +165,12 @@ function ReviewsPage() {
                   <div className="flex items-center gap-0.5 mt-1">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
-                        key={i}
-                        className={`h-3.5 w-3.5 ${
+                         key={i}
+                         className={`h-3.5 w-3.5 ${
                           i < r.rating
                             ? "fill-warning stroke-warning"
                             : "stroke-muted-foreground fill-none"
-                        }`}
+                         }`}
                       />
                     ))}
                   </div>
@@ -204,8 +187,9 @@ function ReviewsPage() {
               <div className="flex items-center gap-2">
                 {r.status !== "approved" && (
                   <button
-                    onClick={() => approve(r.id)}
-                    className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-bold text-success hover:bg-success/20 transition"
+                    onClick={() => modMut.mutate({ id: r.id, status: "approved" })}
+                    disabled={modMut.isPending || !can("manager")}
+                    className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-bold text-success hover:bg-success/20 transition disabled:opacity-50"
                   >
                     <ThumbsUp className="h-3.5 w-3.5" />
                     موافقة
@@ -213,16 +197,18 @@ function ReviewsPage() {
                 )}
                 {r.status !== "rejected" && (
                   <button
-                    onClick={() => reject(r.id)}
-                    className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20 transition"
+                    onClick={() => modMut.mutate({ id: r.id, status: "rejected" })}
+                    disabled={modMut.isPending || !can("manager")}
+                    className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20 transition disabled:opacity-50"
                   >
                     <ThumbsDown className="h-3.5 w-3.5" />
                     رفض
                   </button>
                 )}
                 <button
-                  onClick={() => remove(r.id)}
-                  className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 transition"
+                  onClick={() => delMut.mutate(r.id)}
+                  disabled={delMut.isPending || !can("manager")}
+                  className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 transition disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   حذف

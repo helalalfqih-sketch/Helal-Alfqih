@@ -4,13 +4,14 @@ import {
   Save,
   ToggleLeft,
   ToggleRight,
-  Smartphone,
-  Banknote,
-  Wallet,
   Info,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { updateStoreSetting } from "@/lib/store.functions";
+import { useStoreContext } from "@/components/store/store-shell";
 
 export const Route = createFileRoute("/admin/payments")({
   component: PaymentsPage,
@@ -81,8 +82,20 @@ const DEFAULT_METHODS: PaymentMethod[] = [
 ];
 
 function PaymentsPage() {
-  const [methods, setMethods] = useState<PaymentMethod[]>(DEFAULT_METHODS);
+  const { store, can, refetch } = useStoreContext();
+  const saveSetting = useServerFn(updateStoreSetting);
+  
+  const savedMethodsSetting = store.settings.find((s) => s.key === "payment_methods")?.value;
+  const savedMethods = Array.isArray(savedMethodsSetting) ? savedMethodsSetting : null;
+
+  const [methods, setMethods] = useState<PaymentMethod[]>(savedMethods || DEFAULT_METHODS);
   const [editing, setEditing] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (savedMethods) {
+      setMethods(savedMethods);
+    }
+  }, [store]);
 
   const toggle = (id: string) =>
     setMethods((ms) =>
@@ -92,7 +105,26 @@ function PaymentsPage() {
   const update = (id: string, field: keyof PaymentMethod, value: string | boolean) =>
     setMethods((ms) => ms.map((m) => (m.id === id ? { ...m, [field]: value } : m)));
 
-  const saveAll = () => toast.success("تم حفظ إعدادات الدفع");
+  const paymentsMut = useMutation({
+    mutationFn: () => saveSetting({ data: { key: "payment_methods", value: methods } }),
+    onSuccess: (r) => {
+      if (r.success) {
+        toast.success("تم حفظ إعدادات الدفع بنجاح");
+        refetch();
+      } else {
+        toast.error(r.message ?? "فشل حفظ إعدادات الدفع");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!can("owner")) {
+    return (
+      <div className="rounded-2xl glass p-10 text-center text-sm text-muted-foreground">
+        إعدادات الدفع متاحة لمالك المتجر فقط.
+      </div>
+    );
+  }
 
   const activeCount = methods.filter((m) => m.is_active).length;
 
@@ -110,11 +142,12 @@ function PaymentsPage() {
           </p>
         </div>
         <button
-          onClick={saveAll}
-          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition"
+          onClick={() => paymentsMut.mutate()}
+          disabled={paymentsMut.isPending}
+          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          حفظ الإعدادات
+          {paymentsMut.isPending ? "جارٍ الحفظ..." : "حفظ الإعدادات"}
         </button>
       </div>
 
@@ -195,3 +228,4 @@ function PaymentsPage() {
     </div>
   );
 }
+

@@ -83,7 +83,6 @@ ${gtinField}    <g:product_type>${xmlEscape(p.categoryId || "عام")}</g:produc
 
 // @ts-ignore — Route registered after vite build generates routeTree.gen.ts
 export const Route = createFileRoute("/google-shopping/xml")({
-
   server: {
     handlers: {
       GET: async ({ request }) => {
