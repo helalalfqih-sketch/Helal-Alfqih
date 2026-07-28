@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, History, FolderTree, Layers } from "lucide-react";
+import { ChevronDown, ChevronUp, History, FolderTree, Layers, FileCode } from "lucide-react";
 import { FileExplorer, FileItem } from "@/components/ai-agent/file-explorer";
 
 interface GleamAccordionSidebarProps {
@@ -19,103 +19,123 @@ export function GleamAccordionSidebar({
   onSelectFile,
   pendingTask,
 }: GleamAccordionSidebarProps) {
-  const [openContext, setOpenContext] = useState(true);
-  const [openSessions, setOpenSessions] = useState(false);
-  const [openExplorer, setOpenExplorer] = useState(false);
+  const [activeTab, setActiveTab] = useState<"explorer" | "sessions" | "context">("explorer");
 
   return (
-    <div className="w-full space-y-3 font-sans dir-rtl">
-      {/* 📄 1. Accordion: سياق المشروع (Project Context) */}
-      <div className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl p-3.5 shadow-xl shadow-purple-500/5 transition">
+    <div className="w-full flex flex-col h-full bg-[#121215]/95 border border-zinc-800/80 rounded-2xl overflow-hidden shadow-2xl font-sans" dir="rtl">
+      {/* Sidebar Header Tabs */}
+      <div className="flex items-center border-b border-zinc-800/80 bg-[#18181c] p-1.5 gap-1 text-[11px] font-bold text-zinc-400">
         <button
           type="button"
-          onClick={() => setOpenContext((prev) => !prev)}
-          className="w-full flex items-center justify-between text-xs font-black text-slate-800 pb-1"
+          onClick={() => setActiveTab("explorer")}
+          className={`flex-1 py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+            activeTab === "explorer"
+              ? "bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm font-black"
+              : "hover:bg-zinc-800/60 hover:text-zinc-200"
+          }`}
         >
-          <span className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-purple-600" />
-            سياق المشروع (Project Context)
-          </span>
-          {openContext ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          <FolderTree className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <span>الملفات</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("sessions")}
+          className={`flex-1 py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+            activeTab === "sessions"
+              ? "bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm font-black"
+              : "hover:bg-zinc-800/60 hover:text-zinc-200"
+          }`}
+        >
+          <History className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+          <span>الجلسات ({sessions.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("context")}
+          className={`flex-1 py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+            activeTab === "context"
+              ? "bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm font-black"
+              : "hover:bg-zinc-800/60 hover:text-zinc-200"
+          }`}
+        >
+          <Layers className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+          <span>السياق</span>
+        </button>
+      </div>
 
-        {openContext && (
-          <div className="mt-2 pt-2 border-t border-slate-200/60 space-y-2 text-xs">
-            <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100/80 space-y-1">
+      {/* Sidebar Content */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar text-xs">
+        {activeTab === "explorer" && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 px-1 pb-1 border-b border-zinc-800/60">
+              <span className="flex items-center gap-1.5">
+                <FileCode className="h-3.5 w-3.5 text-violet-400" />
+                شجرة ملفات المشروع
+              </span>
+              <span className="text-[10px] text-zinc-500 font-mono">Workspace</span>
+            </div>
+            <div className="rounded-xl border border-zinc-800/60 bg-[#0a0a0c] p-2">
+              <FileExplorer
+                activeFilePath={activeFilePath}
+                onSelectFile={onSelectFile}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "sessions" && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 px-1 pb-1 border-b border-zinc-800/60">
+              <span>تاريخ الجلسات السابقة</span>
+              <span className="text-[10px] text-violet-400 font-bold">{sessions.length} نشطة</span>
+            </div>
+            {sessions.length === 0 ? (
+              <div className="p-4 text-center text-zinc-500 text-[11px]">لا توجد جلسات مسجلة حالياً</div>
+            ) : (
+              <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                {sessions.map((sess: any) => (
+                  <button
+                    key={sess.id}
+                    type="button"
+                    onClick={() => onSelectSession(sess.id)}
+                    className={`w-full text-right p-2.5 rounded-xl text-xs transition border ${
+                      activeSessionId === sess.id
+                        ? "bg-violet-600/30 border-violet-500/50 text-white font-bold shadow-md shadow-violet-500/10"
+                        : "bg-[#16161a] hover:bg-zinc-800/80 text-zinc-300 border-zinc-800/80"
+                    }`}
+                  >
+                    <div className="truncate text-[11px] font-medium">{sess.title}</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center justify-between">
+                      <span className="font-mono">{sess.id.slice(0, 8)}</span>
+                      <span>{sess.createdAt ? new Date(sess.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "context" && (
+          <div className="space-y-3">
+            <div className="p-3 rounded-xl bg-violet-950/20 border border-violet-800/30 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700">المهمة الحالية</span>
-                <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 font-mono text-[10px] font-bold">
+                <span className="font-bold text-zinc-200">المهمة النشطة</span>
+                <span className="px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 font-mono text-[10px] font-bold border border-violet-500/30">
                   {pendingTask?.taskId || "TASK-027"}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600 font-semibold">تحسين أداء صفحة البحث والملاحة السريعة</p>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">تحسين واستعادة نظام التطوير الذاتي والتفاعل البرمجي المباشر</p>
               <div className="flex items-center gap-1.5 pt-1">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> مستقر
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> متكامل
                 </span>
               </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* 📁 2. Accordion: الجلسات (Sessions Timeline) */}
-      <div className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl p-3.5 shadow-xl shadow-purple-500/5 transition">
-        <button
-          type="button"
-          onClick={() => setOpenSessions((prev) => !prev)}
-          className="w-full flex items-center justify-between text-xs font-black text-slate-800 pb-1"
-        >
-          <span className="flex items-center gap-2">
-            <History className="h-4 w-4 text-sky-600" />
-            الجلسات ({sessions.length})
-          </span>
-          {openSessions ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-        </button>
-
-        {openSessions && (
-          <div className="mt-2 pt-2 border-t border-slate-200/60 space-y-1.5 max-h-60 overflow-y-auto pr-1">
-            {sessions.map((sess: any) => (
-              <button
-                key={sess.id}
-                type="button"
-                onClick={() => onSelectSession(sess.id)}
-                className={`w-full text-right p-2.5 rounded-2xl text-xs transition ${
-                  activeSessionId === sess.id
-                    ? "bg-purple-600 text-white shadow-md font-bold"
-                    : "bg-slate-50/80 hover:bg-slate-100 text-slate-700 border border-slate-200/60"
-                }`}
-              >
-                <div className="truncate text-[11px] font-semibold">{sess.title}</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 📂 3. Accordion: مستكشف الملفات (Project Explorer) */}
-      <div className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl p-3.5 shadow-xl shadow-purple-500/5 transition">
-        <button
-          type="button"
-          onClick={() => setOpenExplorer((prev) => !prev)}
-          className="w-full flex items-center justify-between text-xs font-black text-slate-800 pb-1"
-        >
-          <span className="flex items-center gap-2">
-            <FolderTree className="h-4 w-4 text-amber-500" />
-            مستكشف الملفات (Project Explorer)
-          </span>
-          {openExplorer ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-        </button>
-
-        {openExplorer && (
-          <div className="mt-2 pt-2 border-t border-slate-200/60 max-h-96 overflow-y-auto">
-            <FileExplorer
-              activeFilePath={activeFilePath}
-              onSelectFile={onSelectFile}
-            />
-          </div>
-        )}
-      </div>
     </div>
   );
 }
+

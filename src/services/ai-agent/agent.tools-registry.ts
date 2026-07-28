@@ -307,6 +307,39 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     },
   },
 
+  whatsapp_catalog_sync: {
+    category: "Runtime",
+    name: "whatsapp_catalog_sync",
+    description: "Synchronize products between Indexes Store database and WhatsApp Catalog via Meta Graph API",
+    inputSchema: z.object({
+      action: z.enum([
+        "create_product",
+        "update_product",
+        "update_price",
+        "update_images",
+        "update_video",
+        "update_inventory",
+        "disable_product",
+        "sync_status"
+      ]),
+      productId: z.string().optional(),
+    }),
+    execute: async ({ action, productId }) => {
+      // PLACEHOLDER: Real Meta API calls will be implemented later
+      return {
+        success: true,
+        action,
+        productId,
+        syncStatus: "pending",
+        metaResponse: {
+          mock_id: `meta_${Date.now()}`,
+          status: "queued_for_sync"
+        },
+        message: `WhatsApp Sync action '${action}' queued successfully.`
+      };
+    },
+  },
+
   inspect_errors: {
     category: "Runtime",
     name: "inspect_errors",

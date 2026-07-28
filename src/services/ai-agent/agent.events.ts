@@ -29,7 +29,8 @@ export type AgentEventType =
   | "completed"
   | "error"
   | "retry"
-  | "status";
+  | "status"
+  | "whatsapp_sync";
 
 // ─────────────────────────────────────────────────
 // Core Event Schema
@@ -127,6 +128,14 @@ export interface AgentRetryEvent extends AgentEvent {
   reason: string;
 }
 
+export interface AgentWhatsAppSyncEvent extends AgentEvent {
+  type: "whatsapp_sync";
+  action: "create_product" | "update_product" | "update_price" | "update_images" | "update_video" | "update_inventory" | "disable_product" | "sync_status";
+  status: "pending" | "success" | "failed";
+  productId?: string;
+  metaResponse?: Record<string, unknown>;
+}
+
 // ─────────────────────────────────────────────────
 // Plan Step Schema
 // ─────────────────────────────────────────────────
@@ -140,7 +149,8 @@ export type PlanStepAction =
   | "run_command"
   | "run_migration"
   | "git_commit"
-  | "git_push";
+  | "git_push"
+  | "whatsapp_sync";
 
 export interface AgentPlanStep {
   step: number;

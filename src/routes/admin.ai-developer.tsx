@@ -57,6 +57,7 @@ import {
   UploadCloud,
   X,
   Paperclip,
+  FolderTree,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -889,84 +890,64 @@ function AIEngineeringAgentPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const activeSession = sessions.find((s: AgentSession) => s.id === activeSessionId);
-  const activeSessions = sessions.filter((s: AgentSession) => s.status !== "archived");
+  const quickSuggestions = [
+    "أنشئ نظام إشعارات الطلبات المباشرة",
+    "تحسين أداء SEO والـ Lighthouse إلى 98+",
+    "فحص إعدادات الدفع وشحنات الـ RLS",
+    "فحص واستعادة سرعة أداء صفحة البحث",
+  ];
 
-  const dynamicSuggestions = useMemo(() => {
-    const list: string[] = [];
-    if (activeSession?.title) {
-      list.push(`اطلب تحليل: ${activeSession.title.slice(0, 25)}`);
-    }
-    if (
-      activeSession?.affected_files &&
-      Array.isArray(activeSession.affected_files) &&
-      activeSession.affected_files.length > 0
-    ) {
-      list.push(`فحص الملفات المتأثرة (${activeSession.affected_files.length})`);
-    }
-    if (memory && memory.length > 0) {
-      list.push(`استرجاع ذاكرة المشروع (${memory.length})`);
-    }
-    list.push(
-      "أنشئ نظام إشعارات الطلبات",
-      "تحسين أداء SEO والـ Lighthouse",
-      "فحص إعدادات الدفع والشحن",
-      "تقرير أمان امتثال Multi-Tenant RLS",
-    );
-    return Array.from(new Set(list)).slice(0, 6);
-  }, [activeSession, memory]);
+  // Collapsible UI States for IDE Layout
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [isBottomConsoleOpen, setIsBottomConsoleOpen] = useState(true);
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"terminal" | "journal" | "build" | "errors">("journal");
+  const [rightContextTab, setRightContextTab] = useState<"preview" | "diff" | "build" | "whatsapp_sync">("preview");
+  const [mobileDrawer, setMobileDrawer] = useState<"files" | "preview" | "logs" | null>(null);
 
   // ──────────────────────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="font-sans pb-6 bg-[#0c0c0e] text-zinc-100 min-h-screen p-3 rounded-3xl border border-zinc-800/80 shadow-2xl space-y-3" dir="rtl">
-      {/* Top Navigation Bar — Lovable IDE Style Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 px-2">
+    <div className="font-sans bg-[#09090b] text-zinc-100 min-h-screen flex flex-col h-screen overflow-hidden text-start" dir="rtl">
+      {/* ──────────────────────────────────────────────────────────────
+          1. Fixed Top Header Bar — IDE Toolbar
+          ────────────────────────────────────────────────────────────── */}
+      <header className="h-14 border-b border-zinc-800/80 bg-[#121215]/95 backdrop-blur-2xl px-4 flex items-center justify-between shrink-0 z-30 select-none">
+        {/* Left: Branding & Status */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-[#18181c] border border-zinc-800 px-3 py-1.5 rounded-xl font-bold text-xs text-zinc-200 cursor-pointer hover:bg-zinc-800 transition">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-amber-500 to-violet-500" />
-            <span>Noqta Commerce Hub</span>
-            <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+          <div className="flex items-center gap-2.5 bg-[#18181c] border border-zinc-800/80 px-3 py-1.5 rounded-xl font-bold text-xs text-zinc-100 shadow-inner">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-violet-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
+              <Bot className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col text-right">
+              <span className="text-[11px] font-black tracking-tight leading-none text-zinc-100">NOQTA AI Developer</span>
+              <span className="text-[9px] text-zinc-400 font-mono">v2.5 IDE Workspace</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setShowSessions((prev) => !prev)}
-              className={`p-2 rounded-xl border transition ${
-                showSessions
-                  ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                  : "bg-[#141417] border-zinc-800 text-zinc-400 hover:text-white"
-              }`}
-              title="سجل الجلسات (History)"
-            >
-              <History className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowFileExplorer((prev) => !prev)}
-              className={`p-2 rounded-xl border transition ${
-                showFileExplorer
-                  ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                  : "bg-[#141417] border-zinc-800 text-zinc-400 hover:text-white"
-              }`}
-              title="مستكشف الملفات (File Explorer)"
-            >
-              <FileCode className="h-4 w-4" />
-            </button>
+          {/* Project Status Pill */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#16161a] border border-zinc-800 text-[11px] font-bold">
+            <span className={`w-2 h-2 rounded-full ${
+              isValidatingBuild ? "bg-amber-400 animate-ping" : buildValidation.passed ? "bg-emerald-400 animate-pulse" : "bg-rose-500"
+            }`} />
+            <span className="text-zinc-300">
+              {isValidatingBuild ? "جاري فحص البناء..." : buildValidation.passed ? "النظام متصل ومعتمد ✨" : "يوجد أخطاء في البناء ⚠️"}
+            </span>
           </div>
+        </div>
 
-          {/* Mode Switcher Toggle: Plan vs Build */}
-          <div className="flex items-center gap-1 bg-[#141418] p-1 rounded-2xl border border-zinc-800 text-xs">
+        {/* Center: Work Mode Switcher & Provider Selector */}
+        <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-[#18181c] p-1 rounded-xl border border-zinc-800 text-xs">
             <button
               type="button"
               onClick={() => setWorkMode("PLAN")}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
                 workMode === "PLAN"
-                  ? "bg-violet-600 text-white shadow-md"
-                  : "text-zinc-400 hover:text-white"
+                  ? "bg-violet-600 text-white shadow-md shadow-violet-600/20"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
@@ -975,201 +956,372 @@ function AIEngineeringAgentPage() {
             <button
               type="button"
               onClick={() => setWorkMode("BUILD")}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
                 workMode === "BUILD"
-                  ? "bg-gradient-to-r from-amber-500 to-violet-600 text-white shadow-md"
-                  : "text-zinc-400 hover:text-white"
+                  ? "bg-gradient-to-r from-amber-500 to-violet-600 text-white shadow-md shadow-amber-500/10"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
               }`}
             >
-              <Zap className="h-3.5 w-3.5" />
+              <Zap className="h-3.5 w-3.5 text-amber-300" />
               Build Mode ⚡
             </button>
           </div>
-        </div>
 
-        {/* Center / Right controls */}
-        <div className="flex items-center gap-2">
-          {/* Command Palette Button */}
-          <button
-            type="button"
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-2 bg-[#18181c] border border-zinc-800 px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-            <span>لوحة الأوامر...</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400 border border-zinc-700 font-mono">
-              Ctrl+Shift+P
-            </kbd>
-          </button>
           {providers.length > 0 && (
             <select
               value={selectedProviderId}
               onChange={(e) => setSelectedProviderId(e.target.value)}
-              className="rounded-xl border border-zinc-800 bg-[#141417] px-3 py-1.5 text-[11px] font-bold text-zinc-200 outline-none focus:border-violet-500/50 transition cursor-pointer"
+              className="rounded-xl border border-zinc-800 bg-[#16161a] px-3 py-1.5 text-[11px] font-bold text-zinc-300 outline-none focus:border-violet-500/50 transition cursor-pointer hover:bg-zinc-800/60"
             >
-              <option value="">✨ تلقائي (حسب الأولوية)</option>
+              <option value="">✨ الذكاء تلقائي (Default)</option>
               {providers.map((p: any) => (
                 <option key={p.id} value={p.id}>
-                  {p.provider === "gemini" ? "Gemini" : p.provider === "lovable" ? "Lovable" : p.provider === "vertex" ? "Vertex" : p.provider} ({p.model})
+                  {p.provider === "gemini" ? "Gemini 1.5 Pro" : p.provider === "lovable" ? "Lovable AI Engine" : p.provider} ({p.model})
                 </option>
               ))}
             </select>
           )}
+        </div>
 
-          <div className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold border ${
-            agentRole === "owner"
-              ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
-              : agentRole === "admin"
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "bg-zinc-800 text-zinc-400 border-zinc-700"
-          }`}>
-            <Shield className="h-3 w-3" />
-            {agentRole === "owner" ? "Owner — كامل" : agentRole === "admin" ? "Admin" : "Developer"}
-          </div>
+        {/* Right: Quick Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Build Button */}
+          <button
+            type="button"
+            onClick={() => validateBuildServerFn()}
+            disabled={isValidatingBuild}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-bold text-zinc-200 transition shadow-sm disabled:opacity-50"
+            title="فحص البناء (Self-Validation Check)"
+          >
+            {isValidatingBuild ? <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> : <RefreshCw className="h-3.5 w-3.5 text-cyan-400" />}
+            <span>فحص البناء</span>
+          </button>
 
+          {/* Deploy Button */}
+          <button
+            type="button"
+            onClick={handlePublishToProduction}
+            disabled={isPublishing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
+          >
+            {isPublishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">نشر المباشر</span>
+          </button>
+
+          {/* Command Palette Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="p-2 rounded-xl bg-[#16161a] border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+            title="لوحة الأوامر (Ctrl+Shift+P)"
+          >
+            <Sparkles className="h-4 w-4 text-violet-400" />
+          </button>
+
+          {/* New Session Button */}
           <button
             type="button"
             onClick={handleNewSession}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition"
+            className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-md transition flex items-center gap-1 text-xs font-bold"
+            title="جلسة عمل جديدة"
           >
-            <Plus className="h-3.5 w-3.5" />
-            جلسة جديدة
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">جلسة جديدة</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Main Gleam Design 3-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[calc(100vh-140px)] w-full items-start">
+      {/* ──────────────────────────────────────────────────────────────
+          2. Main Desktop IDE Workspace (3 Panels + Bottom Console)
+          ────────────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden relative">
 
-        {/* 📱 Left Column (3 Cols): Live Device Preview + AI & Performance Panel */}
-        <div className="lg:col-span-3 flex flex-col items-center gap-4">
-          <GleamDevicePreview
-            activeRoute="/"
-            projectName="INDEXES - SHOWCASE"
-          />
-          <GleamPerformancePanel
-            lighthouseScore={98}
-            buildTime="1.2s"
-            securityPass={true}
-          />
-        </div>
-
-        {/* 💬 Center Column (6 Cols): Clean Wide Noqta AI Developer Studio */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDropFile}
-          className="lg:col-span-6 relative bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl shadow-xl shadow-purple-500/5 p-3.5 flex flex-col justify-between h-full min-h-[680px] max-h-[calc(100vh-160px)] overflow-hidden text-slate-800"
-        >
-          {/* Header Bar */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-xs font-black text-slate-800">Indexes AI Engineering Agent</h3>
-                <p className="text-[10px] text-slate-500 font-medium">مساعد تطوير محترف لمشروع Indexes Store</p>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              AI Online
-            </span>
+        {/* 📁 LEFT PANEL: Project Explorer & History */}
+        <aside className={`hidden md:flex flex-col border-l border-zinc-800/80 bg-[#0e0e11]/90 backdrop-blur-xl transition-all duration-300 z-20 shrink-0 ${
+          isLeftPanelOpen ? "w-72" : "w-12"
+        }`}>
+          <div className="h-10 border-b border-zinc-800/80 flex items-center justify-between px-3 bg-[#141417]/80 text-[11px] font-bold text-zinc-400">
+            {isLeftPanelOpen && (
+              <span className="flex items-center gap-1.5 text-zinc-200">
+                <FileCode className="h-3.5 w-3.5 text-amber-400" />
+                المستكشف والجلسات
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsLeftPanelOpen((prev) => !prev)}
+              className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+              title={isLeftPanelOpen ? "طي الشريط الجانبي" : "توسيع الشريط الجانبي"}
+            >
+              {isLeftPanelOpen ? <ChevronRight className="h-4 w-4" /> : <Layers className="h-4 w-4 text-violet-400" />}
+            </button>
           </div>
-          {/* Hidden File Picker Input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileInputChange}
-            className="hidden"
-          />
 
-          {/* Drag & Drop Visual Overlay Zone */}
-          {(isDraggingOver || isParsingFile) && (
-            <div className="absolute inset-0 z-50 rounded-2xl bg-violet-950/85 border-2 border-dashed border-violet-400 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in duration-150 pointer-events-none">
-              <div className="p-4 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/40 animate-bounce">
-                {isParsingFile ? (
-                  <Loader2 className="h-10 w-10 text-violet-300 animate-spin" />
-                ) : (
-                  <UploadCloud className="h-10 w-10 text-violet-300" />
-                )}
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-black text-white">
-                  {isParsingFile ? "جاري تحليل علاقات الملف واستخراج الـ Imports..." : "اسحب الملفات هنا لتحليلها وتطويرها بواسطة AI"}
-                </h3>
-                <p className="text-xs text-violet-200">
-                  {isParsingFile ? "Parsing AST & Dependencies..." : "Drag & Drop Project Files / Code Assets into Workspace"}
-                </p>
-              </div>
+          {isLeftPanelOpen ? (
+            <div className="flex-1 overflow-hidden p-2">
+              <GleamAccordionSidebar
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={(id) => setActiveSessionId(id)}
+                activeFilePath={selectedFile.path}
+                onSelectFile={(file) => {
+                  setSelectedFile(file);
+                  if (file.content) setEditorCode(file.content);
+                }}
+                pendingTask={pendingTask}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-3 gap-3 text-zinc-500">
+              <button onClick={() => setIsLeftPanelOpen(true)} className="p-2 hover:bg-zinc-800 rounded-xl text-amber-400">
+                <FileCode className="h-5 w-5" />
+              </button>
+              <button onClick={() => setIsLeftPanelOpen(true)} className="p-2 hover:bg-zinc-800 rounded-xl text-sky-400">
+                <History className="h-5 w-5" />
+              </button>
             </div>
           )}
-          {workMode === "BUILD" ? (
-            <div className="flex flex-col h-full space-y-2 overflow-hidden">
-              {/* Lovable Builder Mode Toolbar (Editor vs Live Preview Tabs + One-Click Publish) */}
-              <div className="flex items-center justify-between px-2 py-1 bg-[#18181c] border border-zinc-800 rounded-xl">
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab("EDITOR")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                      activeWorkspaceTab === "EDITOR"
-                        ? "bg-violet-600 text-white shadow-xs"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    💻 Code Editor
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab("PREVIEW")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                      activeWorkspaceTab === "PREVIEW"
-                        ? "bg-violet-600 text-white shadow-xs"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    ⚡ Live Preview
-                  </button>
-                </div>
+        </aside>
 
+        {/* 💬 CENTER PANEL: Primary AI Workspace & Code Editor */}
+        <main className="flex-1 flex flex-col min-w-0 bg-[#09090b] overflow-hidden relative">
+
+          {/* Center Header Tabs: Active File or Mode Tabs */}
+          <div className="h-10 border-b border-zinc-800/80 bg-[#121215] flex items-center justify-between px-3 text-xs shrink-0">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2 bg-[#18181c] border border-zinc-800 px-3 py-1 rounded-lg text-zinc-200 font-mono text-[11px]">
+                <FileCode className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase font-bold">
+                  {selectedFile.language || "ts"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {workMode === "BUILD" && (
                 <button
                   type="button"
-                  onClick={handlePublishToProduction}
-                  disabled={isPublishing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 hover:opacity-90 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
+                  onClick={() => handleSaveCodeAndValidate(editorCode)}
+                  disabled={isValidatingBuild}
+                  className="px-3 py-1 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold text-[11px] transition shadow-md flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  {isPublishing ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Publishing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🚀 Publish to Production</span>
-                    </>
-                  )}
+                  {isValidatingBuild ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                  حفظ وفحص الكود
                 </button>
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Workspace Main Active View */}
-              {activeWorkspaceTab === "EDITOR" ? (
-                <div className="flex-1 min-h-[350px]">
-                  <MonacoCodeEditor
-                    filePath={selectedFile.path}
-                    initialCode={editorCode}
-                    language={selectedFile.language || "typescript"}
-                    onCodeChange={(newCode) => setEditorCode(newCode)}
-                    onSave={(savedCode) => {
-                      setSelectedFile((prev) => ({ ...prev, content: savedCode }));
-                      handleSaveCodeAndValidate(savedCode);
-                    }}
-                  />
+          {/* Mode Switch Content Body */}
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+
+            {workMode === "BUILD" ? (
+              /* BUILD MODE: Monaco Code Editor */
+              <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#09090b]">
+                <MonacoCodeEditor
+                  filePath={selectedFile.path}
+                  initialCode={editorCode}
+                  language={selectedFile.language || "typescript"}
+                  onCodeChange={(val: string) => setEditorCode(val)}
+                  onSave={handleSaveCodeAndValidate}
+                />
+              </div>
+            ) : (
+              /* PLAN MODE: AI Chat Stream & Command Controller */
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDropFile}
+                className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#09090b]"
+              >
+                {/* Drag & Drop Visual Overlay Zone */}
+                {(isDraggingOver || isParsingFile) && (
+                  <div className="absolute inset-0 z-50 rounded-2xl bg-violet-950/85 border-2 border-dashed border-violet-400 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in duration-150 pointer-events-none">
+                    <div className="p-4 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/40 animate-bounce">
+                      {isParsingFile ? (
+                        <Loader2 className="h-10 w-10 text-violet-300 animate-spin" />
+                      ) : (
+                        <UploadCloud className="h-10 w-10 text-violet-300" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-black text-white">
+                        {isParsingFile ? "جاري قراءة واستخراج سياق الملفات..." : "أفلت الملف هنا لتحليله كـ Context"}
+                      </h3>
+                      <p className="text-xs text-violet-200/80">سيتم دمج الأكواد البرمجية مباشرة في سياق ذاكرة AI Developer</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Messages Timeline */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                  {messages.length === 0 && !streamingContent && (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-16 space-y-4">
+                      <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-violet-600/20 via-indigo-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center shadow-2xl">
+                        <Bot className="h-10 w-10 text-violet-400 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-black text-zinc-100">NOQTA AI Developer Agent</h3>
+                        <p className="text-xs text-zinc-400 max-w-sm leading-relaxed">
+                          مرحباً بك في بيئة التطوير الذاتية. اكتب أي طلب برمجي أو خطة تحسين لبناء وتطوير تطبيق Indexes Store.
+                        </p>
+                      </div>
+
+                      {/* Suggestion Pills */}
+                      <div className="flex flex-wrap items-center justify-center gap-2 max-w-md pt-2">
+                        {quickSuggestions.map((sug, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setInputValue(sug);
+                              if (inputRef.current) inputRef.current.focus();
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-[#141418] hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 transition hover:border-violet-500/40 text-right"
+                          >
+                            💡 {sug}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Render Message List */}
+                  <AnimatePresence mode="popLayout">
+                    {messages.map((msg) => (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className={`flex gap-3 text-xs leading-relaxed ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold ${
+                          msg.role === "user" ? "bg-violet-600 text-white" : "bg-[#18181c] border border-zinc-800 text-violet-400"
+                        }`}>
+                          {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                        </div>
+
+                        <div className={`space-y-2 max-w-[85%] rounded-2xl p-4 border ${
+                          msg.role === "user"
+                            ? "bg-violet-950/30 border-violet-800/40 text-zinc-100"
+                            : "bg-[#141417] border-zinc-800/80 text-zinc-200 shadow-xl"
+                        }`}>
+                          <MarkdownContent content={msg.content} />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {/* Streaming Response Indicator */}
+                  {streamingContent && (
+                    <div className="flex gap-3 text-xs leading-relaxed">
+                      <div className="w-8 h-8 rounded-xl bg-[#18181c] border border-zinc-800 text-violet-400 flex items-center justify-center shrink-0">
+                        <Bot className="w-4 h-4 animate-spin" />
+                      </div>
+                      <div className="space-y-2 max-w-[85%] rounded-2xl p-4 border bg-[#141417] border-violet-500/30 text-zinc-200 shadow-xl">
+                        <MarkdownContent content={streamingContent} />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
                 </div>
-              ) : (
-                <div className="flex-1 min-h-[350px]">
+
+                {/* Attached Files Bar & Input Controller */}
+                <div className="p-3 bg-[#121215] border-t border-zinc-800/80 shrink-0 space-y-2">
+                  {attachedFiles.length > 0 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {attachedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-950/40 border border-violet-800/50 text-[11px] font-mono text-violet-300">
+                          <Paperclip className="w-3 h-3 shrink-0" />
+                          <span className="truncate max-w-[150px]">{file.fileName}</span>
+                          <button
+                            onClick={() => setAttachedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                            className="p-0.5 rounded hover:bg-violet-900/60 text-violet-400 hover:text-white"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Command Input Box */}
+                  <div className="relative flex items-center bg-[#18181c] border border-zinc-800 focus-within:border-violet-500/60 rounded-2xl p-2 shadow-2xl transition">
+                    <textarea
+                      ref={inputRef}
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      placeholder="اكتب طلبك الهندسي أو اطلب تعديل الأكواد البرمجية..."
+                      className="w-full bg-transparent border-none outline-none text-xs text-zinc-100 placeholder-zinc-500 resize-none h-12 py-1.5 px-2 custom-scrollbar"
+                    />
+
+                    <div className="flex items-center gap-1.5 shrink-0 px-1">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                        title="إرفاق ملف برلمجي كـ Context"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSend}
+                        disabled={!inputValue.trim() || isStreaming || !canSend}
+                        className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition disabled:opacity-30 shadow-lg shadow-violet-600/20"
+                      >
+                        {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </main>
+
+        {/* 👁️ RIGHT PANEL: Context & Inspection Tabs */}
+        <aside className={`hidden lg:flex flex-col border-r border-zinc-800/80 bg-[#0e0e11]/90 backdrop-blur-xl transition-all duration-300 z-20 shrink-0 ${
+          isRightPanelOpen ? "w-[400px]" : "w-12"
+        }`}>
+          {/* Header & Tabs */}
+          <div className="flex flex-col border-b border-zinc-800/80 bg-[#141417]/80">
+            <div className="h-10 flex items-center justify-between px-3 text-[11px] font-bold text-zinc-400">
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+                title={isRightPanelOpen ? "طي الشريط الأيمن" : "توسيع الشريط الأيمن"}
+              >
+                {isRightPanelOpen ? <ChevronRight className="h-4 w-4 rotate-180" /> : <Eye className="h-4 w-4 text-cyan-400" />}
+              </button>
+              {isRightPanelOpen && (
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  <button onClick={() => setRightContextTab("preview")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "preview" ? "bg-cyan-500/20 text-cyan-400" : "hover:bg-zinc-800"}`}>المعاينة</button>
+                  <button onClick={() => setRightContextTab("diff")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "diff" ? "bg-amber-500/20 text-amber-400" : "hover:bg-zinc-800"}`}>التغييرات</button>
+                  <button onClick={() => setRightContextTab("whatsapp_sync")} className={`px-2.5 py-1 rounded-lg transition ${rightContextTab === "whatsapp_sync" ? "bg-emerald-500/20 text-emerald-400" : "hover:bg-zinc-800 flex flex-col items-center gap-1"}`}>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WhatsApp Sync</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isRightPanelOpen ? (
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+              {rightContextTab === "preview" && (
+                <div className="space-y-4">
+                  <GleamDevicePreview activeRoute="/" projectName="INDEXES - LIVE" />
                   <LivePreviewCanvas
                     activeRoute="/"
                     buildPassed={buildValidation.passed}
@@ -1177,346 +1329,245 @@ function AIEngineeringAgentPage() {
                     isBuilding={isValidatingBuild}
                     onRefresh={() => validateBuildServerFn()}
                   />
+                  <GleamPerformancePanel lighthouseScore={98} buildTime="1.2s" securityPass={true} />
                 </div>
               )}
 
-              {/* Execution Journal Stream Panel */}
+              {rightContextTab === "diff" && (
+                <div className="flex flex-col h-full items-center justify-center text-center text-zinc-500 space-y-3">
+                  <FileCode className="h-10 w-10 text-zinc-700" />
+                  <p className="text-xs">لا يوجد تغييرات لعرضها حالياً.</p>
+                </div>
+              )}
+
+              {rightContextTab === "whatsapp_sync" && (
+                <div className="flex flex-col h-full bg-[#121215] border border-emerald-900/40 rounded-2xl p-4 space-y-4">
+                  <div className="flex items-center justify-between border-b border-emerald-900/30 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div className="text-right">
+                        <h4 className="text-xs font-bold text-emerald-300">WhatsApp Commerce Sync</h4>
+                        <p className="text-[10px] text-zinc-400">Agent Tool Architecture</p>
+                      </div>
+                    </div>
+                    <button className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition shadow-lg shadow-emerald-900/20">
+                      Force Sync
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-400">Status</span>
+                      <span className="text-emerald-400 font-mono font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> ONLINE</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-400">Last Synchronization</span>
+                      <span className="text-zinc-200 font-mono">14 mins ago</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-400">Products Synced</span>
+                      <span className="text-zinc-200 font-mono">1,432 / 1,432</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <p className="text-[10px] text-zinc-500 mb-2">Recent Meta Graph API Responses:</p>
+                    <div className="bg-[#09090b] border border-zinc-800 rounded-xl p-3 text-[10px] font-mono text-zinc-400 h-32 overflow-y-auto">
+                      <div className="text-emerald-400">{">"} [2026-07-28 14:15:22] SYNC_START</div>
+                      <div className="text-zinc-300">{">"} Request: POST /v18.0/catalog/products</div>
+                      <div className="text-cyan-400">{">"} Response: 200 OK</div>
+                      <div className="text-zinc-500">{">"} Body: {"{"} "id": "meta_123456", "status": "active" {"}"}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-3 gap-3 text-zinc-500">
+              <button onClick={() => setIsRightPanelOpen(true)} className="p-2 hover:bg-zinc-800 rounded-xl text-cyan-400">
+                <Eye className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+        </aside>
+
+      </div>
+
+      {/* ──────────────────────────────────────────────────────────────
+          3. Collapsible Bottom Console (Terminal, Agent Logs, Build, Errors)
+          ────────────────────────────────────────────────────────────── */}
+      <footer className={`border-t border-zinc-800/80 bg-[#0e0e11]/95 backdrop-blur-2xl transition-all duration-300 z-30 shrink-0 ${
+        isBottomConsoleOpen ? "h-56" : "h-9"
+      }`}>
+        {/* Bottom Bar Toggle & Tabs Header */}
+        <div className="h-9 border-b border-zinc-800/80 bg-[#141417] px-3 flex items-center justify-between text-xs font-bold text-zinc-400 select-none">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsBottomConsoleOpen((prev) => !prev)}
+              className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition me-1"
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${isBottomConsoleOpen ? "" : "rotate-180"}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setIsBottomConsoleOpen(true); setActiveConsoleTab("journal"); }}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                activeConsoleTab === "journal" ? "bg-violet-600/20 text-violet-300 font-black border border-violet-500/30" : "hover:text-white"
+              }`}
+            >
+              <History className="h-3.5 w-3.5 text-violet-400" />
+              سجل العمليات (Agent Logs)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setIsBottomConsoleOpen(true); setActiveConsoleTab("terminal"); }}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                activeConsoleTab === "terminal" ? "bg-violet-600/20 text-violet-300 font-black border border-violet-500/30" : "hover:text-white"
+              }`}
+            >
+              <FileCode className="h-3.5 w-3.5 text-amber-400" />
+              الطرفية (Terminal)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setIsBottomConsoleOpen(true); setActiveConsoleTab("build"); }}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                activeConsoleTab === "build" ? "bg-violet-600/20 text-violet-300 font-black border border-violet-500/30" : "hover:text-white"
+              }`}
+            >
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+              نتائج البناء ({buildValidation.errorCount})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-500">
+            <span>RAM: 124MB</span>
+            <span>Latency: 12ms</span>
+          </div>
+        </div>
+
+        {/* Console Body Content */}
+        {isBottomConsoleOpen && (
+          <div className="h-[calc(100%-36px)] overflow-y-auto p-3 custom-scrollbar bg-[#09090b] text-xs font-mono">
+            {activeConsoleTab === "journal" && (
               <ExecutionJournalPanel
                 logs={journalLogs}
                 persistentEvents={persistentEvents}
               />
-            </div>
-          ) : (
-            <div className="flex flex-col h-full overflow-hidden">
-          {/* Message Stream */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 && !streamingContent && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-3">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center">
-                  <Bot className="h-8 w-8 text-violet-400" />
-                </div>
-                <h3 className="text-base font-black text-zinc-100">Noqta AI Engineering Agent</h3>
-                <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
-                  اكتب أي استفسار أو طلب هندسي لتحليل الموقع وإنشاء خطة تطوير متكاملة.
-                </p>
+            )}
+
+            {activeConsoleTab === "terminal" && (
+              <div className="space-y-1.5 text-zinc-300">
+                <div className="text-emerald-400 font-bold">$ noqta-ai-agent --watch-mode</div>
+                <div className="text-zinc-500">[SYSTEM] Server Function hooks initialized cleanly.</div>
+                <div className="text-zinc-400">[BUILD] 0 compilation errors detected across active routes.</div>
+                <div className="text-violet-400 font-bold">$ ready for next engineering command...</div>
               </div>
             )}
 
-            <AnimatePresence mode="popLayout">
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-2"
-                >
-                  {msg.role === "user" ? (
-                    <div className="flex justify-start">
-                      <div className="bg-[#242429] border border-zinc-800 text-zinc-100 rounded-2xl px-4 py-3 text-sm max-w-[90%] font-medium shadow-sm">
-                        {msg.content}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 text-start">
-                      {/* Action Plan Pill inside chat stream matching image */}
-                      <button
-                        type="button"
-                        onClick={() => setShowContext(true)}
-                        className="w-full flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#1a1a1e] border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition group"
-                      >
-                        <span className="font-semibold text-zinc-200">
-                          {pendingTask ? `Plan (${pendingTask.taskId})` : "Engineering Plan Required"}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition" />
-                      </button>
-
-                      {/* AI Response Text */}
-                      <div className="text-sm text-zinc-200 leading-relaxed bg-transparent px-1">
-                        <MarkdownContent content={msg.content} />
-                      </div>
-
-                      {/* Message Action Toolbar (Reply, ThumbsUp, ThumbsDown, Copy, More) */}
-                      <div className="flex items-center gap-3 pt-1 text-zinc-500 text-xs px-1">
-                        <button type="button" className="hover:text-zinc-300 transition"><RotateCcw className="w-3.5 h-3.5" /></button>
-                        <button type="button" className="hover:text-zinc-300 transition"><ThumbsUp className="w-3.5 h-3.5" /></button>
-                        <button type="button" className="hover:text-zinc-300 transition"><ThumbsDown className="w-3.5 h-3.5" /></button>
-                        <button type="button" onClick={() => copyToClipboard(msg.content, msg.id)} className="hover:text-zinc-300 transition">
-                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Clipboard className="w-3.5 h-3.5" />}
-                        </button>
-                        <button type="button" className="hover:text-zinc-300 transition"><MoreHorizontal className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {/* Persistent & Live Execution Events Timeline Stream 📜 */}
-            {(isStreaming || persistentEvents.length > 0) && (
-              <div className="p-3.5 rounded-2xl bg-[#18181c] border border-zinc-800 space-y-2 text-xs font-mono shadow-md text-start my-2">
-                <div className="text-[11px] font-bold text-violet-400 flex items-center justify-between border-b border-zinc-800 pb-2 font-sans">
-                  <span className="flex items-center gap-1.5">
-                    {isStreaming ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                    ) : (
-                      <History className="w-3.5 h-3.5 text-emerald-400" />
-                    )}
-                    Persistent Execution History ({persistentEvents.length || agentEventsLog.length} events)
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold uppercase tracking-wider">
-                    {isStreaming ? (agentActivity?.status || "ANALYZING_REPOSITORY") : "COMPLETED_SESSION"}
-                  </span>
-                </div>
-                <div className="space-y-1.5 text-zinc-300 text-[11px] max-h-60 overflow-y-auto no-scrollbar">
-                  {((persistentEvents.length > 0 ? persistentEvents : agentEventsLog) as any[]).map((evt, idx, arr) => {
-                    const isLast = isStreaming && idx === arr.length - 1;
-                    const labelStr = evt.message || evt.label || "Execution Event";
-                    const timeStr = evt.createdAt
-                      ? new Date(evt.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-                      : evt.time || "--:--:--";
-
-                    return (
-                      <div key={evt.id || idx} className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {isLast ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" />
-                          ) : (
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          )}
-                          <span className={isLast ? "text-cyan-400 font-semibold" : "text-emerald-400 font-medium"}>
-                            {isLast ? "⏳" : "✓"} {labelStr}
-                          </span>
-                        </div>
-                        <span className="text-[9px] text-zinc-500 font-mono shrink-0">{timeStr}</span>
-                      </div>
-                    );
-                  })}
+            {activeConsoleTab === "build" && (
+              <div className="space-y-2">
+                <div className={`p-3 rounded-xl border ${
+                  buildValidation.passed ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-300" : "bg-rose-950/20 border-rose-800/40 text-rose-300"
+                }`}>
+                  <div className="font-bold flex items-center gap-2">
+                    {buildValidation.passed ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    {buildValidation.summary}
+                  </div>
                 </div>
               </div>
             )}
-            <div ref={chatEndRef} />
           </div>
+        )}
+      </footer>
 
-          {/* Security & Lovable Quick Suggestion Pills Horizontal Strip 💡 */}
-          <div className="p-2 border-t border-zinc-800/80 bg-[#121214] flex flex-col gap-2">
-            <div className="flex items-center justify-between px-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-[10px] flex items-center gap-1">
-                  <Shield className="h-3 w-3 text-red-400" />
-                  Security 4 Issues
-                </span>
-                <button
-                  type="button"
-                  onClick={() => toast.info("فحص الصلاحيات و Multi-Tenant Isolation مكتمل")}
-                  className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-semibold transition"
-                >
-                  View issues
-                </button>
-              </div>
+      {/* ──────────────────────────────────────────────────────────────
+          4. Mobile Responsive Floating Action Bar (<768px)
+          ────────────────────────────────────────────────────────────── */}
+      <div className="md:hidden fixed bottom-4 right-4 left-4 z-40 flex items-center justify-around bg-[#141417]/95 border border-zinc-800 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl">
+        <button
+          type="button"
+          onClick={() => setMobileDrawer(mobileDrawer === "files" ? null : "files")}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold transition ${
+            mobileDrawer === "files" ? "text-violet-400 bg-violet-500/20" : "text-zinc-400"
+          }`}
+        >
+          <FolderTree className="h-4 w-4" />
+          <span>الملفات</span>
+        </button>
 
-              <button
-                type="button"
-                onClick={() => toast.success("تم إغلاق واستبعاد الثغرات بنجاح ✨")}
-                className="px-2.5 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-bold transition shadow-xs"
-              >
-                Try to fix all
+        <button
+          type="button"
+          onClick={() => setMobileDrawer(mobileDrawer === "preview" ? null : "preview")}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold transition ${
+            mobileDrawer === "preview" ? "text-cyan-400 bg-cyan-500/20" : "text-zinc-400"
+          }`}
+        >
+          <Eye className="h-4 w-4" />
+          <span>المعاينة</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileDrawer(mobileDrawer === "logs" ? null : "logs")}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold transition ${
+            mobileDrawer === "logs" ? "text-amber-400 bg-amber-500/20" : "text-zinc-400"
+          }`}
+        >
+          <History className="h-4 w-4" />
+          <span>السجلات</span>
+        </button>
+      </div>
+
+      {/* Mobile Drawer Modals */}
+      {mobileDrawer && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end">
+          <div className="bg-[#121215] border-t border-zinc-800 rounded-t-3xl p-4 max-h-[80vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <h3 className="text-sm font-bold text-zinc-100">
+                {mobileDrawer === "files" ? "شجرة الملفات والجلسات" : mobileDrawer === "preview" ? "المعاينة الحية" : "سجلات النظام"}
+              </h3>
+              <button onClick={() => setMobileDrawer(null)} className="p-1 rounded-lg text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-              {["تحديد خيار المشروع", "مشاركة رابط المشروع", "AI Builder إنشاء مسار", "Agent اقتراح تكامل الـ"].map((pill, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => { setInputValue(pill); inputRef.current?.focus(); }}
-                  className="px-3 py-1.5 rounded-full bg-[#1e1e22] hover:bg-[#25252a] border border-zinc-800 text-zinc-300 hover:border-violet-500/50 whitespace-nowrap text-[11px] font-bold transition shrink-0"
-                >
-                  {pill}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Console Input Container — Exact Lovable IDE Style */}
-          <div className="p-3 bg-[#121214] border-t border-zinc-800/80">
-            <div className="bg-[#18181c] border border-zinc-800 rounded-2xl p-3 space-y-2 shadow-2xl">
-              {/* Top Tag & Real Backend Status Badge inside Input Box */}
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-semibold">
-                  Details
-                </span>
-                <span className={`px-2.5 py-0.5 rounded-md border font-mono font-semibold flex items-center gap-1.5 ${executionStageInfo.badgeColor}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                  {executionStageInfo.label}
-                </span>
-              </div>
-
-              {/* Attached Project File Cards — Drag & Drop Intelligence Preview 📄 */}
-              {attachedFiles.length > 0 && (
-                <div className="flex flex-col gap-2 p-2 bg-[#121215] border border-violet-500/30 rounded-xl dir-ltr">
-                  <div className="text-[10px] font-bold text-violet-300 flex items-center gap-1 font-mono">
-                    <FileCode className="h-3 w-3 text-cyan-400" />
-                    Attached Project Files Context ({attachedFiles.length}):
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {attachedFiles.map((file) => (
-                      <div
-                        key={file.path}
-                        className="flex flex-col gap-1 p-2 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-violet-500/50 text-xs font-mono max-w-full shadow-md transition"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <FileCode className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-                            <span className="font-bold text-zinc-100 truncate">{file.fileName}</span>
-                            <span className="text-[10px] text-zinc-500">
-                              ({file.lineCount} lines | {Math.round(file.size / 1024)} KB)
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedFile({
-                                  id: file.path,
-                                  name: file.fileName,
-                                  path: file.path,
-                                  type: "file",
-                                  language: file.language,
-                                  content: file.content,
-                                });
-                                setEditorCode(file.content);
-                              }}
-                              className="px-2 py-0.5 rounded-md bg-violet-600/30 hover:bg-violet-600/60 text-violet-200 text-[10px] font-semibold transition"
-                            >
-                              عرض
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setAttachedFiles((prev) => prev.filter((f) => f.path !== file.path))}
-                              className="p-1 text-zinc-500 hover:text-red-400 transition"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                        {file.dependencies.length > 0 && (
-                          <div className="flex items-center gap-1 text-[9px] text-zinc-500 flex-wrap pt-0.5 border-t border-zinc-800/60">
-                            <span className="text-zinc-400 font-bold">Related Imports:</span>
-                            {file.dependencies.slice(0, 4).map((dep, idx) => (
-                              <span key={idx} className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-mono">
-                                {dep.split("/").pop()}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Textarea Input */}
-              <textarea
-                ref={inputRef as any}
-                rows={2}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder={canSend ? "Ask Lovable / Indexes AI (Drag & Drop files anywhere)..." : "ليس لديك صلاحية الإرسال"}
-                disabled={!canSend || isStreaming}
-                className="w-full bg-transparent border-none text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed text-right"
+            {mobileDrawer === "files" && (
+              <GleamAccordionSidebar
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={(id) => { setActiveSessionId(id); setMobileDrawer(null); }}
+                activeFilePath={selectedFile.path}
+                onSelectFile={(file) => { setSelectedFile(file); setMobileDrawer(null); }}
+                pendingTask={pendingTask}
               />
+            )}
 
-              {/* Bottom Toolbar inside Input Box */}
-              <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="إرفاق ملف من الجهاز (Attach File)"
-                    className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition flex items-center gap-1 text-xs"
-                  >
-                    <Paperclip className="w-4 h-4 text-violet-400" />
-                    {attachedFiles.length > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full bg-violet-500 text-white text-[9px] font-bold">
-                        {attachedFiles.length}
-                      </span>
-                    )}
-                  </button>
-                </div>
+            {mobileDrawer === "preview" && (
+              <LivePreviewCanvas
+                activeRoute="/"
+                buildPassed={buildValidation.passed}
+                buildSummary={buildValidation.summary}
+                isBuilding={isValidatingBuild}
+                onRefresh={() => validateBuildServerFn()}
+              />
+            )}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleApproveTask}
-                    disabled={!executionStageInfo.canExecute}
-                    title={!executionStageInfo.canExecute ? executionStageInfo.helperMsg : "اعتماد وتنفيذ الخطة الهندسية"}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold cursor-pointer shadow-lg shadow-violet-600/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {isExecutingTask ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Executing Build...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-3.5 h-3.5 text-white fill-current" />
-                        <span>Build & Execute</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button type="button" className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                    <Mic className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={!inputValue.trim() || isStreaming || !canSend}
-                    className="p-2 text-white bg-zinc-200 hover:bg-white text-zinc-950 rounded-full transition disabled:opacity-30 shadow-md"
-                  >
-                    <Send className="w-3.5 h-3.5 text-zinc-950" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Explicit Execution Helper Message when Disabled */}
-              {!executionStageInfo.canExecute && (
-                <div className="pt-1.5 text-start border-t border-zinc-800/40">
-                  <p className="text-[10px] text-amber-400/90 font-medium flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-                    {executionStageInfo.helperMsg}
-                  </p>
-                </div>
-              )}
-            </div>
+            {mobileDrawer === "logs" && (
+              <ExecutionJournalPanel
+                logs={journalLogs}
+                persistentEvents={persistentEvents}
+              />
+            )}
           </div>
         </div>
       )}
-    </div>
-
-        {/* 📁 Right Column (3 Cols): Gleam Accordion Sidebar (Project Context, Sessions, Project Explorer) */}
-        <div className="lg:col-span-3 min-w-0">
-          <GleamAccordionSidebar
-            sessions={sessions}
-            activeSessionId={activeSessionId}
-            onSelectSession={(id) => setActiveSessionId(id)}
-            activeFilePath={selectedFile.path}
-            onSelectFile={(file) => {
-              setSelectedFile(file);
-              if (file.content) setEditorCode(file.content);
-            }}
-            pendingTask={pendingTask}
-          />
-        </div>
-      </div>
 
 
       {/* Command Palette Modal */}
