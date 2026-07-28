@@ -910,7 +910,7 @@ function AIEngineeringAgentPage() {
   // ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="font-sans bg-[#09090b] text-zinc-100 min-h-screen flex flex-col h-screen overflow-hidden text-start" dir="rtl">
+    <div className="fixed inset-0 z-[100] font-sans bg-[#09090b] text-zinc-100 flex flex-col h-screen w-screen overflow-hidden text-start" dir="rtl">
       {/* ──────────────────────────────────────────────────────────────
           1. Fixed Top Header Bar — IDE Toolbar
           ────────────────────────────────────────────────────────────── */}
@@ -1028,6 +1028,15 @@ function AIEngineeringAgentPage() {
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">جلسة جديدة</span>
           </button>
+
+          {/* Close IDE Button */}
+          <Link
+            to="/admin"
+            className="p-1.5 mr-1 rounded-xl bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30 transition"
+            title="إغلاق البيئة والعودة للوحة التحكم"
+          >
+            <X className="h-4 w-4" />
+          </Link>
         </div>
       </header>
 
