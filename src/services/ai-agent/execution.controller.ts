@@ -288,6 +288,19 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     };
   }
 
+  // Gen 2 Agentic Engine: Create Sandbox Snapshot before executing edits
+  const { createSandboxSnapshot, executeAutomaticRollback } = await import("./sandbox-recovery");
+  await createSandboxSnapshot(taskId, ["src/routes/admin.ai-developer.tsx"]);
+  await savePersistentExecutionEvent({
+    sessionId: sessionId || "default",
+    taskId,
+    tenantId: tenantId || "default",
+    eventType: "STATE_CHANGE",
+    state: AgentTaskState.EXECUTING,
+    message: "🛡️ Sandbox Snapshot created — Auto-Rollback active",
+    progress: 65,
+  }, db);
+
   try {
     const res = (await executeApprovedTask({ data: { taskId } })) as any;
 
@@ -314,8 +327,14 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
 
       return { success: true, output: res.buildOutput };
     } else {
+      // Trigger Automatic Rollback on failure
+      const rollbackResult = await executeAutomaticRollback(taskId);
+      const rollbackMsg = rollbackResult.success
+        ? ` (🔄 Auto-Rollback restored ${rollbackResult.restoredFiles.length} files)`
+        : "";
+
       const errDetails: AgentExecutionError = {
-        message: res?.failureDetails?.reason || res?.buildOutput || "Verification / Build Error",
+        message: (res?.failureDetails?.reason || res?.buildOutput || "Verification / Build Error") + rollbackMsg,
         stack: res?.failureDetails?.stack,
         stdout: res?.failureDetails?.stdout,
         stderr: res?.failureDetails?.stderr,
@@ -329,7 +348,7 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
         action: "EXECUTION_FAILED",
         tool: "startExecution",
         input: { taskId },
-        output: { status: "build_failed", failureDetails: errDetails },
+        output: { status: "build_failed", failureDetails: errDetails, rollback: rollbackResult },
         status: "FAILED",
       }, db);
 

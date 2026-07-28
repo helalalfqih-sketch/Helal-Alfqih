@@ -519,18 +519,46 @@ export async function runAgentEngine(input: AgentEngineInput): Promise<void> {
     }
   };
 
-  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, "✓ Inspecting routes, services & DB migrations...", 20));
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, "✓ Inspecting routes, services & DB migrations...", 10));
+
+  // Gen 1 Base Code Intel & Decision Engine
   const { getProjectContextForAgent } = await import("./code-intelligence.service");
   const { analyzeEngineeringRequest, generateTechnicalDecision } = await import("./reasoning.engine");
-  
+
+  // Gen 2 Agentic Engine 1: Workspace Memory & Knowledge Graph
+  const { getWorkspaceKnowledgeGraph } = await import("./workspace-memory.service");
+  const workspaceGraph = await getWorkspaceKnowledgeGraph(tenantId);
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, `✓ Workspace Memory Loaded (Knowledge Graph Score: ${workspaceGraph.architectureScore}/100)`, 20));
+
+  // Gen 2 Agentic Engine 2: Context Compression Engine
+  const { buildCompressedContextWindow } = await import("./context-engine");
+  const compressedContext = await buildCompressedContextWindow(message);
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, `✓ Context Engine: Compressed context window (-${compressedContext.reductionPercentage}% tokens)`, 30));
+
+  // Gen 2 Agentic Engine 3: Architecture Audit & Health Scorer
+  const { auditProjectArchitecture } = await import("./architecture.service");
+  const archReport = await auditProjectArchitecture();
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.ANALYZING_REPOSITORY, `✓ Architecture Health Score: ${archReport.score}/100 (${archReport.metrics.totalRoutes} routes, ${archReport.metrics.totalDbTables} tables)`, 35));
+
+  // Gen 2 Agentic Engine 4: Multi-Layer Task Decomposition
+  const { decomposeUserRequest } = await import("./task-decomposer");
+  const decomposedPlan = decomposeUserRequest(message);
+  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, `✓ Task Decomposed across ${decomposedPlan.layersCount} Architecture Layers`, 40));
+
+  // Gen 2 Agentic Engine 5: Multi-Agent Orchestration (Planner, Architect, Backend, Frontend, Reviewer)
+  const { runMultiAgentPipeline } = await import("./multi-agent.engine");
+  const multiAgentResult = await runMultiAgentPipeline(input.sessionId, message);
+  for (const subAgent of multiAgentResult.agentResults) {
+    dispatchPersistentEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, `✓ ${subAgent.outputMessage}`, 45));
+  }
+
   const dynamicCodeIntel = await getProjectContextForAgent(tenantId, message);
   const baseContext = await buildProjectPromptContext(tenantId);
   const reasoningReport = await analyzeEngineeringRequest(message, []);
   const decisionSummary = await generateTechnicalDecision(reasoningReport);
 
-  const projectContext = `${baseContext}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
+  const projectContext = `${baseContext}\n\n${compressedContext.summary}\n\n${dynamicCodeIntel}\n\n${decisionSummary}`;
 
-  dispatchPersistentEvent(makeProgressEvent(AgentTaskState.CREATING_PLAN, "✓ Generating complete engineering plan...", 45));
   // Search Long-Term Task Memory for relevant past solutions
   const { searchTaskMemory } = await import("./agent.tasks");
   const pastMemories = await searchTaskMemory(tenantId, message, 3);
