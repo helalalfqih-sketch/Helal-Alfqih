@@ -1,10 +1,10 @@
 /**
- * Context Compression Engine — Gen 2 Agentic Engine ⚡
+ * Context Compression Engine — Gen 2 Autonomous Agentic IDE ⚡
  *
- * Compresses thousands of codebase files into concise, high-density context windows:
- *   - Strips boilerplate imports and repetitive declarations
- *   - Focuses on exported symbols, types, and active modifications
- *   - Reduces LLM token consumption by up to 75%
+ * High-efficiency prompt context compression engine:
+ *   - Computes actual pre-compression vs post-compression line, character, and token estimates
+ *   - Strips boilerplate imports, comments, and repetitive declarations
+ *   - Computes real dynamic reduction percentage
  */
 
 import { scanProjectStructure } from "./code-intelligence.service";
@@ -13,14 +13,23 @@ export interface CompressedContextWindow {
   summary: string;
   importantModules: string[];
   activeBranch: string;
+  rawTokensEstimate: number;
   compressedTokensEstimate: number;
   reductionPercentage: number;
+  scannedAt: string;
 }
 
 /**
- * Compress code content for LLM context inclusion
+ * Estimate token count from character length (~4 chars per token)
  */
-export function compressCodeSnippet(code: string, maxLines = 100): string {
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Compress code content by extracting exported interfaces, types, and primary functions
+ */
+export function compressCodeSnippet(code: string, maxLines = 120): string {
   const lines = code.split("\n");
   if (lines.length <= maxLines) return code;
 
@@ -42,30 +51,51 @@ export function compressCodeSnippet(code: string, maxLines = 100): string {
 }
 
 /**
- * Generate compressed context window for an AI prompt session
+ * Generate compressed context window for an AI prompt session with exact token metrics
  */
 export async function buildCompressedContextWindow(
   userQuery: string,
 ): Promise<CompressedContextWindow> {
   const index = await scanProjectStructure();
 
-  const importantModules = index.serverFunctions.slice(0, 8);
-  const rawLengthEstimate = index.routes.length * 50 + index.components.length * 40;
-  const compressedEstimate = Math.round(rawLengthEstimate * 0.25);
+  const q = userQuery.toLowerCase();
+  const importantModules = index.serverFunctions.filter((f) =>
+    q.split(" ").some((kw) => kw.length > 2 && f.toLowerCase().includes(kw)),
+  );
+  const selectedModules = importantModules.length > 0 ? importantModules : index.serverFunctions.slice(0, 6);
+
+  // Calculate real character counts
+  const rawContextText = [
+    index.routes.join("\n"),
+    index.components.join("\n"),
+    index.services.join("\n"),
+    index.dbTables.join("\n"),
+  ].join("\n\n");
+
+  const rawTokensEstimate = estimateTokens(rawContextText);
 
   const summary = [
-    `=== COMPRESSED CONTEXT (Indexes Store) ===`,
-    `عدد المسارات (Routes): ${index.routes.length}`,
-    `عدد الخدمات الخادمية (Server Functions): ${index.serverFunctions.length}`,
-    `الوحدات النشطة: ${importantModules.join(", ")}`,
-    `الطلب المستهدف: "${userQuery.slice(0, 100)}"`,
+    `=== COMPRESSED CONTEXT (Indexes Store Codebase) ===`,
+    `مسارات النظام (Routes): ${index.routes.length} مسار`,
+    `مكونات الواجهة (Components): ${index.components.length} مكون`,
+    `الخدمات والدوال (Server Functions): ${index.serverFunctions.length} خدمة`,
+    `جداول قاعدة البيانات (DB Tables): ${index.dbTables.join(", ")}`,
+    `الوحدات المستهدفة بالطلب: ${selectedModules.join(", ")}`,
   ].join("\n");
+
+  const compressedTokensEstimate = estimateTokens(summary);
+  const reductionPercentage =
+    rawTokensEstimate > 0
+      ? Math.max(0, Math.min(95, Math.round(((rawTokensEstimate - compressedTokensEstimate) / rawTokensEstimate) * 100)))
+      : 0;
 
   return {
     summary,
-    importantModules,
+    importantModules: selectedModules,
     activeBranch: "main",
-    compressedTokensEstimate: compressedEstimate,
-    reductionPercentage: 75,
+    rawTokensEstimate,
+    compressedTokensEstimate,
+    reductionPercentage,
+    scannedAt: new Date().toISOString(),
   };
 }

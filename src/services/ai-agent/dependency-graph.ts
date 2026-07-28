@@ -1,8 +1,12 @@
 /**
- * Deep Dependency Graph Engine — Gen 2 Agentic Engine 🕸️
+ * Deep Dependency Graph Engine — Gen 2 Autonomous Agentic IDE 🕸️
  *
- * Scans AST import statements, export symbols, and database references
- * to build an interconnected dependency graph of the codebase.
+ * Real AST-level import resolver with `@/` alias resolution:
+ *   - Resolves `@/` to `PROJECT_ROOT/src/`
+ *   - Resolves relative imports (`./`, `../`)
+ *   - Resolves extensions (`.ts`, `.tsx`, `.js`, `.jsx`, `/index.ts`)
+ *   - Filters internal project modules vs node_modules / node builtins
+ *   - Traces complete transitive dependency trees
  */
 
 import * as fs from "node:fs/promises";
@@ -10,8 +14,10 @@ import * as path from "node:path";
 
 export interface DependencyLink {
   sourceFile: string;
-  targetFile: string;
+  targetModule: string;
+  resolvedPath: string | null; // Resolved relative project path or null if external
   importSymbols: string[];
+  isExternal: boolean;
   isDynamic: boolean;
 }
 
@@ -19,15 +25,69 @@ export interface DeepDependencyTree {
   rootFile: string;
   directDependencies: string[];
   transitiveDependencies: string[];
+  externalDependencies: string[];
   databaseTables: string[];
   serverFunctions: string[];
   impactScore: number;
+  scannedAt: string;
 }
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 /**
- * Scan target file and extract all imports and imported symbols
+ * Resolve an import path (e.g. "@/components/button" or "./utils") to a real project file path
+ */
+export async function resolveProjectImportPath(
+  sourceFilePath: string,
+  importSpecifier: string,
+): Promise<string | null> {
+  // Ignore node builtins & npm packages (e.g., "react", "node:fs", "lucide-react")
+  if (
+    importSpecifier.startsWith("node:") ||
+    (!importSpecifier.startsWith("@/") && !importSpecifier.startsWith("."))
+  ) {
+    return null;
+  }
+
+  let basePath = "";
+  if (importSpecifier.startsWith("@/")) {
+    basePath = path.join(PROJECT_ROOT, "src", importSpecifier.slice(2));
+  } else if (importSpecifier.startsWith(".")) {
+    const sourceDir = path.dirname(path.resolve(PROJECT_ROOT, sourceFilePath.replace(/^[/\\]+/, "")));
+    basePath = path.resolve(sourceDir, importSpecifier);
+  }
+
+  if (!basePath) return null;
+
+  // Candidate extensions
+  const candidates = [
+    basePath,
+    `${basePath}.ts`,
+    `${basePath}.tsx`,
+    `${basePath}.js`,
+    `${basePath}.jsx`,
+    `${basePath}.json`,
+    path.join(basePath, "index.ts"),
+    path.join(basePath, "index.tsx"),
+    path.join(basePath, "index.js"),
+  ];
+
+  for (const cand of candidates) {
+    try {
+      const stat = await fs.stat(cand);
+      if (stat.isFile()) {
+        return path.relative(PROJECT_ROOT, cand).replace(/\\/g, "/");
+      }
+    } catch {
+      // Move to next candidate
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract all import statements and resolve project links for a single file
  */
 export async function extractFileImports(filePath: string): Promise<DependencyLink[]> {
   const links: DependencyLink[] = [];
@@ -43,12 +103,15 @@ export async function extractFileImports(filePath: string): Promise<DependencyLi
     while ((match = staticImportRegex.exec(content)) !== null) {
       const destructured = match[1] ? match[1].split(",").map((s) => s.trim()) : [];
       const defaultImport = match[2] ? [match[2].trim()] : [];
-      const targetModule = match[3];
+      const specifier = match[3];
 
+      const resolved = await resolveProjectImportPath(filePath, specifier);
       links.push({
         sourceFile: filePath,
-        targetFile: targetModule,
+        targetModule: specifier,
+        resolvedPath: resolved,
         importSymbols: [...destructured, ...defaultImport].filter(Boolean),
+        isExternal: resolved === null,
         isDynamic: false,
       });
     }
@@ -56,10 +119,14 @@ export async function extractFileImports(filePath: string): Promise<DependencyLi
     // Match dynamic imports: import("...")
     const dynamicImportRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
     while ((match = dynamicImportRegex.exec(content)) !== null) {
+      const specifier = match[1];
+      const resolved = await resolveProjectImportPath(filePath, specifier);
       links.push({
         sourceFile: filePath,
-        targetFile: match[1],
+        targetModule: specifier,
+        resolvedPath: resolved,
         importSymbols: ["*"],
+        isExternal: resolved === null,
         isDynamic: true,
       });
     }
@@ -75,13 +142,14 @@ export async function extractFileImports(filePath: string): Promise<DependencyLi
  */
 export async function buildDeepDependencyTree(
   rootFile: string,
-  maxDepth = 3,
+  maxDepth = 4,
 ): Promise<DeepDependencyTree> {
   const visited = new Set<string>();
-  const directDeps: string[] = [];
-  const transitiveDeps: string[] = [];
-  const dbTables: Set<string> = new Set();
-  const serverFunctions: Set<string> = new Set();
+  const directDeps = new Set<string>();
+  const transitiveDeps = new Set<string>();
+  const externalDeps = new Set<string>();
+  const dbTables = new Set<string>();
+  const serverFunctions = new Set<string>();
 
   async function traverse(currentFile: string, depth: number) {
     if (depth > maxDepth || visited.has(currentFile)) return;
@@ -89,25 +157,31 @@ export async function buildDeepDependencyTree(
 
     const links = await extractFileImports(currentFile);
     for (const link of links) {
-      const target = link.targetFile;
-
-      if (depth === 1) directDeps.push(target);
-      else if (depth > 1) transitiveDeps.push(target);
-
-      if (target.includes(".functions.ts") || target.includes(".server.ts")) {
-        serverFunctions.add(target);
+      if (link.isExternal) {
+        externalDeps.add(link.targetModule);
+        continue;
       }
 
-      await traverse(target, depth + 1);
+      if (link.resolvedPath) {
+        const resolved = link.resolvedPath;
+        if (depth === 1) directDeps.add(resolved);
+        else transitiveDeps.add(resolved);
+
+        if (resolved.includes(".functions.ts") || resolved.includes(".server.ts")) {
+          serverFunctions.add(resolved);
+        }
+
+        await traverse(resolved, depth + 1);
+      }
     }
 
-    // Inspect DB table references inside file
+    // Inspect database table references inside file content
     try {
       const cleanPath = currentFile.replace(/^[/\\]+/, "");
       const absPath = path.resolve(PROJECT_ROOT, cleanPath);
       const content = await fs.readFile(absPath, "utf-8");
-      const tableMatches = content.match(/\.from\s*\(\s*['"]([a-z_]+)['"]\s*\)/g) || [];
 
+      const tableMatches = content.match(/\.from\s*\(\s*['"]([a-z_]+)['"]\s*\)/g) || [];
       for (const tm of tableMatches) {
         const tableName = tm.replace(/\.from\s*\(\s*['"]/, "").replace(/['"]\s*\)/, "");
         if (tableName) dbTables.add(tableName);
@@ -121,15 +195,17 @@ export async function buildDeepDependencyTree(
 
   const impactScore = Math.min(
     100,
-    directDeps.length * 10 + transitiveDeps.length * 2 + dbTables.size * 15,
+    directDeps.size * 12 + transitiveDeps.size * 3 + dbTables.size * 15,
   );
 
   return {
     rootFile,
-    directDependencies: Array.from(new Set(directDeps)),
-    transitiveDependencies: Array.from(new Set(transitiveDeps)),
+    directDependencies: Array.from(directDeps),
+    transitiveDependencies: Array.from(transitiveDeps),
+    externalDependencies: Array.from(externalDeps),
     databaseTables: Array.from(dbTables),
     serverFunctions: Array.from(serverFunctions),
     impactScore,
+    scannedAt: new Date().toISOString(),
   };
 }

@@ -288,16 +288,20 @@ export async function startExecution(options: ExecutionControllerOptions): Promi
     };
   }
 
-  // Gen 2 Agentic Engine: Create Sandbox Snapshot before executing edits
+  // Gen 2 Agentic Engine: Create Sandbox Snapshot for ALL affected project files
   const { createSandboxSnapshot, executeAutomaticRollback } = await import("./sandbox-recovery");
-  await createSandboxSnapshot(taskId, ["src/routes/admin.ai-developer.tsx"]);
+  const targetSnapshotFiles: string[] = Array.isArray(approvedTask?.affected_files) && approvedTask.affected_files.length > 0
+    ? approvedTask.affected_files
+    : ["src/routes/admin.ai-developer.tsx", "src/services/ai-agent/execution.controller.ts"];
+
+  const snapshot = await createSandboxSnapshot(taskId, targetSnapshotFiles);
   await savePersistentExecutionEvent({
     sessionId: sessionId || "default",
     taskId,
     tenantId: tenantId || "default",
     eventType: "STATE_CHANGE",
     state: AgentTaskState.EXECUTING,
-    message: "🛡️ Sandbox Snapshot created — Auto-Rollback active",
+    message: `🛡️ Sandbox Snapshot created for ${Object.keys(snapshot.files).length} files — Auto-Rollback active`,
     progress: 65,
   }, db);
 
