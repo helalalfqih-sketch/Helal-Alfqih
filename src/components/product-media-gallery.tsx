@@ -4,12 +4,13 @@
  * Dynamic media gallery for the product detail page.
  *
  * Features:
- * - Shows all images from product.images[] as thumbnails
- * - Shows video thumbnails for each URL in product.videos[]
- * - Shows Mux video if product.videoPlaybackId exists
- * - Opens video in a full-screen modal player
- * - If no video exists, shows "Request Video" button that inserts into product_video_requests
- * - Keeps SSR/hydration safe (no window access in initial render)
+ * - Shows all images and videos together in the same carousel / thumbnail strip
+ * - Video support: MP4/WebM URL, Mux playback ID, poster image, controls enabled, autoplay disabled
+ * - Video thumbnail with play icon overlay
+ * - Fallback: maps video_playback_id or direct video URLs when product_media relation is absent
+ * - Opens video in a full-screen modal player if requested
+ * - If no video exists, shows "Request Video" button
+ * - Keeps SSR/hydration safe and preserves RTL design
  */
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +23,7 @@ import {
   Video,
   ChevronLeft,
   ChevronRight,
+  Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -35,8 +37,8 @@ import { requestProductVideo } from "@/lib/video-request.functions";
 
 type MediaItem =
   | { kind: "image"; url: string; index: number }
-  | { kind: "video-url"; url: string; index: number }
-  | { kind: "video-mux"; playbackId: string }
+  | { kind: "video-url"; url: string; poster?: string; index: number }
+  | { kind: "video-mux"; playbackId: string; poster?: string }
   | { kind: "3d"; modelSrc: string; poster: string };
 
 interface Props {
@@ -46,6 +48,12 @@ interface Props {
     image: string;
     images?: string[] | null;
     videos?: string[] | null;
+    media?: Array<{
+      type: "image" | "video";
+      url: string;
+      poster?: string | null;
+      playbackId?: string | null;
+    }> | null;
     videoPlaybackId?: string | null;
   };
 }
@@ -55,75 +63,117 @@ interface Props {
 /* ------------------------------------------------------------------ */
 
 /** Returns true if the URL looks like a direct video file or stream */
-function isVideoUrl(url: string): boolean {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  // Common video extensions
-  if (/\.(mp4|webm|ogg|mov|avi|mkv|m3u8)(\?.*)?$/.test(lower)) return true;
-  // Mux stream URLs
+function isVideoUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false;
+  const lower = url.trim().toLowerCase();
+  if (/\.(mp4|webm|ogg|mov|avi|mkv|m3u8)(\?.*)?$/i.test(lower)) return true;
   if (lower.includes("stream.mux.com") || lower.includes("player.mux.com")) return true;
-  // YouTube / Vimeo embeds
-  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return true;
-  if (lower.includes("vimeo.com")) return true;
+  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com")) return true;
+  if (lower.startsWith("data:video/")) return true;
   return false;
 }
 
-/** Extract Mux playback ID from a stream.mux.com URL */
-function extractMuxId(url: string): string | null {
-  const m = url.match(/stream\.mux\.com\/([A-Za-z0-9]+)/);
-  return m ? m[1] : null;
+/** Extract Mux playback ID from a stream.mux.com URL or string */
+function extractMuxId(url?: string | null): string | null {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  const m = trimmed.match(/(?:stream\.mux\.com\/|player\.mux\.com\/|mux\.com\/)([A-Za-z0-9]+)/);
+  if (m) return m[1];
+  if (!trimmed.includes("http") && !trimmed.includes("/") && /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
 }
 
 function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] {
   const items: MediaItem[] = [];
+  const seenUrls = new Set<string>();
 
-  // Split images[] into actual images vs video URLs
-  const allUrls =
+  let imgCounter = 0;
+  let vidCounter = 0;
+  const defaultPoster = product.image || (product.images && product.images[0]) || "";
+
+  // 1. Process explicit media array if provided
+  if (Array.isArray(product.media) && product.media.length > 0) {
+    for (const item of product.media) {
+      if (!item || !item.url || seenUrls.has(item.url)) continue;
+      seenUrls.add(item.url);
+
+      if (item.type === "video" || isVideoUrl(item.url)) {
+        const muxId = item.playbackId || extractMuxId(item.url);
+        if (muxId) {
+          items.push({
+            kind: "video-mux",
+            playbackId: muxId,
+            poster: item.poster || defaultPoster,
+          });
+        } else {
+          items.push({
+            kind: "video-url",
+            url: item.url,
+            poster: item.poster || defaultPoster,
+            index: vidCounter++,
+          });
+        }
+      } else {
+        items.push({
+          kind: "image",
+          url: item.url,
+          index: imgCounter++,
+        });
+      }
+    }
+  }
+
+  // 2. Process images[] array
+  const allImages =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images
       : [product.image].filter(Boolean);
 
-  let imgCounter = 0;
-  let vidCounter = 0;
+  for (const url of allImages) {
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
 
-  for (const url of allUrls) {
     if (isVideoUrl(url)) {
       const muxId = extractMuxId(url);
       if (muxId) {
-        items.push({ kind: "video-mux", playbackId: muxId });
+        items.push({ kind: "video-mux", playbackId: muxId, poster: defaultPoster });
       } else {
-        items.push({ kind: "video-url", url, index: vidCounter++ });
+        items.push({ kind: "video-url", url, poster: defaultPoster, index: vidCounter++ });
       }
     } else {
       items.push({ kind: "image", url, index: imgCounter++ });
     }
   }
 
-  // Explicit videos[] array (direct URLs, not in images)
+  // 3. Process explicit videos[] array
   const explicitVids = Array.isArray(product.videos) ? product.videos.filter(Boolean) : [];
   for (const url of explicitVids) {
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
     const muxId = extractMuxId(url);
     if (muxId) {
-      items.push({ kind: "video-mux", playbackId: muxId });
+      items.push({ kind: "video-mux", playbackId: muxId, poster: defaultPoster });
     } else {
-      items.push({ kind: "video-url", url, index: vidCounter++ });
+      items.push({ kind: "video-url", url, poster: defaultPoster, index: vidCounter++ });
     }
   }
 
-  // Mux videoPlaybackId field (classic Mux integration)
+  // 4. Process Mux videoPlaybackId field
   if (product.videoPlaybackId) {
-    // Avoid duplicate if already added from images[]
-    const alreadyAdded = items.some(
-      (m) => m.kind === "video-mux" && m.playbackId === product.videoPlaybackId
-    );
-    if (!alreadyAdded) {
-      items.push({ kind: "video-mux", playbackId: product.videoPlaybackId });
+    const muxId = extractMuxId(product.videoPlaybackId) || product.videoPlaybackId;
+    const vUrl = `https://stream.mux.com/${muxId}.m3u8`;
+    if (!seenUrls.has(vUrl) && !items.some((m) => m.kind === "video-mux" && m.playbackId === muxId)) {
+      seenUrls.add(vUrl);
+      const poster = `https://image.mux.com/${muxId}/thumbnail.webp`;
+      items.push({ kind: "video-mux", playbackId: muxId, poster });
     }
   }
 
-  // 3D model
+  // 5. 3D model
   if (has3D) {
-    items.push({ kind: "3d", modelSrc: modelFor(product.id)!, poster: product.image });
+    items.push({ kind: "3d", modelSrc: modelFor(product.id)!, poster: defaultPoster });
   }
 
   return items;
@@ -135,10 +185,8 @@ function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] 
 
 /** Convert watch URL → embed URL for YouTube/Vimeo */
 function toEmbedUrl(url: string): string | null {
-  // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;
-  // Vimeo
   const vmMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vmMatch) return `https://player.vimeo.com/video/${vmMatch[1]}?autoplay=1`;
   return null;
@@ -183,13 +231,15 @@ function VideoModal({
           <X className="h-4 w-4" />
         </button>
 
-        <div className="aspect-video w-full bg-black">
+        <div className="aspect-video w-full bg-black flex items-center justify-center">
           {isDirectVideo ? (
             <video
               src={src}
-              autoPlay
+              autoPlay={false}
               controls
-              className="h-full w-full"
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-contain"
               title={title}
             />
           ) : embedUrl ? (
@@ -229,9 +279,7 @@ export function ProductMediaGallery({ product }: Props) {
 
   const mediaList = buildMediaList(product, has3D);
   const imageItems = mediaList.filter((m) => m.kind === "image") as Extract<MediaItem, { kind: "image" }>[];
-  const hasAnyVideo =
-    (Array.isArray(product.videos) && product.videos.length > 0) ||
-    !!product.videoPlaybackId;
+  const hasAnyVideo = mediaList.some((m) => m.kind === "video-url" || m.kind === "video-mux");
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [videoModal, setVideoModal] = useState<{ src?: string; muxId?: string } | null>(null);
@@ -284,26 +332,68 @@ export function ProductMediaGallery({ product }: Props) {
                 alt={product.name}
               />
             </motion.div>
-          ) : activeItem?.kind === "video-url" || activeItem?.kind === "video-mux" ? (
+          ) : activeItem?.kind === "video-url" ? (
             <motion.div
-              key="video-thumb"
+              key={`video-url-${activeItem.url}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative h-full w-full flex items-center justify-center bg-black"
+            >
+              {!toEmbedUrl(activeItem.url) ? (
+                <video
+                  src={activeItem.url}
+                  poster={activeItem.poster || product.image}
+                  controls
+                  autoPlay={false}
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <div
+                  className="relative h-full w-full flex items-center justify-center cursor-pointer group"
+                  onClick={() => setVideoModal({ src: activeItem.url })}
+                >
+                  <OptimizedImage
+                    src={activeItem.poster || product.image}
+                    alt={product.name}
+                    size="large"
+                    className="h-full w-full object-cover opacity-50 group-hover:opacity-40 transition"
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/90 shadow-2xl shadow-primary/40 group-hover:scale-110 transition-transform">
+                      <Play className="h-8 w-8 fill-white text-white ms-1" />
+                    </div>
+                    <span className="rounded-full bg-black/60 px-4 py-1 text-xs font-bold text-white backdrop-blur-sm">
+                      انقر لتشغيل الفيديو
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* Fullscreen Expand Button */}
+              <button
+                onClick={() => setVideoModal({ src: activeItem.url })}
+                className="absolute top-3 end-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
+                aria-label="توسيع الفيديو"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+            </motion.div>
+          ) : activeItem?.kind === "video-mux" ? (
+            <motion.div
+              key={`video-mux-${activeItem.playbackId}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="relative h-full w-full flex items-center justify-center bg-black cursor-pointer group"
-              onClick={() => {
-                if (activeItem.kind === "video-url") {
-                  setVideoModal({ src: (activeItem as Extract<MediaItem, { kind: "video-url" }>).url });
-                } else {
-                  setVideoModal({ muxId: (activeItem as Extract<MediaItem, { kind: "video-mux" }>).playbackId });
-                }
-              }}
+              onClick={() => setVideoModal({ muxId: activeItem.playbackId })}
             >
               <OptimizedImage
-                src={product.image}
+                src={activeItem.poster || `https://image.mux.com/${activeItem.playbackId}/thumbnail.webp`}
                 alt={product.name}
                 size="large"
-                className="h-full w-full object-cover opacity-40 group-hover:opacity-30 transition"
+                className="h-full w-full object-cover opacity-50 group-hover:opacity-40 transition"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/90 shadow-2xl shadow-primary/40 group-hover:scale-110 transition-transform">
@@ -407,21 +497,24 @@ export function ProductMediaGallery({ product }: Props) {
             }
 
             if (item.kind === "video-url" || item.kind === "video-mux") {
+              const posterSrc = item.poster || product.image;
               return (
                 <button
                   key={`vid-${idx}`}
                   onClick={() => setActiveIndex(idx)}
-                  className={`${baseClass} bg-black flex items-center justify-center`}
+                  className={`${baseClass} bg-black flex items-center justify-center group`}
                   aria-label="فيديو المنتج"
                 >
                   <OptimizedImage
-                    src={product.image}
+                    src={posterSrc}
                     alt="فيديو"
                     size="thumbnail"
-                    className="absolute inset-0 h-full w-full object-cover opacity-30"
+                    className="absolute inset-0 h-full w-full object-cover opacity-60 group-hover:opacity-40 transition"
                   />
-                  <Play className="relative z-10 h-5 w-5 fill-white text-white" />
-                  <span className="absolute bottom-1 right-1 rounded-sm bg-black/70 px-1 text-[8px] font-bold text-white">
+                  <div className="relative z-10 grid h-7 w-7 place-items-center rounded-full bg-primary/90 text-white shadow-md">
+                    <Play className="h-3.5 w-3.5 fill-white text-white ms-0.5" />
+                  </div>
+                  <span className="absolute bottom-1 right-1 rounded-md bg-black/80 px-1 py-0.5 text-[8px] font-bold text-white">
                     فيديو
                   </span>
                 </button>

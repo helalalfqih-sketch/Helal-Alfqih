@@ -14,7 +14,9 @@
  * When Phase C completes, the fallback branch is removed and this file
  * becomes a pure DTO mapper.
  */
-import type { ProductDTO, CategoryDTO } from "@/lib/domain/product";
+import type { ProductDTO, CategoryDTO, ProductMediaItem } from "@/lib/domain/product";
+export type { ProductMediaItem };
+
 import type { CategoryWithMetaDTO } from "@/lib/repositories/categories.repo";
 import {
   products as seedProducts,
@@ -35,6 +37,13 @@ const seedToProductDTO = (p: SeedProduct): ProductDTO => ({
   category_id: p.categoryId,
   brand: null,
   images: [p.image],
+  videos: p.videoPlaybackId ? [p.videoPlaybackId] : [],
+  media: [
+    { type: "image", url: p.image },
+    ...(p.videoPlaybackId
+      ? [{ type: "video" as const, url: p.videoPlaybackId, playbackId: p.videoPlaybackId }]
+      : []),
+  ],
   model_url: null,
   stock: p.stock,
   reserved_stock: 0,
@@ -100,6 +109,8 @@ export type LegacyProductShape = {
   images?: string[];
   /** Direct video URLs (mp4/webm) — separate from Mux videoPlaybackId */
   videos?: string[] | null;
+  /** Complete media list (images + videos with posters) */
+  media?: ProductMediaItem[] | null;
   rating: number;
   reviews: number;
   categoryId: string;
@@ -149,6 +160,7 @@ export const toLegacyProduct = (p: ProductDTO): LegacyProductShape => ({
   image: p.images[0] ?? "",
   images: p.images,
   videos: p.videos ?? null,
+  media: p.media ?? null,
   rating: p.rating,
   reviews: p.reviews_count,
   categoryId: p.category_id ?? "",

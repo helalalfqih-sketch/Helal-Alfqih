@@ -219,6 +219,7 @@ function ProductPage() {
                 image: product.image,
                 images: product.images,
                 videos: product.videos,
+                media: product.media,
                 videoPlaybackId: product.videoPlaybackId,
               }}
             />

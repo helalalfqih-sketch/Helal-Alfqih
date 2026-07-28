@@ -12,7 +12,7 @@ import type { Database } from "@/integrations/supabase/types";
 import type { ProductDTO } from "@/lib/domain/product";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabase } from "@/integrations/supabase/client";
-import { productsRepo, type ProductFilters } from "@/lib/repositories/products.repo";
+import { productsRepo, buildProductMediaAndVideos, type ProductFilters } from "@/lib/repositories/products.repo";
 import { categoriesRepo } from "@/lib/repositories/categories.repo";
 import { inventoryRepo } from "@/lib/repositories/inventory.repo";
 import { generateText } from "ai";
@@ -233,6 +233,12 @@ async function fetchCsvProducts() {
       // Categories mapping
       const categoryName = productTypeIdx >= 0 ? (row[productTypeIdx] || "").trim() : "أخرى";
       const categoryId = slugify(categoryName, "other");
+      const rawLink = linkIdx >= 0 ? (row[linkIdx] || "").trim() : null;
+
+      const { images: cleanImages, videos: cleanVideos, media: cleanMedia } = buildProductMediaAndVideos({
+        images: images.filter(Boolean),
+        source_url: rawLink,
+      });
 
       products.push({
         id: externalId || `product-${r}`,
@@ -243,7 +249,9 @@ async function fetchCsvProducts() {
         compare_at_price: compareAtPrice,
         cost_price: costPrice > 0 ? costPrice : null,
         currency: currency || "YER",
-        images: images.filter(Boolean),
+        images: cleanImages,
+        videos: cleanVideos,
+        media: cleanMedia,
         stock,
         reserved_stock: 0,
         rating: 5,
@@ -255,7 +263,7 @@ async function fetchCsvProducts() {
         brand: (brandIdx >= 0 ? (row[brandIdx] || "").trim() : "") || null,
         availability: (availIdx >= 0 ? (row[availIdx] || "").trim() : "") || null,
         condition: (condIdx >= 0 ? (row[condIdx] || "").trim() : "") || null,
-        source_url: (linkIdx >= 0 ? (row[linkIdx] || "").trim() : "") || null,
+        source_url: rawLink || null,
         sku: skuIdx >= 0 ? (row[skuIdx] || "").trim() || null : null,
         barcode: barcodeIdx >= 0 ? (row[barcodeIdx] || "").trim() || null : null,
         category_id: categoryId,
@@ -371,45 +379,50 @@ export const getProductsByIds = createServerFn({ method: "GET" })
 
     // Inline DTO mapper — mirrors productsRepo toDTO without an extra DB call
     type Row = Database["public"]["Tables"]["products"]["Row"];
-    const rowToDTO = (r: Row): ProductDTO => ({
-      id: r.id,
-      slug: r.slug,
-      name: r.name,
-      description: r.description ?? "",
-      price: Number(r.price),
-      currency: r.currency,
-      category_id: r.category_id,
-      brand: r.brand,
-      images: r.images ?? [],
-      model_url: r.model_url,
-      stock: r.stock,
-      reserved_stock: r.reserved_stock,
-      rating: Number(r.rating),
-      reviews_count: r.reviews_count,
-      tags: r.tags ?? [],
-      is_published: r.is_published,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-      video_playback_id: r.video_playback_id,
-      old_price: r.old_price != null ? Number(r.old_price) : null,
-      badge: r.badge,
-      sku: r.sku,
-      barcode: r.barcode,
-      compare_at_price: r.compare_at_price != null ? Number(r.compare_at_price) : null,
-      cost_price: r.cost_price != null ? Number(r.cost_price) : null,
-      model_3d_url: r.model_3d_url,
-      model_3d_thumbnail: r.model_3d_thumbnail,
-      model_3d_status: r.model_3d_status,
-      availability: r.availability,
-      condition: r.condition,
-      source_url: r.source_url,
-      meta_sync_status: r.meta_sync_status,
-      // V3 CMS fields
-      featured: r.featured ?? false,
-      is_deal: r.is_deal ?? false,
-      deal_start: r.deal_start ?? null,
-      deal_end: r.deal_end ?? null,
-    });
+    const rowToDTO = (r: Row): ProductDTO => {
+      const { images, videos, media } = buildProductMediaAndVideos(r);
+      return {
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        description: r.description ?? "",
+        price: Number(r.price),
+        currency: r.currency,
+        category_id: r.category_id,
+        brand: r.brand,
+        images,
+        videos,
+        media,
+        model_url: r.model_url,
+        stock: r.stock,
+        reserved_stock: r.reserved_stock,
+        rating: Number(r.rating),
+        reviews_count: r.reviews_count,
+        tags: r.tags ?? [],
+        is_published: r.is_published,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        video_playback_id: r.video_playback_id,
+        old_price: r.old_price != null ? Number(r.old_price) : null,
+        badge: r.badge,
+        sku: r.sku,
+        barcode: r.barcode,
+        compare_at_price: r.compare_at_price != null ? Number(r.compare_at_price) : null,
+        cost_price: r.cost_price != null ? Number(r.cost_price) : null,
+        model_3d_url: r.model_3d_url,
+        model_3d_thumbnail: r.model_3d_thumbnail,
+        model_3d_status: r.model_3d_status,
+        availability: r.availability,
+        condition: r.condition,
+        source_url: r.source_url,
+        meta_sync_status: r.meta_sync_status,
+        // V3 CMS fields
+        featured: r.featured ?? false,
+        is_deal: r.is_deal ?? false,
+        deal_start: r.deal_start ?? null,
+        deal_end: r.deal_end ?? null,
+      };
+    };
 
     // Partition: UUIDs → primary key; non-UUIDs → external_id / slug
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

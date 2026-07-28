@@ -1,3 +1,10 @@
+export type ProductMediaItem = {
+  type: "image" | "video";
+  url: string;
+  poster?: string | null;
+  playbackId?: string | null;
+};
+
 export type ProductDTO = {
   id: string;
   slug: string;
@@ -9,6 +16,7 @@ export type ProductDTO = {
   brand: string | null;
   images: string[];
   videos?: string[] | null;
+  media?: ProductMediaItem[] | null;
   model_url: string | null;
   stock: number;
   reserved_stock: number;
