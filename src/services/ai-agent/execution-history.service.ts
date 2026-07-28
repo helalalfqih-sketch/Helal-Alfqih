@@ -10,7 +10,7 @@
  *   - Error logs
  */
 
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface ExecutionHistoryRecord {
   id?: string;
@@ -36,7 +36,7 @@ export async function recordExecutionHistory(
   entry: ExecutionHistoryRecord,
 ): Promise<ExecutionHistoryRecord | null> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("ai_execution_history")
       .insert({
@@ -75,7 +75,7 @@ export async function listExecutionHistory(
   limit = 20,
 ): Promise<ExecutionHistoryRecord[]> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("ai_execution_history")
       .select("*")

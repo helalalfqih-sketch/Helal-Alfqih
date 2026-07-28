@@ -152,6 +152,8 @@ function AIEngineeringAgentPage() {
     riskLevel: string;
     status?: string;
     diffs?: Record<string, string>;
+    planHash?: string;
+    revision?: number;
   } | null>(null);
   const [agentActivity, setAgentActivity] = useState<{
     status: string;
@@ -829,7 +831,13 @@ function AIEngineeringAgentPage() {
 
     try {
       // 1. approvePlan(taskId)
-      await approveTaskServerFn({ data: { taskId: taskIdToRun } });
+      await approveTaskServerFn({ 
+        data: { 
+          taskId: taskIdToRun,
+          planHash: pendingTask?.planHash || "hash_pending",
+          revision: pendingTask?.revision || 1
+        } 
+      });
       
       // 2. startExecution Controller Orchestrator
       const res = (await startExecutionFn({ data: { taskId: taskIdToRun, sessionId: activeSessionId || "default" } })) as any;

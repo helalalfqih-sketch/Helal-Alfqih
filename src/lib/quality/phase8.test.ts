@@ -53,7 +53,7 @@ async function runPhase8Tests() {
 
   // Test 5: AI Code Review Agent
   console.log("⚙️ [5/7] Testing AI Code Review Agent...");
-  const review = analyzeCodeChange("src/routes/product.$slug.tsx", "const db = await getAdminDb({});");
+  const review = analyzeCodeChange("src/routes/product.$slug.tsx", "const db = await getAgentDb({});");
   console.log(`✅ Code Review Result: ${review.reviewSummary} | RLS Check: ${review.securityRLSCheck}`);
 
   // Test 6: Migration Safety Engine

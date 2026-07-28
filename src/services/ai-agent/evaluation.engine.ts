@@ -9,7 +9,7 @@
  *   - Final Score (0 - 100)
  */
 
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface EvaluationReport {
   taskId: string;
@@ -102,7 +102,7 @@ export async function evaluateTaskExecution(params: {
 
   // Persist into DB
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_agent_evaluations").insert({
       tenant_id: tenantId,
       task_id: taskId,
@@ -125,7 +125,7 @@ export async function evaluateTaskExecution(params: {
  */
 export async function getAgentPerformance(tenantId: string): Promise<AgentPerformanceOverview> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data: evals = [] } = await (db as any)
       .from("ai_agent_evaluations")
       .select("*")

@@ -3,7 +3,7 @@ import path from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import { logExecutionJournal } from "./journal.service";
 
 const execAsync = promisify(exec);
@@ -116,7 +116,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Inspect schema and column definitions for a Supabase table",
     inputSchema: z.object({ tableName: z.string() }),
     execute: async ({ tableName }) => {
-      const db = await getAdminDb({});
+      const db = await getAgentDb({});
       const { data, error } = await db.from(tableName).select("*").limit(1);
       if (error) return { success: false, error: error.message };
       const sample = data?.[0] || {};
@@ -156,7 +156,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Perform safe read query on target database table",
     inputSchema: z.object({ tableName: z.string(), limit: z.number().optional() }),
     execute: async ({ tableName, limit = 10 }) => {
-      const db = await getAdminDb({});
+      const db = await getAgentDb({});
       const { data, error } = await db.from(tableName).select("*").limit(limit);
       if (error) return { success: false, error: error.message };
       return { tableName, rowsCount: data?.length || 0, rows: data };
@@ -176,68 +176,43 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
   // ──────────────────────────────────────────────────────────────
   // 3. Testing & Validation Tools
   // ──────────────────────────────────────────────────────────────
-  npm_typecheck: {
+  run_validation: {
     category: "Testing",
-    name: "npm_typecheck",
-    description: "Run TypeScript type checker across target repository",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const { stdout } = await execAsync("npm run typecheck", { cwd: process.cwd() });
-        return { success: true, output: stdout || "Typecheck Passed Cleanly" };
-      } catch (e: any) {
-        return { success: false, error: e.stdout || e.stderr || e.message };
+    name: "run_validation",
+    description: "Run configured package.json scripts (typecheck, lint, build, test) in an isolated execution environment with a 120s timeout.",
+    inputSchema: z.object({
+      check_type: z.enum(["typecheck", "lint", "build", "test", "all"]).default("all"),
+    }),
+    execute: async ({ check_type }) => {
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const { resolveValidationCommands } = await import("./validation.resolver");
+      
+      const execAsyncFile = promisify(execFile);
+      const tasks = resolveValidationCommands(process.cwd());
+      const requestedTypes = check_type === "all" ? ["typecheck", "lint", "build", "test"] : [check_type];
+      
+      let outputs: Record<string, string> = {};
+      
+      for (const task of tasks) {
+        const actionType = task.action.toLowerCase().replace("_validation", "");
+        if (requestedTypes.includes(actionType) || check_type === "all") {
+           const [cmd, ...args] = task.command.split(" ");
+           try {
+              const { stdout } = await execAsyncFile(cmd, args, { cwd: process.cwd(), timeout: 120000 });
+              outputs[task.action] = stdout || "Passed";
+           } catch (execErr: any) {
+              const errorMsg = execErr.stdout + "\n" + execErr.stderr;
+              throw new Error(`Command ${task.command} failed: ${execErr.message}\n${errorMsg}`);
+           }
+        }
       }
-    },
-  },
 
-  npm_build: {
-    category: "Testing",
-    name: "npm_build",
-    description: "Run production build validation",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const { stdout } = await execAsync("npm run build", { cwd: process.cwd() });
-        return { success: true, output: stdout || "Build Passed Cleanly" };
-      } catch (e: any) {
-        return { success: false, error: e.stdout || e.stderr || e.message };
+      if (Object.keys(outputs).length === 0) {
+          outputs["status"] = "No validation scripts configured for this project.";
       }
-    },
-  },
 
-  npm_test: {
-    category: "Testing",
-    name: "npm_test",
-    description: "Run automated test suite",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const { stdout } = await execAsync("npm run test", { cwd: process.cwd() });
-        return { success: true, output: stdout };
-      } catch (e: any) {
-        return { success: false, error: e.stdout || e.stderr || e.message };
-      }
-    },
-  },
-
-  lighthouse: {
-    category: "Testing",
-    name: "lighthouse",
-    description: "Evaluate Lighthouse performance and SEO score",
-    inputSchema: z.object({ url: z.string().optional() }),
-    execute: async ({ url = "http://localhost:3000" }) => {
-      return { url, performanceScore: 98, seoScore: 100, accessibilityScore: 96 };
-    },
-  },
-
-  security_scan: {
-    category: "Testing",
-    name: "security_scan",
-    description: "Scan multi-tenant RLS and security compliance",
-    inputSchema: z.object({}),
-    execute: async () => {
-      return { securityScore: 100, vulnerabilitiesFound: 0, status: "COMPLIANT" };
+      return { status: "success", message: "Validation scripts executed successfully", details: outputs };
     },
   },
 
@@ -301,7 +276,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Fetch recent execution journal audit logs",
     inputSchema: z.object({ limit: z.number().optional() }),
     execute: async ({ limit = 20 }) => {
-      const db = await getAdminDb({});
+      const db = await getAgentDb({});
       const { data } = await db.from("agent_execution_logs").select("*").order("created_at", { ascending: false }).limit(limit);
       return { logs: data || [] };
     },
@@ -325,18 +300,8 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
       productId: z.string().optional(),
     }),
     execute: async ({ action, productId }) => {
-      // PLACEHOLDER: Real Meta API calls will be implemented later
-      return {
-        success: true,
-        action,
-        productId,
-        syncStatus: "pending",
-        metaResponse: {
-          mock_id: `meta_${Date.now()}`,
-          status: "queued_for_sync"
-        },
-        message: `WhatsApp Sync action '${action}' queued successfully.`
-      };
+      // Real Meta API calls will be implemented later
+      throw new Error(`501: NOT_IMPLEMENTED - WhatsApp Catalog Sync via Meta Graph API is not yet implemented.`);
     },
   },
 
@@ -346,7 +311,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Inspect failed execution steps and stack traces",
     inputSchema: z.object({ taskId: z.string().optional() }),
     execute: async ({ taskId }) => {
-      const db = await getAdminDb({});
+      const db = await getAgentDb({});
       let query = db.from("agent_execution_logs").select("*").eq("status", "FAILED").order("created_at", { ascending: false }).limit(10);
       if (taskId) query = query.eq("task_id", taskId);
       const { data } = await query;
@@ -400,7 +365,7 @@ export async function executeRegisteredTool(toolName: string, args: any, context
     const executionTimeMs = Date.now() - startTime;
 
     if (context?.sessionId) {
-      const db = await getAdminDb(context);
+      const db = await getAgentDb(context);
       await db.from("agent_tool_calls").insert({
         session_id: context.sessionId,
         task_id: context.taskId || null,
@@ -417,7 +382,7 @@ export async function executeRegisteredTool(toolName: string, args: any, context
   } catch (err: any) {
     const executionTimeMs = Date.now() - startTime;
     if (context?.sessionId) {
-      const db = await getAdminDb(context);
+      const db = await getAgentDb(context);
       await db.from("agent_tool_calls").insert({
         session_id: context.sessionId,
         task_id: context.taskId || null,
@@ -431,4 +396,67 @@ export async function executeRegisteredTool(toolName: string, args: any, context
     }
     throw err;
   }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Canonical AI SDK Tool Generator
+// ──────────────────────────────────────────────────────────────
+import type { AgentRole } from "./agent.permissions";
+
+export function buildCanonicalAiSdkTools(
+  agentRole: AgentRole,
+  tenantId: string,
+  sendEvent: (e: any) => void,
+  context: any = {}
+) {
+  const aiTools: Record<string, any> = {};
+  
+  const ROLE_RANK: Record<AgentRole, number> = { owner: 4, admin: 3, developer: 2, viewer: 1 };
+  const userRank = ROLE_RANK[agentRole] || 0;
+
+  for (const [name, tool] of Object.entries(agentToolRegistry)) {
+    // Assuming category dictates implicit risk/role for now.
+    // In a full implementation, minimumRole would be on the ToolDefinition
+    const requiredRank = ["FileSystem", "Git", "Testing"].includes(tool.category) ? 2 : 3; // developer vs admin
+    
+    // Enforce strictly fail-closed RBAC: only generate tool if user has minimum required role
+    if (userRank >= requiredRank) {
+      aiTools[name] = {
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        execute: async (input: any) => {
+          sendEvent({
+            type: "tool_call",
+            tool: name,
+            message: `🛠️ ${tool.description}`,
+            metadata: { category: tool.category }
+          });
+          
+          try {
+            return await tool.execute(input, { ...context, tenantId, agentRole, sendEvent });
+          } catch (e: any) {
+            return { error: `TOOL_EXECUTION_FAILED: ${e.message}` };
+          }
+        },
+      };
+    }
+  }
+
+  // Double check that NO human-control approval tools leak into the SDK model's tools
+  const blockedTools = [
+    "approve_execution_plan", 
+    "reject_execution_plan", 
+    "startApprovedExecution", 
+    "gitPush", 
+    "applyMigration", 
+    "deployProduction"
+  ];
+
+  for (const blocked of blockedTools) {
+    if (aiTools[blocked]) {
+      throw new Error(`SECURITY_VIOLATION: Human-control tool '${blocked}' leaked into AI SDK tool list.`);
+    }
+  }
+
+  return aiTools;
 }

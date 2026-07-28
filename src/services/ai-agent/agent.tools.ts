@@ -18,7 +18,7 @@ import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isProtectedPath, canInspectRows, SENSITIVE_TABLES } from "./agent.policy";
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import {
   generateFileDiff,
   validateDiff,
@@ -257,7 +257,7 @@ export async function inspectDatabase(
   }
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
 
     // Fetch column info from information_schema
     const { data: cols, error: colErr } = await (db as any).rpc("get_table_columns", {

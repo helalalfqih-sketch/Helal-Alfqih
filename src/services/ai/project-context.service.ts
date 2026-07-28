@@ -4,7 +4,7 @@
  * Provides permanent memory for Indexes Store architecture, frameworks, database schema,
  * rules, and instructions. Supports full Multi-Tenant isolation with Supabase RLS.
  */
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface ProjectContextData {
   id?: string;
@@ -79,7 +79,7 @@ const DEFAULT_PROJECT_CONTEXT: Omit<ProjectContextData, "tenant_id"> = {
 /** Get or initialize Project Context for a tenant */
 export async function getProjectContext(tenantId: string = "default"): Promise<ProjectContextData> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await db
       .from("ai_project_context")
       .select("*")
@@ -111,7 +111,7 @@ export async function seedDefaultProjectContext(tenantId: string = "default"): P
   };
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await db
       .from("ai_project_context")
       .upsert(
@@ -157,7 +157,7 @@ export async function updateProjectContext(
   };
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data } = await db
       .from("ai_project_context")
       .upsert(

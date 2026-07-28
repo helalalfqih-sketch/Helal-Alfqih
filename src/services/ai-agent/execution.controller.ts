@@ -1,4 +1,4 @@
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import { savePersistentExecutionEvent, logExecutionJournal, hasExecutionStartedLog, type AgentExecutionError } from "./journal.service";
 import { AgentTaskState } from "./agent.state";
 
@@ -10,38 +10,9 @@ export interface ExecutionControllerOptions {
   skipPlanCheck?: boolean;
 }
 
-export async function approvePlan(options: ExecutionControllerOptions): Promise<{ success: boolean; taskId: string }> {
-  const db = await getAdminDb({});
-  const { taskId, tenantId, sessionId } = options;
-
-  try {
-    await db
-      .from("ai_agent_tasks")
-      .update({
-        status: "executing",
-        user_approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", taskId);
-  } catch (e) {
-    console.warn("[ExecutionController] approvePlan update warning:", e);
-  }
-
-  await savePersistentExecutionEvent({
-    sessionId: sessionId || "default",
-    taskId,
-    tenantId: tenantId || "default",
-    eventType: "STATE_CHANGE",
-    state: AgentTaskState.WAITING_APPROVAL,
-    message: "✓ Engineering plan approved. Execution controller initialized.",
-    progress: 55,
-  });
-
-  return { success: true, taskId };
-}
 
 export async function verifyProjectStructure(options: ExecutionControllerOptions): Promise<{ success: boolean; details?: any }> {
-  const db = await getAdminDb(options);
+  const db = await getAgentDb(options);
   const { taskId, tenantId, sessionId } = options;
 
   try {
@@ -146,132 +117,73 @@ export async function verifyProjectStructure(options: ExecutionControllerOptions
 
 export async function startExecution(options: ExecutionControllerOptions): Promise<{ success: boolean; output?: string; failureDetails?: any }> {
   const { executeApprovedTask } = await import("@/lib/ai-agent.functions");
-  const db = await getAdminDb(options);
+  const db = await getAgentDb(options);
   const { taskId, tenantId, sessionId } = options;
 
   console.log("[EXECUTION_CONTROLLER] START", { taskId, sessionId, tenantId });
 
-  // Mandatory Plan Approval Guard
-  const cleanSessionId = sessionId || taskId.replace(/^task-/, "");
-  const validUuid = cleanSessionId.replace(/^task-/, "");
-
-  // Auto-sync plan & task approval state in database
-  try {
-    const nowIso = new Date().toISOString();
-    await db.from("ai_agent_plans").upsert({
-      id: validUuid,
-      session_id: validUuid,
-      tenant_id: tenantId || "default",
-      objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
-      status: "APPROVED",
-      approved_at: nowIso,
-      created_at: nowIso,
-    }, { onConflict: "id" });
-
-    await db.from("ai_agent_tasks").upsert({
-      id: taskId,
-      session_id: validUuid,
-      tenant_id: tenantId || "default",
+  // 1. Strict Atomic Execution Lock
+  // Only transition if the status is exactly 'approved'. 
+  // If it's already 'executing' or 'queued', this update will return no rows or fail.
+  const { data: updatedTask, error: lockErr } = await db
+    .from("ai_agent_tasks")
+    .update({ 
       status: "executing",
-      user_approved_at: nowIso,
-      updated_at: nowIso,
-    }, { onConflict: "id" });
-  } catch (err) {
-    console.warn("[EXECUTION_CONTROLLER] Non-fatal DB approval sync warning:", err);
-  }
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", taskId)
+    .eq("tenant_id", tenantId)
+    .eq("status", "approved")
+    .select("id, approved_plan_hash, approved_revision, approved_by")
+    .maybeSingle();
 
-  let isApproved = false;
-  let approvedPlan: any = null;
-  let approvedTask: any = null;
-  try {
-    const { data: pData } = await db
-      .from("ai_agent_plans")
-      .select("id, session_id, status, approved_at, tenant_id")
-      .or(`id.eq.${validUuid},session_id.eq.${validUuid}`)
-      .eq("status", "APPROVED")
-      .maybeSingle();
-    approvedPlan = pData;
-
-    const { data: tData } = await db
+  if (lockErr || !updatedTask) {
+    // Determine the actual state to return a precise error
+    const { data: currentTask } = await db
       .from("ai_agent_tasks")
-      .select("id, user_approved_at, status, plan_id, tenant_id")
-      .or(`id.eq.${taskId},id.eq.${validUuid},session_id.eq.${validUuid}`)
+      .select("status")
+      .eq("id", taskId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
-    approvedTask = tData;
 
-    isApproved = Boolean(approvedPlan || approvedTask?.user_approved_at || approvedTask?.status === "executing");
-  } catch (err: any) {
-    console.warn("[DIAGNOSTIC_EXECUTION] Read error:", err?.message);
-    isApproved = true; // Fallback to true after sync attempt
-  }
+    if (!currentTask) {
+      return { success: false, output: "Task not found", failureDetails: { errorType: "TASK_NOT_FOUND" } };
+    }
 
-  console.log("[DEBUG_EXECUTION_LOOKUP]", {
-    incoming_task_id: taskId,
-    incoming_session_id: sessionId,
-    task_record: approvedTask?.id ?? null,
-    task_status: approvedTask?.status ?? null,
-    plan_record: approvedPlan?.id ?? null,
-    plan_status: approvedPlan?.status ?? null
-  });
+    if (currentTask.status === "executing" || currentTask.status === "queued") {
+      return { success: false, output: "EXECUTION_ALREADY_STARTED", failureDetails: { errorType: "EXECUTION_ALREADY_STARTED" } };
+    }
 
-  console.log("[DEBUG_EXECUTION_GUARD_RESULT]", {
-    approved_found: Boolean(approvedPlan && approvedPlan.status === "APPROVED"),
-    execution_allowed: isApproved
-  });
-
-  console.log("[DEBUG_EXECUTION_GUARD]", {
-    guard_result: isApproved ? "PASSED" : "BLOCKED",
-    blocked_reason: isApproved ? null : "Engineering plan approval required",
-  });
-  console.log("[ExecutionLookup]", { lookupResult: { taskId, cleanSessionId, validUuid, isApproved, approvedTask, approvedPlan } });
-  console.log("[DIAGNOSTIC_EXECUTION] Pre-check read results", {
-    taskId,
-    cleanSessionId,
-    validUuid,
-    taskStatusFromDb: approvedTask?.status || null,
-    planStatusFromDb: approvedPlan?.status || null,
-    approvalFieldNameChecked: "user_approved_at / status",
-    userApprovedAtVal: approvedTask?.user_approved_at || null,
-    planRelationUsed: `id.eq.${validUuid} OR session_id.eq.${validUuid}`,
-    isApprovedResult: isApproved,
-  });
-
-  if (!isApproved && !options.skipPlanCheck) {
-    console.warn("[EXECUTION_CONTROLLER] Execution blocked: Engineering plan approval required for task", taskId);
-    return {
-      success: false,
-      output: "Execution blocked: Engineering plan approval required",
-      failureDetails: {
-        reason: "Execution blocked: Engineering plan approval required",
-        errorType: "PLAN_REQUIRED",
-      },
+    return { 
+      success: false, 
+      output: "PLAN_CHANGED_REAPPROVAL_REQUIRED", 
+      failureDetails: { errorType: "PLAN_CHANGED_REAPPROVAL_REQUIRED" } 
     };
   }
 
-  // 1. Deduplication guard — prevent duplicate EXECUTION_STARTED logs
-  const alreadyStarted = await hasExecutionStartedLog(taskId, db);
-  if (!alreadyStarted) {
-    // 2. Atomic initialization: Log EXECUTION_STARTED as PENDING
-    await logExecutionJournal({
-      taskId,
-      tenantId: tenantId || "default",
-      action: "EXECUTION_STARTED",
-      tool: "startExecution",
-      input: { taskId, sessionId },
-      output: { status: "started" },
-      status: "PENDING",
-    }, db);
+  // At this point, we hold the lock.
+  const approvedTask = updatedTask;
 
-    await savePersistentExecutionEvent({
-      sessionId: sessionId || "default",
-      taskId,
-      tenantId: tenantId || "default",
-      eventType: "STATE_CHANGE",
-      state: AgentTaskState.EXECUTING,
-      message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
-      progress: 60,
-    }, db);
-  }
+  // 2. Atomic initialization: Log EXECUTION_STARTED as PENDING
+  await logExecutionJournal({
+    taskId,
+    tenantId: tenantId || "default",
+    action: "EXECUTION_STARTED",
+    tool: "startExecution",
+    input: { taskId, sessionId, revision: approvedTask.approved_revision, hash: approvedTask.approved_plan_hash },
+    output: { status: "started" },
+    status: "PENDING",
+  }, db);
+
+  await savePersistentExecutionEvent({
+    sessionId: sessionId || "default",
+    taskId,
+    tenantId: tenantId || "default",
+    eventType: "STATE_CHANGE",
+    state: AgentTaskState.EXECUTING,
+    message: "⚙️ Executing tasks via Execution Controller Orchestrator...",
+    progress: 60,
+  }, db);
 
   // Project Verification Step
   const verificationResult = await verifyProjectStructure(options);
@@ -407,7 +319,7 @@ export async function resumeExecution(options: ExecutionControllerOptions): Prom
 }
 
 export async function cancelExecution(options: ExecutionControllerOptions): Promise<{ success: boolean }> {
-  const db = await getAdminDb({});
+  const db = await getAgentDb({});
   const { taskId, tenantId, sessionId } = options;
 
   try {

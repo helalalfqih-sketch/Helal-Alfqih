@@ -7,7 +7,7 @@
  * Persists to ai_agent_tasks table with Multi-Tenant RLS.
  */
 
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import type { AgentPlanStep } from "./agent.events";
 
 // ─────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export interface AgentPlan {
 
 export async function saveArchitecturalPlan(plan: AgentPlan): Promise<AgentPlan> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const payload = {
       session_id: plan.sessionId,
       tenant_id: plan.tenantId || "default",
@@ -171,7 +171,7 @@ export async function createAgentTask(params: {
   };
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { error } = await (db as any)
       .from("ai_agent_tasks")
       .insert({
@@ -230,7 +230,7 @@ export async function updateTaskStatus(
   if (extras?.diffs)           updatePayload.diffs = extras.diffs;
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_agent_tasks").update(updatePayload).eq("id", taskId);
   } catch (e) {
     console.warn("[AgentTask] Failed to update task status:", e);
@@ -243,7 +243,7 @@ export async function updateTaskStatus(
 
 export async function getAgentTask(taskId: string): Promise<AgentTask | null> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("ai_agent_tasks")
       .select("*")
@@ -280,7 +280,7 @@ export async function rejectTask(taskId: string, reason?: string): Promise<void>
 
 export async function saveTaskMemory(entry: TaskMemoryEntry): Promise<void> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_task_memory").insert({
       tenant_id: entry.tenant_id,
       task_id: entry.task_id,
@@ -307,7 +307,7 @@ export async function searchTaskMemory(
   limit = 5,
 ): Promise<TaskMemoryEntry[]> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data } = await (db as any)
       .from("ai_task_memory")
       .select("*")

@@ -7,7 +7,7 @@
  *   - Architectural flow tracing between routes, services, tables, and RLS policies
  */
 
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import { scanProjectStructure } from "./code-intelligence.service";
 import { auditProjectArchitecture } from "./architecture.service";
 
@@ -102,7 +102,7 @@ export async function buildRealKnowledgeGraph(tenantId: string): Promise<Workspa
 
   // Persist to Supabase
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_project_context").upsert(
       {
         tenant_id: tenantId,
@@ -131,7 +131,7 @@ export async function getWorkspaceKnowledgeGraph(tenantId: string): Promise<Work
   }
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data } = await (db as any)
       .from("ai_project_context")
       .select("*")
@@ -148,10 +148,11 @@ export async function getWorkspaceKnowledgeGraph(tenantId: string): Promise<Work
       memoryCache[tenantId] = graph;
       return graph;
     }
-  } catch {
-    // Database query failed, fallback to scan
+  } catch (e: any) {
+    throw new Error(`500: Failed to fetch workspace knowledge graph: ${e.message}`);
   }
 
+  // If no DB record exists, we explicitly trigger a new scan
   return buildRealKnowledgeGraph(tenantId);
 }
 
@@ -176,7 +177,7 @@ export async function updateKnowledgeGraphNode(
 
   // Persist directly to Supabase DB
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_project_context").upsert(
       {
         tenant_id: tenantId,

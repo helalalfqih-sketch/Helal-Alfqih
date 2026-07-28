@@ -9,7 +9,7 @@
  */
 
 import type { AgentRole } from "./agent.permissions";
-import { resolveAgentRole, getAdminDb } from "@/lib/ai-agent.functions";
+import { resolveAgentRole, getAgentDb } from "@/lib/ai-agent.functions";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 
 export type AgentOperationMode = "OWNER_MODE" | "SAFE_MODE";
@@ -49,7 +49,7 @@ export async function authenticateAgentContext(context: any): Promise<AuthContex
     throw new Error("401: غير مصرح. يرجى تسجيل الدخول أولاً.");
   }
 
-  const db = await getAdminDb(context);
+  const db = await getAgentDb(context);
   const tenantId = await resolveTenantId(db, { userId });
   if (!tenantId) {
     throw new Error("400: تعذر تحديد معرف المتجر (Tenant ID).");

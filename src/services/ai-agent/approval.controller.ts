@@ -59,35 +59,13 @@ export async function approveAndExecuteTask(
       status: "SUCCESS",
       input: { mode: "orchestrated", state: "EXECUTING", sessionId },
     });
-  } catch {
-    /* non-blocking warning fallback */
+  } catch (err: any) {
+    throw new Error(`500: Failed to log execution journal: ${err.message}`);
   }
 
   return {
     success: true,
     record,
     lifecycleEvents,
-  };
-}
-
-export async function evaluateAutoApproveGate(
-  taskId: string,
-  sessionId: string,
-  executionMode: "AUTO" | "MANUAL",
-  confidenceScore: number,
-  riskLevel: "LOW" | "MEDIUM" | "HIGH"
-): Promise<{ autoApproved: boolean; record: ApprovalControllerRecord }> {
-  const shouldAutoApprove = executionMode === "AUTO" && confidenceScore >= 85 && riskLevel === "LOW";
-  const record = await processPlanApproval(
-    taskId,
-    sessionId,
-    shouldAutoApprove,
-    shouldAutoApprove ? "auto.gate" : "quality.executor",
-    shouldAutoApprove ? "Auto-approved by policy gate (High Confidence & Low Risk)" : "Pending human review"
-  );
-
-  return {
-    autoApproved: shouldAutoApprove,
-    record,
   };
 }

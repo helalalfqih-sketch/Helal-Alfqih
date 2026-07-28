@@ -2,7 +2,7 @@
  * Phase 9.5 — Hardened Supabase Production Connector
  * Safe credential resolution & honest NOT_CONNECTED status reporting
  */
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface ProductionDatabaseStatus {
   status: "CONNECTED" | "PARTIAL" | "NOT_CONNECTED";
@@ -44,7 +44,7 @@ export async function inspectProductionDatabase(): Promise<ProductionDatabaseSta
   }
 
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     let verifiedCount = 0;
 
     for (const table of tablesToCheck) {

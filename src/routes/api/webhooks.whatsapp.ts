@@ -6,7 +6,7 @@ import { getDefaultTenantId } from "@/lib/saas/tenant-context";
 const STORAGE_BUCKET = "product-images"; // Supabase Storage bucket
 
 /** Get privileged DB client */
-async function getAdminDb() {
+async function getAgentDb() {
   let db = supabase;
   if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
     try {
@@ -184,7 +184,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         const storagePath = `whatsapp/${senderPhone}/${Date.now()}_${fileName}`;
 
         const waToken = process.env.WHATSAPP_API_TOKEN;
-        const db = await getAdminDb();
+        const db = await getAgentDb();
 
         // Diagnostics
         console.log(`[WA] 🔍 mediaId=${mediaId} hasToken=${!!waToken} tokenLen=${waToken?.length ?? 0}`);
