@@ -180,7 +180,15 @@ export const Route = createFileRoute("/api/public/image-proxy")({
               "cache-control": "public, max-age=31536000, immutable",
             },
           });
-        } catch (err) {
+        } catch (err: any) {
+          if (err instanceof DOMException && err.name === "AbortError") {
+            console.warn("[ImageProxy] Upstream request timed out for URL:", source);
+            return new Response("Image source request timed out", {
+              status: 504,
+              headers: { ...CORS_HEADERS, "cache-control": "public, s-maxage=60" },
+            });
+          }
+
           console.error("[ImageProxy] Processing error for URL:", source, err);
           return new Response("Image proxy processing failed", {
             status: 502,

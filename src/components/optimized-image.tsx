@@ -60,11 +60,11 @@ export function OptimizedImage({
   };
 
   useEffect(() => {
-    // Generate blur placeholder and target URLs
-    setBlurSrc(getOptimizedUrl(src, "blur"));
+    // Set target optimized image URL (CSS background skeleton prevents layout shift)
     setOptimizedSrc(getOptimizedUrl(src, size));
-    setIsLoaded(false); // Reset loaded state if src changes
-    setErrorCount(0); // Reset errors
+    setBlurSrc(""); // Skip extra blur network fetch to eliminate 50% overfetch calls
+    setIsLoaded(false);
+    setErrorCount(0);
   }, [src, size]);
 
   const handleError = () => {

@@ -306,8 +306,8 @@ export function ProductMediaGallery({ product }: Props) {
       });
       setRequestSent(true);
       toast.success(res?.message || "تم إرسال طلب الفيديو ✨");
-    } catch {
-      toast.error("حدث خطأ أثناء إرسال الطلب. حاول مجدداً.");
+    } catch (err: any) {
+      toast.error(err?.message || "تعذر إرسال طلب الفيديو لأن الخدمة غير مهيأة حالياً.");
     } finally {
       setRequesting(false);
     }

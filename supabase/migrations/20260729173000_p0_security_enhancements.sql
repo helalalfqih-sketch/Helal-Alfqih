@@ -44,7 +44,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS webhook_events_provider_external_uq
 ALTER TABLE public.webhook_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.webhook_events FROM anon, authenticated;
 
--- 3. AI Agent Plans Approval & Revision Fields
+-- 3. AI Agent Plans & Tasks Approval Metadata
 ALTER TABLE public.ai_agent_plans 
   ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS plan_hash TEXT,
@@ -54,7 +54,14 @@ ALTER TABLE public.ai_agent_plans
   ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS approval_source TEXT;
 
--- 4. Atomic Execution Lock RPC
+ALTER TABLE public.ai_agent_tasks
+  ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES public.ai_agent_plans(id),
+  ADD COLUMN IF NOT EXISTS plan_revision INTEGER DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS approved_revision INTEGER,
+  ADD COLUMN IF NOT EXISTS execution_started_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS execution_completed_at TIMESTAMPTZ;
+
+-- 4. Atomic Execution Lock RPC (Service Role ONLY)
 CREATE OR REPLACE FUNCTION public.acquire_ai_task_execution_lock(
   p_task_id TEXT,
   p_tenant_id UUID,
@@ -95,12 +102,25 @@ BEGIN
 
   UPDATE public.ai_agent_tasks
   SET status = 'executing',
+      execution_started_at = NOW(),
       updated_at = NOW()
-  WHERE id = p_task_id;
+  WHERE id = p_task_id
+    AND tenant_id = p_tenant_id
+    AND status = 'approved'
+    AND (approved_revision = p_revision OR p_revision IS NULL)
+  RETURNING * INTO v_task;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, 'PLAN_REVISION_MISMATCH'::text, NULL::jsonb;
+    RETURN;
+  END IF;
 
   RETURN QUERY SELECT true, 'SUCCESS'::text, to_jsonb(v_task);
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.acquire_ai_task_execution_lock(text, uuid, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.acquire_ai_task_execution_lock(text, uuid, integer) TO service_role;
 
 NOTIFY pgrst, 'reload schema';
 
