@@ -66,6 +66,60 @@ export const StorefrontRealtimeService = {
   },
 
   /**
+   * Subscribe to Postgres Realtime changes on orders table for a given tenant.
+   */
+  subscribeOrders(tenantId: string, onOrderChange: (payload: any) => void): () => void {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(`tenant-orders-${tenantId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "orders",
+            filter: `tenant_id=eq.${tenantId}`,
+          },
+          (payload) => onOrderChange(payload)
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn("[realtime] subscribe orders notice:", err);
+    }
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  },
+
+  /**
+   * Subscribe to Postgres Realtime changes on sync_jobs table for progress tracking.
+   */
+  subscribeSyncJobs(tenantId: string, onSyncChange: (payload: any) => void): () => void {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(`tenant-sync-${tenantId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "sync_jobs",
+            filter: `tenant_id=eq.${tenantId}`,
+          },
+          (payload) => onSyncChange(payload)
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn("[realtime] subscribe sync jobs notice:", err);
+    }
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  },
+
+  /**
    * Subscribe to CMS publish events. Returns an unsubscribe function.
    * supabase-js handles reconnection; failures are silent (refresh fallback).
    */
@@ -84,3 +138,4 @@ export const StorefrontRealtimeService = {
     };
   },
 };
+

@@ -1,0 +1,78 @@
+name: CI/CD & Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. CI VALIDATION (Typecheck & Build)
+  # --------------------------------------------------------------------------
+  validate:
+    name: Typecheck & Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Test Suite
+        run: npm run test
+
+      - name: Run Build Test
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+  # --------------------------------------------------------------------------
+  # 2. SUPABASE DATABASE MIGRATIONS (Production Main Only)
+  # --------------------------------------------------------------------------
+  migrate:
+    name: Apply Supabase Migrations
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run Supabase DB Push
+        run: supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+  # --------------------------------------------------------------------------
+  # 3. VERCEL PRODUCTION DEPLOYMENT NOTIFICATION
+  # --------------------------------------------------------------------------
+  deploy-status:
+    name: Production Deployment Status
+    needs: migrate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log Success
+        run: echo "Supabase migrations applied cleanly. Vercel deployment triggered automatically via Git integration."

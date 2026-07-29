@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { listBranches, createBranch, updateBranch, deleteBranch } from "@/lib/branch.functions";
 import { useCurrentTenant } from "@/components/tenant-provider";
@@ -86,6 +87,7 @@ export function BranchManager() {
             },
           },
         });
+        toast.success("تم تحديث بيانات الفرع بنجاح");
       } else {
         await createBranchFn({
           data: {
@@ -95,13 +97,16 @@ export function BranchManager() {
             longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
           },
         });
+        toast.success("تم إنشاء الفرع بنجاح");
       }
       setIsOpen(false);
       setEditingBranch(null);
       loadBranches();
     } catch (e) {
       console.error("Failed to save branch:", e);
-      setActionError("تعذر حفظ بيانات الفرع. تحقق من الحقول وحاول مرة أخرى.");
+      const errMsg = "تعذر حفظ بيانات الفرع. تحقق من الحقول وحاول مرة أخرى.";
+      setActionError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSaving(false);
     }
@@ -112,10 +117,13 @@ export function BranchManager() {
     if (!confirm("هل أنت متأكد من حذف هذا الفرع؟")) return;
     try {
       await deleteBranchFn({ data: { id, tenantId: tenant.id } });
+      toast.success("تم حذف الفرع بنجاح");
       loadBranches();
     } catch (e) {
       console.error("Failed to delete branch:", e);
-      setActionError("تعذر حذف الفرع. حاول مرة أخرى.");
+      const errMsg = "تعذر حذف الفرع. حاول مرة أخرى.";
+      setActionError(errMsg);
+      toast.error(errMsg);
     }
   };
 
