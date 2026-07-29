@@ -88,6 +88,7 @@ import {
   type ProjectFileParsedContext,
 } from "@/lib/ai-agent.functions";
 import { listAIProvidersFn } from "@/lib/ai-provider.server";
+import { getQualityIncidentsFn } from "@/lib/quality-api.server";
 import { MonacoCodeEditor } from "@/components/ai-agent/monaco-code-editor";
 import { FileExplorer, type FileItem } from "@/components/ai-agent/file-explorer";
 import { ExecutionJournalPanel } from "@/components/ai-agent/execution-journal-panel";
@@ -194,10 +195,12 @@ function AIEngineeringAgentPage() {
     passed: boolean;
     errorCount: number;
     summary: string;
+    status: "NOT_MEASURED" | "PASS" | "FAIL";
   }>({
-    passed: true,
+    passed: false,
     errorCount: 0,
-    summary: "Build validated cleanly with 0 errors.",
+    summary: "حالة البناء والتوافق: لم يتم قياس النتيجة بعد (NOT_MEASURED).",
+    status: "NOT_MEASURED",
   });
   const [isValidatingBuild, setIsValidatingBuild] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -219,6 +222,7 @@ function AIEngineeringAgentPage() {
         passed: valRes.passed,
         errorCount: valRes.errorCount,
         summary: valRes.summary,
+        status: valRes.passed ? "PASS" : "FAIL",
       });
 
       if (valRes.passed) {
@@ -373,10 +377,14 @@ function AIEngineeringAgentPage() {
     queryFn: () => getExecHistoryFn(),
   });
 
+  const activeSession = sessions.find((s: any) => s.id === activeSessionId);
+  const isExecuting = activeSession?.task_status === "executing";
   const { data: rawJournalLogs } = useQuery({
-    queryKey: ["ai-execution-journal"],
+    queryKey: ["ai-execution-journal", activeSessionId],
     queryFn: () => getExecJournalFn(),
-    refetchInterval: 5000,
+    enabled: !!activeSessionId && isExecuting,
+    refetchInterval: isExecuting ? 5000 : false,
+    refetchIntervalInBackground: false,
   });
   const journalLogs = (rawJournalLogs || []) as any[];
 
@@ -387,11 +395,12 @@ function AIEngineeringAgentPage() {
   });
   const persistentEvents = (rawPersistentEvents || []) as any[];
 
-  const getQualityIncidentsServerFn = async (): Promise<any> => ({ recommendations: [] });
+  const getQualityIncidentsServerFn = useServerFn(getQualityIncidentsFn);
   const { data: qualityData } = useQuery({
     queryKey: ["quality-incidents-data"],
     queryFn: () => getQualityIncidentsServerFn(),
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
   });
   const qualityRecommendations = (qualityData as any)?.recommendations || [];
 

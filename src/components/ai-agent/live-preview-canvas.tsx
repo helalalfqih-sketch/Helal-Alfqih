@@ -21,8 +21,8 @@ interface LivePreviewCanvasProps {
 
 export function LivePreviewCanvas({
   activeRoute = "/",
-  buildPassed = true,
-  buildSummary = "Build validated cleanly with 0 errors.",
+  buildPassed = false,
+  buildSummary = "حالة البناء والتوافق: لم يتم قياس النتيجة بعد (NOT_MEASURED).",
   isBuilding = false,
   onRefresh,
 }: LivePreviewCanvasProps) {

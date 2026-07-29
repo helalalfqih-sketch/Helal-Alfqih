@@ -21,20 +21,35 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: 1. Install Dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: 2. Typecheck
         run: npm run typecheck
 
-      - name: Lint
+      - name: 3. Lint
         run: npm run lint
 
-      - name: Security Unit Tests
-        run: npm run test:security
-
-      - name: All Unit Tests
+      - name: 4. Unit Tests
         run: npm run test:unit
 
-      - name: Build Verification
+      - name: 5. Integration Tests
+        run: npm run test:integration
+
+      - name: 6. Security Tests
+        run: npm run test:security
+
+      - name: 7. Test Coverage
+        run: npm run test:coverage
+
+      - name: 8. Build Verification
         run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 9. E2E Tests
+        run: npm run test:e2e
+
+      - name: 10. Accessibility Tests
+        run: npm run test:accessibility
