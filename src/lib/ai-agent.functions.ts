@@ -1088,6 +1088,9 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
       throw new Error(`409: EXECUTION_LOCK_FAILED — ${lockResult.reason || "Execution already started or lock conflict."}`);
     }
 
+    const { logExecutionJournal, savePersistentExecutionEvent, hasExecutionStartedLog } = await import("@/services/ai-agent/journal.service");
+    const { AgentTaskState } = await import("@/services/ai-agent/agent.state");
+
     // Initial EXECUTION_STARTED journal entry with deduplication guard
     const alreadyStarted = await hasExecutionStartedLog(data.taskId, db);
     if (!alreadyStarted) {

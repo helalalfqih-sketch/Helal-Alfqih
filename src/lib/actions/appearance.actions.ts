@@ -17,6 +17,10 @@ import {
   SectionsConfigSchema,
   SeoConfigSchema,
   AdvancedConfigSchema,
+  StoreIdentitySchema,
+  BrandSettingsSchema,
+  SocialLinksSettingsSchema,
+  GeneralStoreSettingsSchema,
   type StorefrontSettingsShape,
 } from "@/lib/domain/appearance";
 
@@ -126,6 +130,18 @@ function rowsToSettings(
     advanced: AdvancedConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.advanced).parse(
       settingsMap.get("advanced") ?? {}
     ),
+    store_identity: StoreIdentitySchema.catch(DEFAULT_STOREFRONT_SETTINGS.store_identity).parse(
+      settingsMap.get("store_identity") ?? {}
+    ),
+    brand_settings: BrandSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.brand_settings).parse(
+      settingsMap.get("brand_settings") ?? {}
+    ),
+    social_links: SocialLinksSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.social_links).parse(
+      settingsMap.get("social_links") ?? {}
+    ),
+    general_settings: GeneralStoreSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.general_settings).parse(
+      settingsMap.get("general_settings") ?? {}
+    ),
   };
 }
 
@@ -181,7 +197,7 @@ export const getStorefrontAppearance = getPublishedStorefrontAppearance;
 export const saveStorefrontDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape; value: unknown }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -235,7 +251,7 @@ export const saveStorefrontDraft = createServerFn({ method: "POST" })
 export const publishStorefrontSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -273,7 +289,7 @@ export const publishStorefrontSettings = createServerFn({ method: "POST" })
  */
 export const publishAllStorefrontSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ success: boolean; message?: string; published: string[] }> => {
+  .handler(async ({ context }: { context: any }): Promise<{ success: boolean; message?: string; published: string[] }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -317,7 +333,7 @@ export type ChangeLogEntry = {
   created_at: string;
   /** Present after migration 20260722000008 — snapshot of the replaced value. */
   changed_section?: string | null;
-  old_value?: unknown;
+  old_value?: any;
 };
 
 /**
@@ -326,7 +342,7 @@ export type ChangeLogEntry = {
 export const getStorefrontChangeLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: { limit?: number } | undefined) => data)
-  .handler(async ({ data, context }): Promise<ChangeLogEntry[]> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<ChangeLogEntry[]> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -354,7 +370,7 @@ export const getStorefrontChangeLogs = createServerFn({ method: "GET" })
 export const restoreStorefrontVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { logId: string }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string; key?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string; key?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -406,7 +422,7 @@ export const restoreStorefrontVersion = createServerFn({ method: "POST" })
 export const updateStorefrontAppearance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape; value: unknown }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 

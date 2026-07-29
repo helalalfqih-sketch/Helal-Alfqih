@@ -171,8 +171,7 @@ async function uploadDataUrlToStorage(
   dataUrl: string,
   mimeType: string
 ): Promise<string> {
-  let db = passedDb;
-  // Service Role escalation removed � use authenticated client only
+  const db = passedDb;
 
   // Decode base64 to binary
   const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
@@ -263,8 +262,7 @@ export const recordMediaFile = createServerFn({ method: "POST" })
     }
 
     // Prefer service role client for Storage uploads
-    let db = ctx.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -386,8 +384,7 @@ export const getMediaFilesByIds = createServerFn({ method: "POST" })
   .handler(async ({ data: { ids }, context }): Promise<MediaFileRecord[]> => {
     if (!ids || ids.length === 0) return [];
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const { data: rows, error } = await db
       .from("media_files")
@@ -410,8 +407,7 @@ export const linkProductMedia = createServerFn({ method: "POST" })
   .handler(async ({ data: { productId, mediaIds }, context }) => {
     if (!productId || !mediaIds || mediaIds.length === 0) return { ok: true };
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -442,8 +438,7 @@ export const bulkDeleteMediaFiles = createServerFn({ method: "POST" })
       throw new Error("صلاحية مرفوضة: تتطلب صلاحية حذف الوسائط.");
     }
 
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -459,8 +454,7 @@ export const searchExistingProductsForLink = createServerFn({ method: "GET" })
   .validator((data: { query?: string }) => data)
   .handler(async ({ data: { query }, context }) => {
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -493,8 +487,7 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
       throw new Error("يرجى تحديد المنتج والوسائط المراد ربطها.");
     }
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -560,8 +553,7 @@ export const getWhatsAppDiagnosticsMedia = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -587,8 +579,7 @@ export const updateMediaFileThumbnail = createServerFn({ method: "POST" })
   .validator((data: { mediaId: string; thumbnailUrl: string }) => data)
   .handler(async ({ data: { mediaId, thumbnailUrl }, context }) => {
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -607,8 +598,7 @@ export const backfillVideoThumbnails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-  // Service Role escalation removed � use authenticated client only
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
