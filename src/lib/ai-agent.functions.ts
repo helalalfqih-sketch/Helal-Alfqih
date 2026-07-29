@@ -130,13 +130,16 @@ async function resolveAgentRole(db: any, userId: string, tenantId: string): Prom
   }
 
   // Check if platform admin in user_roles
-  try {
-    const { data: roles } = await db
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (roles?.some((r: any) => r.role === "admin")) return "owner";
-  } catch { /* skip */ }
+  const { data: roles, error: rolesErr } = await db
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (rolesErr) {
+    throw new Error(`503: Permission check failed during admin role verification: ${rolesErr.message}`);
+  }
+
+  if (roles?.some((r: any) => r.role === "admin")) return "owner";
 
   // Check if tenant owner
   const { data: tenant, error: tenantErr } = await db
@@ -1019,63 +1022,71 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
     const agentRole = await enforceAgentRole(ctx, "owner");
     const { recordExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
 
-    // Fetch Task with robust fallback
-    let task: any = null;
-    const { data: foundTask } = await db
+    // Fetch Task strictly — NO fallback creation allowed
+    const { data: task, error: taskErr } = await db
       .from("ai_agent_tasks")
       .select("*")
       .eq("id", data.taskId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    if (foundTask) {
-      task = foundTask;
-    } else {
-      const cleanSessionId = data.taskId.replace(/^task-/, "");
-      const { data: sessionData } = await db
-        .from("ai_agent_sessions")
-        .select("*")
-        .or(`id.eq.${cleanSessionId},task_id.eq.${data.taskId}`)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-
-      if (sessionData) {
-        task = {
-          id: data.taskId,
-          session_id: sessionData.id,
-          tenant_id: tenantId,
-          status: sessionData.task_status || "waiting_approval",
-          plan: sessionData.task_plan || [],
-          affected_files: sessionData.affected_files || [],
-          risk_level: sessionData.risk_level || "low",
-          diffs: {},
-        };
-        await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
-      }
+    if (taskErr) {
+      throw new Error(`503: Task verification query failed: ${taskErr.message}`);
     }
 
     if (!task) {
-      task = {
-        id: data.taskId,
-        session_id: "default",
-        tenant_id: tenantId,
-        status: "waiting_approval",
-        plan: [],
-        affected_files: [],
-        risk_level: "low",
-        diffs: {},
-      };
-      await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
+      throw new Error("404: TASK_NOT_FOUND — Cannot execute non-existent task.");
     }
 
-    // Step 1: Update status to 'executing' (EXECUTION_STARTED phase)
-    const { logExecutionJournal, savePersistentExecutionEvent, hasExecutionStartedLog } = await import("@/services/ai-agent/journal.service");
-    const { AgentTaskState } = await import("@/services/ai-agent/agent.state");
+    // Strictly enforce approval requirements before execution
+    if (task.status !== "approved") {
+      throw new Error(`403: PLAN_NOT_APPROVED — Task is in state '${task.status}' and cannot be executed.`);
+    }
 
-    await db
-      .from("ai_agent_tasks")
-      .update({ status: "executing", updated_at: new Date().toISOString() })
-      .eq("id", data.taskId);
+    if (!task.approved_by || !task.approved_at || !task.approved_plan_hash || !task.approved_revision) {
+      throw new Error("403: PLAN_NOT_APPROVED — Missing approval metadata (hash, revision, or approver).");
+    }
+
+    // Verify current plan revision and hash match approval
+    const cleanSessionId = data.taskId.replace(/^task-/, "");
+    const { data: currentPlan } = await db
+      .from("ai_agent_plans")
+      .select("plan_hash, revision")
+      .or(`id.eq.${cleanSessionId},session_id.eq.${cleanSessionId}`)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (currentPlan) {
+      if (currentPlan.plan_hash !== task.approved_plan_hash || currentPlan.revision !== task.approved_revision) {
+        throw new Error("403: HASH_MISMATCH — Plan has been modified since approval.");
+      }
+    }
+
+    // Invoke atomic lock RPC
+    const { data: lockResult, error: lockErr } = await db.rpc("acquire_ai_task_execution_lock", {
+      p_task_id: data.taskId,
+      p_tenant_id: tenantId,
+      p_expected_hash: task.approved_plan_hash,
+      p_expected_revision: task.approved_revision,
+    });
+
+    if (lockErr) {
+      // If RPC isn't deployed yet, perform atomic conditional status update
+      const { data: updatedTask, error: updateErr } = await db
+        .from("ai_agent_tasks")
+        .update({ status: "executing", updated_at: new Date().toISOString() })
+        .eq("id", data.taskId)
+        .eq("tenant_id", tenantId)
+        .eq("status", "approved")
+        .select("id")
+        .maybeSingle();
+
+      if (updateErr || !updatedTask) {
+        throw new Error("409: EXECUTION_ALREADY_STARTED — Task is already being executed by another process.");
+      }
+    } else if (lockResult && !lockResult.success) {
+      throw new Error(`409: EXECUTION_LOCK_FAILED — ${lockResult.reason || "Execution already started or lock conflict."}`);
+    }
 
     // Initial EXECUTION_STARTED journal entry with deduplication guard
     const alreadyStarted = await hasExecutionStartedLog(data.taskId, db);
