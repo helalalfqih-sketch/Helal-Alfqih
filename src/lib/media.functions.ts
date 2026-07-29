@@ -172,12 +172,7 @@ async function uploadDataUrlToStorage(
   mimeType: string
 ): Promise<string> {
   let db = passedDb;
-  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin) db = supabaseAdmin;
-    } catch { /* fallback */ }
-  }
+  // Service Role escalation removed — use authenticated client only
 
   // Decode base64 to binary
   const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
@@ -269,12 +264,7 @@ export const recordMediaFile = createServerFn({ method: "POST" })
 
     // Prefer service role client for Storage uploads
     let db = ctx.supabase || supabase;
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -397,13 +387,7 @@ export const getMediaFilesByIds = createServerFn({ method: "POST" })
     if (!ids || ids.length === 0) return [];
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const { data: rows, error } = await db
       .from("media_files")
@@ -427,13 +411,7 @@ export const linkProductMedia = createServerFn({ method: "POST" })
     if (!productId || !mediaIds || mediaIds.length === 0) return { ok: true };
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -465,12 +443,7 @@ export const bulkDeleteMediaFiles = createServerFn({ method: "POST" })
     }
 
     let db = ctx?.supabase || supabase;
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -487,13 +460,7 @@ export const searchExistingProductsForLink = createServerFn({ method: "GET" })
   .handler(async ({ data: { query }, context }) => {
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -527,13 +494,7 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
     }
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -600,13 +561,7 @@ export const getWhatsAppDiagnosticsMedia = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -633,13 +588,7 @@ export const updateMediaFileThumbnail = createServerFn({ method: "POST" })
   .handler(async ({ data: { mediaId, thumbnailUrl }, context }) => {
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
@@ -659,13 +608,7 @@ export const backfillVideoThumbnails = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const ctx = context as any;
     let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+  // Service Role escalation removed — use authenticated client only
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 

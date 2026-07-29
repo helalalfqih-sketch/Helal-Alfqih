@@ -1,4 +1,4 @@
-// @ts-nocheck
+// Security-critical CMS file — no @ts-nocheck allowed
 import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -161,15 +161,12 @@ export const getStorefrontDraftPreview = createServerFn({ method: "GET" })
       throw new Error("403: Forbidden — CMS draft preview requires tenant membership or admin role.");
     }
 
-    try {
-      const rows = await storefrontService.fetchRowsWithDrafts(authSupabase, gate.scope);
-      if (rows && rows.length > 0) return rowsToSettings(rows, true);
-      const published = await storefrontService.fetchPublishedRows(authSupabase, gate.scope);
-      return rowsToSettings(published || [], false);
-    } catch (err) {
-      console.warn("[getStorefrontDraftPreview] Error:", err);
-      return DEFAULT_STOREFRONT_SETTINGS;
-    }
+    // Fail-closed: admin preview must expose truthful errors, never silently return defaults
+    const rows = await storefrontService.fetchRowsWithDrafts(authSupabase, gate.scope);
+    if (rows && rows.length > 0) return rowsToSettings(rows, true);
+    const published = await storefrontService.fetchPublishedRows(authSupabase, gate.scope);
+    if (published && published.length > 0) return rowsToSettings(published, false);
+    return DEFAULT_STOREFRONT_SETTINGS;
   });
 
 /** Backward compatibility alias for public appearance reads */
@@ -197,15 +194,8 @@ export const saveStorefrontDraft = createServerFn({ method: "POST" })
       const validated = validateSettingValue(data.key, data.value);
       if (!validated.ok) return { success: false, message: validated.message };
 
-      let db = authSupabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = authSupabase;
-        }
-      }
+      // CMS writes use the authenticated user's client — no Service Role escalation
+      const db = authSupabase;
 
       // C1-safe draft save through the unified service (never touches `value`).
       const res = await storefrontService.saveDraftValue(db, data.key, validated.value, gate.scope);
@@ -429,15 +419,8 @@ export const updateStorefrontAppearance = createServerFn({ method: "POST" })
       const validated = validateSettingValue(data.key, data.value);
       if (!validated.ok) return { success: false, message: validated.message };
 
-      let db = authSupabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = authSupabase;
-        }
-      }
+      // CMS writes use the authenticated user's client — no Service Role escalation
+      const db = authSupabase;
 
       // Direct live save through the unified service (snapshots the old value).
       const res = await storefrontService.saveLiveValue(db, data.key, validated.value, gate.scope);
