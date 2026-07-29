@@ -44,6 +44,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { performSecureLogout } from "@/lib/auth/logout";
 import { getSessionUser, logUnauthorizedAccess } from "@/lib/auth.functions";
 import { claimFirstAdmin } from "@/lib/admin-bootstrap.functions";
 import noqtaLogo from "@/assets/noqta-logo.png";
@@ -198,10 +199,7 @@ function NoRoleScreen({
             العودة للمتجر
           </Link>
           <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate({ to: "/auth", replace: true });
-            }}
+            onClick={() => performSecureLogout("/auth")}
             className="rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-accent transition"
           >
             تسجيل الخروج
@@ -347,8 +345,7 @@ function ShellInner() {
   const handleSignOut = async () => {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    await performSecureLogout("/auth");
   };
 
   return (

@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { performSecureLogout } from "@/lib/auth/logout";
 import { getMyStore, type MyStore } from "@/lib/store.functions";
 import { hasStorePermission, STORE_ROLE_LABELS, type StoreRole } from "@/lib/store/store-gate";
 
@@ -153,8 +154,7 @@ function ShellInner() {
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    await performSecureLogout("/auth");
   };
 
   return (
