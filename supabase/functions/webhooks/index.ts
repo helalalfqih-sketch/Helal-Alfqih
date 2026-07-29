@@ -3,54 +3,51 @@ declare const Deno: any;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-hub-signature-256",
 };
 
+/**
+ * Transparent Webhook Gateway Proxy
+ * Forwards requests to the single canonical endpoint: /api/webhooks/whatsapp
+ * Ensures 0 duplicate processing or signature logic divergence.
+ */
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
   try {
-    const url = new URL(req.url);
-    const provider = url.searchParams.get("provider") || "default";
-    const body = req.method !== "GET" ? await req.json() : null;
+    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("VERCEL_URL") || "https://indexes-store.com";
+    const canonicalTarget = `${siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}/api/webhooks/whatsapp`;
 
-    console.log(`[Webhook Edge Function] Provider: ${provider}, Method: ${req.method}`);
+    const reqUrl = new URL(req.url);
+    const targetUrl = `${canonicalTarget}${reqUrl.search}`;
 
-    switch (provider) {
-      case "whatsapp":
-        if (req.method === "GET") {
-          const mode = url.searchParams.get("hub.mode");
-          const token = url.searchParams.get("hub.verify_token");
-          const challenge = url.searchParams.get("hub.challenge");
+    console.log(`[Webhook Edge Proxy] Proxying ${req.method} request to canonical endpoint: ${targetUrl}`);
 
-          if (mode === "subscribe" && token === Deno.env.get("WHATSAPP_VERIFY_TOKEN")) {
-            return new Response(challenge, { status: 200 });
-          }
-        }
-        return new Response(
-          JSON.stringify({ status: "received", provider, body }),
-          { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 200 }
-        );
+    const proxyHeaders = new Headers(req.headers);
+    proxyHeaders.set("x-forwarded-by", "supabase-edge-function");
 
-      case "payment":
-        return new Response(
-          JSON.stringify({ status: "payment_processed", provider, body }),
-          { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 200 }
-        );
+    const proxyRes = await fetch(targetUrl, {
+      method: req.method,
+      headers: proxyHeaders,
+      body: req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined,
+    });
 
-      default:
-        return new Response(
-          JSON.stringify({ status: "success", provider, payload: body }),
-          { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 200 }
-        );
-    }
+    const resBody = await proxyRes.text();
+    const resHeaders = new Headers(proxyRes.headers);
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => resHeaders.set(k, v));
+
+    return new Response(resBody, {
+      status: proxyRes.status,
+      headers: resHeaders,
+    });
   } catch (error) {
-    const errMessage = error instanceof Error ? error.message : "Unknown error";
+    const errMessage = error instanceof Error ? error.message : "Proxy error";
+    console.error("[Webhook Edge Proxy] Failed to proxy request:", errMessage);
     return new Response(
-      JSON.stringify({ error: errMessage }),
-      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 400 }
+      JSON.stringify({ error: `Webhook proxy failed: ${errMessage}` }),
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 502 }
     );
   }
 });

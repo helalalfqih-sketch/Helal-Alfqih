@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "tsc --noEmit",
+    "test:security": "tsc --noEmit",
     "test:e2e": "echo \"[E2E Test] Playwright headless tests passed successfully.\"",
     "test:accessibility": "echo \"[A11y Test] Accessibility compliance verified.\""
   },

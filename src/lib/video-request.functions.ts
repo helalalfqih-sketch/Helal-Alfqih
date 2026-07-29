@@ -35,7 +35,15 @@ export const requestProductVideo = createServerFn({ method: "POST" })
     });
 
     if (insertErr) {
-      console.warn("[requestProductVideo] insert warning:", insertErr.message);
+      console.error("[requestProductVideo] Insert failed:", {
+        code: insertErr.code,
+        message: insertErr.message,
+      });
+      throw new Error(
+        insertErr.code === "42P01"
+          ? "فشل تسجيل الطلب: جدول طلبات الفيديو غير مجهز في قواعد البيانات (SCHEMA_NOT_CONFIGURED)."
+          : `فشل تسجيل طلب الفيديو: ${insertErr.message}`
+      );
     }
 
     // 3. Create Admin Audit Notification

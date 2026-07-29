@@ -257,3 +257,50 @@ export async function checkTenantPermission(permission: PermissionKey, context?:
   throw new PermissionDeniedError(`Insufficient permissions for action '${permission}'`);
 }
 
+export type PermissionCheckInput = {
+  db?: any;
+  userId: string;
+  tenantId: string;
+  permission: PermissionKey;
+};
+
+export async function requireTenantPermission(input: PermissionCheckInput): Promise<{ role: TenantRole; permissions: PermissionKey[] }> {
+  const { db, userId, tenantId, permission } = input;
+  const client = db || supabase;
+
+  if (!userId) {
+    throw new PermissionDeniedError("Unauthenticated");
+  }
+
+  if (!tenantId) {
+    throw new ConfigurationError("Tenant not resolved");
+  }
+
+  const { data: member, error } = await client
+    .from("tenant_members")
+    .select("role, permissions")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new ServiceUnavailableError("Permission lookup failed");
+  }
+
+  if (!member) {
+    throw new PermissionDeniedError("Not a tenant member");
+  }
+
+  const perms = (member.permissions as PermissionKey[]) || ROLE_PRESETS[member.role as TenantRole] || [];
+  const allowed = member.role === "owner" || member.role === "manager" || perms.includes(permission);
+
+  if (!allowed) {
+    throw new PermissionDeniedError("Insufficient permission");
+  }
+
+  return {
+    role: member.role as TenantRole,
+    permissions: perms,
+  };
+}
+

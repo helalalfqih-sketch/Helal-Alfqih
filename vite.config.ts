@@ -16,11 +16,13 @@ export default defineConfig({
         manifest: false,
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          cleanupOutdatedCaches: true,
           navigateFallbackDenylist: [
             /\/api\//,
             /supabase\.co\/auth\//,
             /supabase\.co\/rest\/v1\//,
             /supabase\.co\/storage\/v1\/object\/authenticated/,
+            /supabase\.co\/functions\/v1\//,
           ],
           runtimeCaching: [
             {
