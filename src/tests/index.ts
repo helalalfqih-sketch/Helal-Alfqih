@@ -9,6 +9,7 @@ import { CustomerJourneySpec } from "./e2e/customer-journey.spec";
 import { AdminJourneySpec } from "./e2e/admin-journey.spec";
 import { MobileViewportSpec } from "./e2e/mobile.spec";
 import { RoutesAuditSpec } from "./e2e/routes-audit.spec";
+import { ResponsiveMatrixSpec } from "./e2e/responsive-matrix.spec";
 import { AccessibilitySpec } from "./a11y/accessibility.spec";
 import { runFullLoadTest } from "./load/load-simulator";
 
@@ -30,6 +31,7 @@ export async function runAllTests() {
   AdminJourneySpec.runSimulation();
   MobileViewportSpec.runSimulation();
   RoutesAuditSpec.runAudit();
+  ResponsiveMatrixSpec.runAudit();
 
   // 4. Accessibility Audit
   AccessibilitySpec.runAudit();
