@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import sharp from "sharp";
+import crypto from "crypto";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -13,35 +14,64 @@ const DISALLOWED_HOSTNAMES = new Set([
   "127.0.0.1",
   "0.0.0.0",
   "169.254.169.254", // Cloud metadata service
+  "metadata.google.internal",
+  "instance-data",
 ]);
 
 function isPrivateIpOrHost(hostname: string): boolean {
-  if (DISALLOWED_HOSTNAMES.has(hostname.toLowerCase())) return true;
-  // Private IPv4 ranges
-  if (/^10\./.test(hostname)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return true;
-  if (/^192\.168\./.test(hostname)) return true;
-  if (/^127\./.test(hostname)) return true;
+  const host = hostname.toLowerCase();
+  if (DISALLOWED_HOSTNAMES.has(host)) return true;
+
+  // IPv4 Private & Special Ranges
+  if (/^10\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  if (/^127\./.test(host)) return true;
+  if (/^169\.254\./.test(host)) return true; // Link-local
+  if (/^224\./.test(host)) return true; // Multicast
+  if (/^240\./.test(host)) return true; // Reserved
+
+  // IPv6 Loopback/Local
+  if (host === "::1" || host === "fe80::" || host.startsWith("fd")) return true;
+
   return false;
 }
 
 function isDomainAllowed(hostname: string): boolean {
   const host = hostname.toLowerCase();
 
-  // Allowlist patterns
-  if (host.endsWith(".supabase.co")) return true;
-  if (host.endsWith(".unsplash.com")) return true;
-  if (host.endsWith(".facebook.com")) return true;
-  if (host.endsWith(".fbcdn.net")) return true;
-  if (host.endsWith(".githubusercontent.com")) return true;
-  if (host.endsWith(".vercel.app")) return true;
-  if (host.includes("indexes-store")) return true;
+  // Explicit allowed host suffixes (strict host or dot-prefix matching)
+  const allowedSuffixes = [
+    "supabase.co",
+    "unsplash.com",
+    "facebook.com",
+    "fbcdn.net",
+    "githubusercontent.com",
+    "vercel.app",
+    "indexes-store.com",
+    "indexes-store.vercel.app",
+  ];
+
+  for (const domain of allowedSuffixes) {
+    if (host === domain || host.endsWith("." + domain)) {
+      return true;
+    }
+  }
 
   // Custom environment domains
   const customDomains = process.env.ALLOWED_IMAGE_DOMAINS?.split(",") || [];
-  if (customDomains.some((d) => host.endsWith(d.trim().toLowerCase()))) return true;
+  for (const raw of customDomains) {
+    const d = raw.trim().toLowerCase();
+    if (d && (host === d || host.endsWith("." + d))) {
+      return true;
+    }
+  }
 
   return false;
+}
+
+function hashPathname(pathname: string): string {
+  return crypto.createHash("sha256").update(pathname).digest("hex").substring(0, 16);
 }
 
 export const Route = createFileRoute("/api/public/image-proxy")({
@@ -70,16 +100,24 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           return new Response("Invalid image URL format", { status: 400, headers: CORS_HEADERS });
         }
 
+        // Self-proxy rejection: Prevent recursive proxy requests
+        if (parsedUrl.pathname.includes("/api/public/image-proxy")) {
+          return new Response("Forbidden: Cannot proxy the image proxy itself", {
+            status: 400,
+            headers: CORS_HEADERS,
+          });
+        }
+
         // SSRF Check: Private IPs
         if (isPrivateIpOrHost(parsedUrl.hostname)) {
-          console.warn("[ImageProxy] SSRF attempt blocked for private host:", parsedUrl.hostname);
+          console.warn("[ImageProxy] SSRF attempt blocked for host:", parsedUrl.hostname);
           return new Response("Forbidden: Access to private network addresses is restricted", {
             status: 403,
             headers: CORS_HEADERS,
           });
         }
 
-        // Domain Allowlist Check
+        // Domain Allowlist Check (Strict match, no substring wildcard)
         if (!isDomainAllowed(parsedUrl.hostname)) {
           console.warn("[ImageProxy] Unauthorized image domain blocked:", parsedUrl.hostname);
           return new Response(`Forbidden: Host '${parsedUrl.hostname}' is not in the allowed domains list`, {
@@ -90,16 +128,26 @@ export const Route = createFileRoute("/api/public/image-proxy")({
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8_000);
+        const pathHash = hashPathname(parsedUrl.pathname);
+
         try {
-          console.info("[IMAGE_PROXY]", { source, width: w, height: h, quality: q });
+          // Log ONLY hostname, SHA-256 hash of pathname, and dimensions — NEVER full URL
+          console.info("[IMAGE_PROXY]", {
+            hostname: parsedUrl.hostname,
+            pathnameHash: pathHash,
+            width: w,
+            height: h,
+            quality: q,
+          });
 
           const upstream = await fetch(source, {
             signal: controller.signal,
+            redirect: "error", // Reject unverified redirects to prevent SSRF bypass
             headers: { accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" },
           });
 
           if (!upstream.ok) {
-            console.warn(`[ImageProxy] Upstream returned HTTP ${upstream.status} for URL: ${source}`);
+            console.warn(`[ImageProxy] Upstream returned HTTP ${upstream.status} for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
             return new Response("Image not available", {
               status: upstream.status || 502,
               headers: CORS_HEADERS,
@@ -182,14 +230,14 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           });
         } catch (err: any) {
           if (err instanceof DOMException && err.name === "AbortError") {
-            console.warn("[ImageProxy] Upstream request timed out for URL:", source);
+            console.warn(`[ImageProxy] Upstream request timed out for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
             return new Response("Image source request timed out", {
               status: 504,
               headers: { ...CORS_HEADERS, "cache-control": "public, s-maxage=60" },
             });
           }
 
-          console.error("[ImageProxy] Processing error for URL:", source, err);
+          console.error(`[ImageProxy] Processing error for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
           return new Response("Image proxy processing failed", {
             status: 502,
             headers: CORS_HEADERS,
