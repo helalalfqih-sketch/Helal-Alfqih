@@ -1,47 +1,94 @@
 import { createFileRoute } from "@tanstack/react-router";
+import crypto from "crypto";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeFileName, extractCategoryAndTagsFromCaption } from "@/lib/whatsapp.functions";
-import { getDefaultTenantId } from "@/lib/saas/tenant-context";
 
-const STORAGE_BUCKET = "product-images"; // Supabase Storage bucket
+const STORAGE_BUCKET = "product-images";
 
-/** Get privileged DB client */
-async function getAgentDb() {
-  let db = supabase;
-  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin) db = supabaseAdmin;
-    } catch {
-      // fallback
-    }
-  }
-  return db;
+/** Get standard DB client */
+async function getWebhookDb() {
+  return supabase;
 }
 
-/**
- * Step 1: Get temporary CDN URL for a WhatsApp media object via Meta Graph API v25.0
- */
+/** Verify Meta X-Hub-Signature-256 signature using timing-safe comparison */
+function verifyMetaSignature(rawBody: string, signatureHeader: string | null): boolean {
+  if (!signatureHeader) return false;
+  const secret = process.env.META_APP_SECRET;
+  if (!secret) return false;
+
+  const expectedSignature = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+
+  try {
+    const signatureBuffer = Buffer.from(signatureHeader);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (signatureBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
+
+/** Dynamic Tenant Resolution from WhatsApp phone_number_id */
+async function resolveTenantFromPhoneNumberId(db: any, phoneNumberId: string): Promise<string | null> {
+  try {
+    // 1. Check whatsapp_integrations or storefront_settings
+    const { data: integration } = await db
+      .from("whatsapp_integrations")
+      .select("tenant_id")
+      .eq("phone_number_id", phoneNumberId)
+      .maybeSingle();
+
+    if (integration?.tenant_id) return integration.tenant_id;
+
+    // 2. Query tenants table by phone_number_id in metadata
+    const { data: tenant } = await db
+      .from("tenants")
+      .select("id")
+      .eq("metadata->>whatsapp_phone_number_id", phoneNumberId)
+      .maybeSingle();
+
+    if (tenant?.id) return tenant.id;
+
+    // 3. Fallback: first active tenant in DB if single-tenant environment
+    const { data: firstTenant } = await db.from("tenants").select("id").limit(1).maybeSingle();
+    return firstTenant?.id || null;
+  } catch (err) {
+    console.error("[WA] resolveTenantFromPhoneNumberId error:", err);
+    return null;
+  }
+}
+
+/** Check if WhatsApp message was already processed (Idempotency) */
+async function isMessageAlreadyProcessed(db: any, tenantId: string, messageId: string): Promise<boolean> {
+  try {
+    const { data } = await db
+      .from("media_files")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("metadata->>whatsapp_message_id", messageId)
+      .maybeSingle();
+
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
+/** Fetch Meta CDN URL */
 async function fetchMetaMediaUrl(mediaId: string, waToken: string): Promise<string | null> {
   try {
     const res = await fetch(`https://graph.facebook.com/v25.0/${mediaId}`, {
       headers: { Authorization: `Bearer ${waToken}` },
     });
-    if (!res.ok) {
-      console.warn(`[WA] Meta Graph API error ${res.status} for mediaId=${mediaId}`);
-      return null;
-    }
+    if (!res.ok) return null;
     const json = await res.json();
     return json.url || null;
-  } catch (err) {
-    console.warn("[WA] fetchMetaMediaUrl failed:", err);
+  } catch {
     return null;
   }
 }
 
-/**
- * Step 2: Download binary from Meta CDN (requires Bearer token)
- */
+/** Download Binary from Meta CDN */
 async function downloadBinary(
   metaUrl: string,
   waToken: string
@@ -50,99 +97,87 @@ async function downloadBinary(
     const res = await fetch(metaUrl, {
       headers: { Authorization: `Bearer ${waToken}` },
     });
-    if (!res.ok) {
-      console.warn(`[WA] Binary download failed: HTTP ${res.status}`);
-      return null;
-    }
+    if (!res.ok) return null;
     const contentType = res.headers.get("content-type") || "image/jpeg";
     const buffer = await res.arrayBuffer();
-    console.log(`[WA] Downloaded ${buffer.byteLength} bytes (${contentType})`);
     return { buffer, contentType };
-  } catch (err) {
-    console.warn("[WA] downloadBinary failed:", err);
+  } catch {
     return null;
   }
 }
 
-/**
- * Step 3: Upload binary to Supabase Storage → return permanent public URL
- */
+/** Upload binary to Supabase Storage */
 async function uploadToStorage(
   db: any,
   storagePath: string,
   buffer: ArrayBuffer,
   contentType: string
 ): Promise<string | null> {
-  const bucketsToTry = [STORAGE_BUCKET, "media", "uploads"];
+  try {
+    const { error } = await db.storage
+      .from(STORAGE_BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true, cacheControl: "2592000" });
 
-  for (const bucketName of bucketsToTry) {
-    try {
-      console.log(`[WA Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
-      let { data, error } = await db.storage
-        .from(bucketName)
-        .upload(storagePath, buffer, {
-          contentType,
-          upsert: true,
-          cacheControl: "2592000", // 30 days
-        });
-
-      if (error && error.message?.toLowerCase().includes("not found")) {
-        console.log(`[WA Storage] Bucket "${bucketName}" not found. Auto-creating bucket...`);
-        await db.storage.createBucket(bucketName, { public: true });
-        const retryRes = await db.storage
-          .from(bucketName)
-          .upload(storagePath, buffer, {
-            contentType,
-            upsert: true,
-            cacheControl: "2592000",
-          });
-        error = retryRes.error;
-        data = retryRes.data;
-      }
-
-      if (error) {
-        console.error(`[WA Storage] Failed bucket="${bucketName}": ${error.message} (status: ${(error as any)?.status || 'unknown'})`);
-        continue;
-      }
-
-      const { data: urlData } = db.storage.from(bucketName).getPublicUrl(storagePath);
-      const publicUrl = urlData?.publicUrl || null;
-      console.log(`[WA Storage] ✅ Successfully uploaded to bucket="${bucketName}" -> ${publicUrl}`);
-      return publicUrl;
-    } catch (err: any) {
-      console.error(`[WA Storage] Exception uploading to bucket="${bucketName}":`, err?.message || err);
+    if (error) {
+      console.error(`[WA Storage] Bucket upload error: ${error.message}`);
+      return null;
     }
+
+    const { data: urlData } = db.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
+    return urlData?.publicUrl || null;
+  } catch (err: any) {
+    console.error("[WA Storage] Exception during upload:", err?.message || err);
+    return null;
   }
-  return null;
 }
 
 export const Route = createFileRoute("/api/webhooks/whatsapp")({
   server: {
     handlers: {
-      // ── GET: Meta Webhook Verification Handshake ─────────────────────────
+      // ── GET: Meta Webhook Handshake Verification ─────────────────────────
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const mode = url.searchParams.get("hub.mode");
         const token = url.searchParams.get("hub.verify_token");
         const challenge = url.searchParams.get("hub.challenge");
-        const expectedToken =
-          process.env.WHATSAPP_VERIFY_TOKEN || "indexes_wa_secret_verify_2026";
+
+        const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN;
+        if (!expectedToken) {
+          console.error("[WA Webhook] ❌ WHATSAPP_VERIFY_TOKEN env var is not configured");
+          return new Response("Integration not configured", { status: 503 });
+        }
 
         if (mode === "subscribe" && token === expectedToken) {
           console.log("[WA Webhook] ✅ Handshake verified");
           return new Response(challenge || "OK", { status: 200 });
         }
+
         console.warn("[WA Webhook] ❌ Verification failed: token mismatch");
         return new Response("Forbidden", { status: 403 });
       },
 
-      // ── POST: Full Media Sync Pipeline ───────────────────────────────────
+      // ── POST: Full Media Pipeline with Signature & Auth Verification ─────
       POST: async ({ request }) => {
+        // 1. Read raw body text BEFORE parsing JSON
+        const rawBody = await request.text();
+
+        // 2. Verify Meta X-Hub-Signature-256 HMAC Signature
+        const signature = request.headers.get("X-Hub-Signature-256");
+        if (process.env.NODE_ENV === "production" || process.env.META_APP_SECRET) {
+          if (!signature) {
+            return new Response("Forbidden: Missing signature header", { status: 403 });
+          }
+          if (!verifyMetaSignature(rawBody, signature)) {
+            return new Response("Forbidden: Invalid signature", { status: 403 });
+          }
+        }
+
+        // 3. Parse JSON
         let body: any;
         try {
-          body = await request.json();
+          body = JSON.parse(rawBody);
         } catch {
-          return Response.json({ error: "invalid json" }, { status: 400 });
+          return Response.json({ error: "Invalid JSON body" }, { status: 400 });
         }
 
         const entry = body?.entry?.[0];
@@ -150,9 +185,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         const field = change?.field;
         const value = change?.value;
 
-        // Non-message events (account_alerts, security, quality_updates, etc.)
         if (field && field !== "messages") {
-          console.log(`[WA Event: ${field}]`, JSON.stringify(value).slice(0, 200));
           return Response.json({ status: "acknowledged", field }, { status: 200 });
         }
 
@@ -169,80 +202,59 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           return Response.json({ status: "ignored", reason: `non-media type: ${messageType}` }, { status: 200 });
         }
 
+        // 4. Resolve Tenant from phone_number_id — NOT default hardcoded tenant
+        const phoneNumberId = value?.metadata?.phone_number_id;
+        if (!phoneNumberId) {
+          return Response.json({ error: "Missing phone_number_id" }, { status: 400 });
+        }
+
+        const db = await getWebhookDb();
+        const tenantId = await resolveTenantFromPhoneNumberId(db, phoneNumberId);
+        if (!tenantId) {
+          return Response.json({ error: "Tenant not found for this phone_number_id" }, { status: 404 });
+        }
+
+        // 5. Check Idempotency
+        const messageId = message.id;
+        if (messageId && await isMessageAlreadyProcessed(db, tenantId, messageId)) {
+          return Response.json({ status: "already_processed", messageId }, { status: 200 });
+        }
+
+        // 6. Verify Integration Tokens
+        const waToken = process.env.WHATSAPP_API_TOKEN;
+        if (!waToken) {
+          return Response.json({ error: "Integration not configured: WHATSAPP_API_TOKEN missing" }, { status: 503 });
+        }
+
         const mediaObj = message[messageType] || {};
         const mediaId: string = mediaObj.id || "";
-        const caption: string = mediaObj.caption || "";
-        const mimeType: string =
-          mediaObj.mime_type ||
-          (messageType === "video" ? "video/mp4" : messageType === "document" ? "application/pdf" : "image/jpeg");
+        if (!mediaId) {
+          return Response.json({ error: "Missing media_id in message payload" }, { status: 400 });
+        }
 
-        const fileName = sanitizeFileName(
-          caption || mediaObj.filename || `wa_${messageType}_${Date.now()}`,
-          mimeType
-        );
+        // 7. Download & Storage Upload Pipeline (Fail-Closed)
+        const metaTempUrl = await fetchMetaMediaUrl(mediaId, waToken);
+        if (!metaTempUrl) {
+          return Response.json({ error: "Media download failed: Meta CDN URL unreachable" }, { status: 502 });
+        }
+
+        const binary = await downloadBinary(metaTempUrl, waToken);
+        if (!binary || binary.buffer.byteLength === 0) {
+          return Response.json({ error: "Media download failed: Empty binary received from Meta" }, { status: 502 });
+        }
+
+        const caption: string = mediaObj.caption || "";
+        const mimeType: string = binary.contentType;
+        const fileName = sanitizeFileName(caption || mediaObj.filename || `wa_${messageType}_${Date.now()}`, mimeType);
         const { category, tags } = extractCategoryAndTagsFromCaption(caption || fileName);
         const storagePath = `whatsapp/${senderPhone}/${Date.now()}_${fileName}`;
 
-        const waToken = process.env.WHATSAPP_API_TOKEN;
-        const db = await getAgentDb();
-
-        // Diagnostics
-        console.log(`[WA] 🔍 mediaId=${mediaId} hasToken=${!!waToken} tokenLen=${waToken?.length ?? 0}`);
-        console.log(`[WA] 🔍 messageType=${messageType} mimeType=${mimeType} fileName=${fileName}`);
-
-        // Resolve the real tenant_id from DB (FK-safe — never hardcode)
-        let tenantId: string;
-        try {
-          tenantId = await getDefaultTenantId(db);
-          console.log(`[WA] 🏠 tenantId=${tenantId}`);
-        } catch (err) {
-          console.error("[WA] Could not resolve default tenant:", err);
-          return Response.json({ error: "tenant not found" }, { status: 500 });
-        }
-
-        // ── PIPELINE ─────────────────────────────────────────────────────────
-        let permanentUrl = "";
-        let downloadedBytes = 0;
-        let uploadSuccess = false;
-
-        if (!waToken) {
-          console.error("[WA] ❌ WHATSAPP_API_TOKEN env var is not set — skipping media download");
-        } else if (!mediaId) {
-          console.error("[WA] ❌ mediaId is empty — cannot fetch media from Meta");
-        } else {
-          // 1. Get temporary Meta CDN URL
-          console.log(`[WA] ⬇️  Step 1: fetching Meta CDN URL for mediaId=${mediaId}`);
-          const metaTempUrl = await fetchMetaMediaUrl(mediaId, waToken);
-          console.log(`[WA] Step 1 result: metaTempUrl=${metaTempUrl ? metaTempUrl.slice(0, 60) + "..." : "NULL"}`);
-
-          if (metaTempUrl) {
-            // 2. Download binary from Meta CDN
-            console.log(`[WA] ⬇️  Step 2: downloading binary from Meta CDN`);
-            const binary = await downloadBinary(metaTempUrl, waToken);
-            console.log(`[WA] Step 2 result: binary=${binary ? binary.buffer.byteLength + " bytes" : "NULL"}`);
-
-            if (binary) {
-              downloadedBytes = binary.buffer.byteLength;
-              // 3. Upload to Supabase Storage
-              console.log(`[WA] ⬆️  Step 3: uploading to Supabase Storage bucket="${STORAGE_BUCKET}" path="${storagePath}"`);
-              const pubUrl = await uploadToStorage(db, storagePath, binary.buffer, binary.contentType);
-              console.log(`[WA] Step 3 result: pubUrl=${pubUrl ?? "NULL"}`);
-
-              if (pubUrl) {
-                permanentUrl = pubUrl;
-                uploadSuccess = true;
-              }
-            }
-          }
-        }
-
-        // Fallback URL if pipeline failed
+        const permanentUrl = await uploadToStorage(db, storagePath, binary.buffer, mimeType);
         if (!permanentUrl) {
-          permanentUrl = `https://wtudcippyxbaobqzbmok.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/${storagePath}`;
-          console.warn(`[WA] ⚠️ Using constructed fallback URL`);
+          return Response.json({ error: "Storage upload failed: Could not store media binary" }, { status: 502 });
         }
 
-        // ── Save to media_files ───────────────────────────────────────────
+        // 8. Insert into media_files ONLY AFTER successful storage upload
         const insertPayload = {
           tenant_id: tenantId,
           file_name: fileName,
@@ -250,17 +262,17 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           file_url: permanentUrl,
           file_type: (messageType === "video" ? "video" : "image") as "image" | "video" | "other",
           mime_type: mimeType,
-          size_bytes: downloadedBytes || mediaObj.file_size || 0,
+          size_bytes: binary.buffer.byteLength,
           source: "whatsapp",
           metadata: {
-            whatsapp_message_id: message.id || `wa_${Date.now()}`,
+            whatsapp_message_id: messageId,
             sender_phone: senderPhone,
-            whatsapp_media_id: mediaId || null,
+            whatsapp_media_id: mediaId,
             caption,
             category,
             tags,
             thumbnail_url: messageType === "video" ? null : permanentUrl,
-            upload_success: uploadSuccess,
+            upload_success: true,
             received_at: new Date().toISOString(),
           },
         };
@@ -272,22 +284,19 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           .single();
 
         if (insertError) {
-          console.error("[WA] media_files insert error:", insertError.message);
+          console.error("[WA] Database record insert error:", insertError.message);
+          return Response.json({ error: "Database record creation failed" }, { status: 500 });
         }
-
-        const mediaFileId = mediaRecord?.id || null;
-        console.log(`[WA] 📦 media_file saved: id=${mediaFileId} upload=${uploadSuccess} bytes=${downloadedBytes}`);
 
         return Response.json(
           {
             status: "success",
-            mediaFileId,
+            mediaFileId: mediaRecord?.id,
             fileName,
             permanentUrl,
-            uploadSuccess,
             category,
             tags,
-            bytes: downloadedBytes,
+            bytes: binary.buffer.byteLength,
           },
           { status: 200 }
         );

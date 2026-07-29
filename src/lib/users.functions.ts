@@ -158,63 +158,102 @@ export const removeTenantMember = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Utility: Helper to check if current session user has specific tenant permission */
-export async function checkTenantPermission(permission: PermissionKey, context?: any): Promise<boolean> {
-  try {
-    let email: string | undefined = context?.claims?.email;
-    let userId: string | undefined = context?.userId;
-    let client = context?.supabase || supabase;
-
-    if (!userId) {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser.user) {
-        userId = authUser.user.id;
-        email = authUser.user.email;
-      }
-    }
-
-    // 1. Primary owner email bypass (always true)
-    if (email?.toLowerCase() === "helalalfqih@gmail.com") return true;
-
-    if (userId) {
-      // 2. Platform admin bypass (user_roles table)
-      const { data: roles } = await client
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-
-      if (roles?.some((r: any) => r.role === "admin")) return true;
-
-      const tenantId = await resolveTenantId(client);
-
-      // 3. Tenant owner bypass — owner_user_id in tenants table
-      const { data: tenantRow } = await client
-        .from("tenants")
-        .select("owner_user_id")
-        .eq("id", tenantId)
-        .maybeSingle();
-
-      if (tenantRow?.owner_user_id === userId) return true;
-
-      // 4. Tenant member permission check
-      const { data: member } = await client
-        .from("tenant_members")
-        .select("role, permissions")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (member) {
-        if (member.role === "owner" || member.role === "manager") return true;
-        const perms = (member.permissions as PermissionKey[]) || ROLE_PRESETS[member.role as TenantRole] || [];
-        if (perms.includes(permission)) return true;
-      }
-    }
-
-    // Fail-safe for platform admin / single-tenant operations
-    return true;
-  } catch {
-    return true;
+export class PermissionDeniedError extends Error {
+  status = 403;
+  constructor(message = "Permission Denied") {
+    super(`403: ${message}`);
+    this.name = "PermissionDeniedError";
   }
+}
+
+export class ServiceUnavailableError extends Error {
+  status = 503;
+  constructor(message = "Service Unavailable") {
+    super(`503: ${message}`);
+    this.name = "ServiceUnavailableError";
+  }
+}
+
+export class ConfigurationError extends Error {
+  status = 400;
+  constructor(message = "Configuration Error") {
+    super(`400: ${message}`);
+    this.name = "ConfigurationError";
+  }
+}
+
+/** Utility: Helper to check if current session user has specific tenant permission (Fail-Closed) */
+export async function checkTenantPermission(permission: PermissionKey, context?: any): Promise<boolean> {
+  let userId: string | undefined = context?.userId;
+  let client = context?.supabase || supabase;
+
+  if (!userId) {
+    const { data: authUser } = await supabase.auth.getUser();
+    if (authUser.user) {
+      userId = authUser.user.id;
+    }
+  }
+
+  if (!userId) {
+    throw new PermissionDeniedError("Unauthenticated: Missing user session");
+  }
+
+  let tenantId: string;
+  try {
+    tenantId = await resolveTenantId(client, { userId });
+  } catch (err) {
+    throw new ConfigurationError("Tenant not resolved");
+  }
+
+  if (!tenantId) {
+    throw new ConfigurationError("Tenant not resolved");
+  }
+
+  // 1. Platform admin check (user_roles table)
+  try {
+    const { data: roles } = await client
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (roles?.some((r: any) => r.role === "admin")) return true;
+  } catch {
+    throw new ServiceUnavailableError("Permission check failed during admin role verification");
+  }
+
+  // 2. Tenant owner check — owner_user_id in tenants table
+  try {
+    const { data: tenantRow } = await client
+      .from("tenants")
+      .select("owner_user_id")
+      .eq("id", tenantId)
+      .maybeSingle();
+
+    if (tenantRow?.owner_user_id === userId) return true;
+  } catch {
+    throw new ServiceUnavailableError("Permission check failed during tenant verification");
+  }
+
+  // 3. Tenant member permission check
+  const { data: member, error: memberErr } = await client
+    .from("tenant_members")
+    .select("role, permissions")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberErr) {
+    throw new ServiceUnavailableError("Permission check failed during membership verification");
+  }
+
+  if (!member) {
+    throw new PermissionDeniedError("Not a member of this tenant");
+  }
+
+  if (member.role === "owner" || member.role === "manager") return true;
+  const perms = (member.permissions as PermissionKey[]) || ROLE_PRESETS[member.role as TenantRole] || [];
+  if (perms.includes(permission)) return true;
+
+  throw new PermissionDeniedError(`Insufficient permissions for action '${permission}'`);
 }
 

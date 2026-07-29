@@ -54,171 +54,89 @@ export function validateMediaFile(file: { name: string; size: number; type: stri
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const DEFAULT_DEMO_MEDIA: MediaFileRecord[] = [
-  {
-    id: "demo-media-1",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "منشار-تقليم-كهربائي-48V.jpg",
-    file_path: "whatsapp/demo1.jpg",
-    file_url: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 1450000,
-    sequence_number: 1,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967738609222",
-      caption: "منشار تقليم 48V",
-      category: "معدات وأدوات",
-      tags: ["منشار", "تقليم", "48V"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "demo-media-2",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "كاميرا-فحص-أنابيب-4K.jpg",
-    file_path: "whatsapp/demo2.jpg",
-    file_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 2100000,
-    sequence_number: 2,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967738609222",
-      caption: "كاميرا فحص أنابيب",
-      category: "إلكترونيات",
-      tags: ["كاميرا", "فحص", "أنابيب"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "demo-media-3",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "ساعة-ابل-واش-الترا-سوداء.jpg",
-    file_path: "whatsapp/demo3.jpg",
-    file_url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 1890000,
-    sequence_number: 3,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967785574271",
-      caption: "ساعة ابل واش الترا سوداء",
-      category: "ساعات ومجوهرات",
-      tags: ["ساعة", "ابل", "الترا"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 10800000).toISOString(),
-  },
-];
-
 /** Server Fn: List media files with search & filter */
 export const listMediaFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: { search?: string; type?: string; source?: string; category?: string; sort?: string; limit?: number }) => data)
   .handler(async ({ data: { search, type, source, category, sort = "newest", limit = 200 }, context }): Promise<MediaFileRecord[]> => {
-    try {
-      const ctx = context as any;
-      let db = ctx?.supabase || supabase;
+    const ctx = context as any;
+    const db = ctx?.supabase || supabase;
 
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          // fallback
-        }
-      }
+    let q = db
+      .from("media_files")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-      let q = db
-        .from("media_files")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-      if (type && type !== "all") {
-        q = q.eq("file_type", type);
-      }
-
-      const { data: rows, error } = await q;
-
-      if (error) {
-        console.warn("[Media] Supabase media_files query error:", error.message);
-      }
-
-      let results = (rows as unknown as MediaFileRecord[]) || [];
-
-      // If DB has no rows at all, append DEMO media to show demo items alongside new uploads
-      if (results.length === 0) {
-        console.log("[Media] DB empty, returning DEMO media fallback");
-        results = DEFAULT_DEMO_MEDIA;
-      }
-
-      // Filter by Search (Name or Tags)
-      if (search && search.trim()) {
-        const query = search.trim().toLowerCase();
-        results = results.filter((file: any) => {
-          const nameMatch = file.file_name?.toLowerCase().includes(query);
-          const tags = (file.metadata?.tags as string[]) || [];
-          const tagsMatch = tags.some((tag) => tag.toLowerCase().includes(query));
-          const captionMatch = (file.metadata?.caption as string)?.toLowerCase().includes(query);
-          return nameMatch || tagsMatch || captionMatch;
-        });
-      }
-
-      // Filter by Source
-      if (source && source !== "all") {
-        results = results.filter((file: any) => {
-          const itemSource = file.source || file.metadata?.source || "upload";
-          return itemSource === source;
-        });
-      }
-
-      // Filter by Category
-      if (category && category !== "all") {
-        results = results.filter((file: any) => {
-          const itemCategory = file.metadata?.category || "وسائط متنوعة";
-          return itemCategory === category;
-        });
-      }
-
-      // Sort Results
-      results.sort((a: any, b: any) => {
-        if (sort === "oldest") {
-          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-        }
-        if (sort === "seq_asc") {
-          return (a.sequence_number || 0) - (b.sequence_number || 0);
-        }
-        if (sort === "seq_desc") {
-          return (b.sequence_number || 0) - (a.sequence_number || 0);
-        }
-        if (sort === "largest") {
-          return (b.size_bytes || 0) - (a.size_bytes || 0);
-        }
-        if (sort === "smallest") {
-          return (a.size_bytes || 0) - (b.size_bytes || 0);
-        }
-        if (sort === "name_asc") {
-          return (a.file_name || "").localeCompare(b.file_name || "", "ar");
-        }
-        if (sort === "name_desc") {
-          return (b.file_name || "").localeCompare(a.file_name || "", "ar");
-        }
-        // default: newest
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-      });
-
-      return results;
-    } catch (err) {
-      console.warn("listMediaFiles exception fallback:", err);
-      return DEFAULT_DEMO_MEDIA;
+    if (type && type !== "all") {
+      q = q.eq("file_type", type);
     }
+
+    const { data: rows, error } = await q;
+
+    if (error) {
+      console.error("[Media] Supabase media_files query error:", error.message);
+      throw new Error(`فشل تحميل مكتبة الوسائط: ${error.message}`);
+    }
+
+    let results = (rows as unknown as MediaFileRecord[]) || [];
+
+    // Filter by Search (Name or Tags)
+    if (search && search.trim()) {
+      const query = search.trim().toLowerCase();
+      results = results.filter((file: any) => {
+        const nameMatch = file.file_name?.toLowerCase().includes(query);
+        const tags = (file.metadata?.tags as string[]) || [];
+        const tagsMatch = tags.some((tag) => tag.toLowerCase().includes(query));
+        const captionMatch = (file.metadata?.caption as string)?.toLowerCase().includes(query);
+        return nameMatch || tagsMatch || captionMatch;
+      });
+    }
+
+    // Filter by Source
+    if (source && source !== "all") {
+      results = results.filter((file: any) => {
+        const itemSource = file.source || file.metadata?.source || "upload";
+        return itemSource === source;
+      });
+    }
+
+    // Filter by Category
+    if (category && category !== "all") {
+      results = results.filter((file: any) => {
+        const itemCategory = file.metadata?.category || "وسائط متنوعة";
+        return itemCategory === category;
+      });
+    }
+
+    // Sort Results
+    results.sort((a: any, b: any) => {
+      if (sort === "oldest") {
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      }
+      if (sort === "seq_asc") {
+        return (a.sequence_number || 0) - (b.sequence_number || 0);
+      }
+      if (sort === "seq_desc") {
+        return (b.sequence_number || 0) - (a.sequence_number || 0);
+      }
+      if (sort === "largest") {
+        return (b.size_bytes || 0) - (a.size_bytes || 0);
+      }
+      if (sort === "smallest") {
+        return (a.size_bytes || 0) - (b.size_bytes || 0);
+      }
+      if (sort === "name_asc") {
+        return (a.file_name || "").localeCompare(a.file_name || "", "ar");
+      }
+      if (sort === "name_desc") {
+        return (b.file_name || "").localeCompare(a.file_name || "", "ar");
+      }
+      // default: newest
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    return results;
   });
 
 const MEDIA_BUCKET = "product-images"; // Supabase Storage bucket for all media

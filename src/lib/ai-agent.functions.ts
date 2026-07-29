@@ -180,6 +180,21 @@ async function resolveAgentRole(db: any, userId: string, tenantId: string): Prom
   }
 }
 
+/** Approval gate check (read-only verification, fail-closed) */
+export async function verifyApproval(db: any, planId: string, userId: string): Promise<void> {
+  const { data, error } = await db
+    .from("ai_execution_plans")
+    .select("approved_by, user_approved_at, status")
+    .eq("id", planId)
+    .maybeSingle();
+
+  if (error) throw new Error("Cannot verify approval — execution blocked due to DB query failure.");
+  if (!data) throw new Error("404: Execution plan not found.");
+  if (!data.user_approved_at) throw new Error("403: Plan not approved by user.");
+  if (data.approved_by !== userId) throw new Error("403: Approval user mismatch.");
+  if (data.status !== "APPROVED") throw new Error("403: Plan status is not APPROVED.");
+}
+
 async function logAudit(
   db: any,
   tenantId: string,

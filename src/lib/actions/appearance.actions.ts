@@ -30,10 +30,10 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { resolveCurrentTenant } from "@/lib/saas/tenant-resolver";
 
 /**
- * P5 — CMS write scope resolution:
+ * P5 — CMS write scope resolution (Fail-Closed):
  *   platform admin → GLOBAL rows (tenant_id NULL, platform defaults)
  *   store owner    → THEIR tenant's override rows
- * Anyone else is rejected. RLS enforces the same split as backstop.
+ * Anyone else is REJECTED (allowed: false, scope: null).
  */
 async function resolveCmsScope(
   authSupabase: any,
@@ -41,24 +41,26 @@ async function resolveCmsScope(
 ): Promise<{ allowed: boolean; scope: string | null }> {
   if (!userId) return { allowed: false, scope: null };
 
-  const { data: isAdmin } = await authSupabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "admin",
-  });
-  if (isAdmin) return { allowed: true, scope: null };
-
   try {
-    const tenantId = await resolveCurrentTenant(authSupabase, { userId });
-    const { data: isOwner } = await authSupabase.rpc("has_tenant_permission", {
-      _tenant_id: tenantId,
+    const { data: isAdmin } = await authSupabase.rpc("has_role", {
       _user_id: userId,
-      _required_role: "owner",
+      _role: "admin",
     });
-    if (isOwner) return { allowed: true, scope: tenantId };
+    if (isAdmin) return { allowed: true, scope: null };
+
+    const tenantId = await resolveCurrentTenant(authSupabase, { userId });
+    if (tenantId) {
+      const { data: isOwner } = await authSupabase.rpc("has_tenant_permission", {
+        _tenant_id: tenantId,
+        _user_id: userId,
+        _required_role: "owner",
+      });
+      if (isOwner) return { allowed: true, scope: tenantId };
+    }
   } catch {
-    /* fall through */
+    /* fail-closed on any error */
   }
-  return { allowed: true, scope: null };
+  return { allowed: false, scope: null };
 }
 
 /** Resolve the storefront tenant for PUBLIC reads from request headers. */
@@ -67,31 +69,6 @@ async function resolvePublicCmsTenant(db: any): Promise<string | null> {
     const { getRequest } = await import("@tanstack/react-start/server");
     const headers = getRequest()?.headers ?? null;
     return await resolveTenantId(db, { headers });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Verify the caller of a public (middleware-less) server fn is a platform
- * admin, using the request bearer token verified against Supabase Auth.
- * Returns the service-role client when authorized, otherwise null.
- */
-async function getAdminClientIfAuthorized() {
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const authHeader = getRequest()?.headers?.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return null;
-    const token = authHeader.slice("Bearer ".length).trim();
-    if (!token || token.split(".").length !== 3) return null;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data?.user) return null;
-    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
-      _user_id: data.user.id,
-      _role: "admin",
-    });
-    return isAdmin ? supabaseAdmin : null;
   } catch {
     return null;
   }
@@ -152,45 +129,51 @@ function rowsToSettings(
   };
 }
 
-// ── 1. Get Storefront Settings ────────────────────────────────────────────────
+// ── 1. Get Published Storefront Settings (Public — No Auth & No Service Role) ──
 
 /**
- * Fetch all global storefront settings.
- * - previewMode=true → returns draft_value when available (for admin live preview)
- * - previewMode=false (default) → returns published value only (for public storefront)
+ * Fetch published storefront settings.
+ * Publicly accessible — reads published "value" column ONLY. Never uses Service Role.
  */
-export const getStorefrontAppearance = createServerFn({ method: "GET" })
-  .validator((data: { previewMode?: boolean } | undefined) => data)
-  .handler(async ({ data }): Promise<StorefrontSettingsShape> => {
-    const previewMode = data?.previewMode ?? false;
+export const getPublishedStorefrontAppearance = createServerFn({ method: "GET" })
+  .handler(async (): Promise<StorefrontSettingsShape> => {
     try {
-      let db = supabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = supabase;
-        }
-      }
-
-      if (!db) return DEFAULT_STOREFRONT_SETTINGS;
-
-      const publicTenantId = await resolvePublicCmsTenant(db);
-
-      if (previewMode) {
-        const rows = await storefrontService.fetchRowsWithDrafts(db, publicTenantId);
-        if (rows && rows.length > 0) return rowsToSettings(rows, true);
-      }
-
-      const rows = await storefrontService.fetchPublishedRows(db, publicTenantId);
+      const publicTenantId = await resolvePublicCmsTenant(supabase);
+      const rows = await storefrontService.fetchPublishedRows(supabase, publicTenantId);
       if (!rows || rows.length === 0) return DEFAULT_STOREFRONT_SETTINGS;
       return rowsToSettings(rows, false);
     } catch (err) {
-      console.warn("[getStorefrontAppearance] Returning fallback defaults:", err);
+      console.warn("[getPublishedStorefrontAppearance] Returning fallback defaults:", err);
       return DEFAULT_STOREFRONT_SETTINGS;
     }
   });
+
+/**
+ * Fetch draft preview storefront settings (Protected — Auth & CMS Scope Gated).
+ * Reads draft_value for authorized tenant/platform admin callers only.
+ */
+export const getStorefrontDraftPreview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<StorefrontSettingsShape> => {
+    const { supabase: authSupabase, userId } = context as any;
+    const gate = await resolveCmsScope(authSupabase, userId);
+    if (!gate.allowed) {
+      throw new Error("403: Forbidden — CMS draft preview requires tenant membership or admin role.");
+    }
+
+    try {
+      const rows = await storefrontService.fetchRowsWithDrafts(authSupabase, gate.scope);
+      if (rows && rows.length > 0) return rowsToSettings(rows, true);
+      const published = await storefrontService.fetchPublishedRows(authSupabase, gate.scope);
+      return rowsToSettings(published || [], false);
+    } catch (err) {
+      console.warn("[getStorefrontDraftPreview] Error:", err);
+      return DEFAULT_STOREFRONT_SETTINGS;
+    }
+  });
+
+/** Backward compatibility alias for public appearance reads */
+export const getStorefrontAppearance = getPublishedStorefrontAppearance;
 
 // ── 2. Save Draft ────────────────────────────────────────────────────────────
 

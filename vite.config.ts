@@ -16,12 +16,19 @@ export default defineConfig({
         manifest: false,
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          navigateFallbackDenylist: [
+            /\/api\//,
+            /supabase\.co\/auth\//,
+            /supabase\.co\/rest\/v1\//,
+            /supabase\.co\/storage\/v1\/object\/authenticated/,
+          ],
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
-              handler: "NetworkFirst",
+              // Public storage assets ONLY — NEVER cache /auth/, /rest/v1/, or authenticated objects
+              urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
+              handler: "CacheFirst",
               options: {
-                cacheName: "supabase-api-cache",
+                cacheName: "supabase-public-storage-cache",
                 expiration: {
                   maxEntries: 100,
                   maxAgeSeconds: 60 * 60 * 24 * 7,
