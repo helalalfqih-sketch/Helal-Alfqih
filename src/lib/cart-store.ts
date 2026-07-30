@@ -61,6 +61,9 @@ export const useCart = create<CartState>()(
       total: () => get().items.reduce((sum, i) => sum + i.price * i.qty, 0),
       count: () => get().items.reduce((sum, i) => sum + i.qty, 0),
     }),
-    { name: "noqta-cart" },
+    {
+      name: "noqta-cart-v2",
+      partialize: (state) => ({ items: state.items }),
+    },
   ),
 );

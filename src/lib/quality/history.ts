@@ -43,7 +43,30 @@ class ProductionStorageAdapter implements QualityStorageAdapter {
     this.inMemoryLatestReport = summary;
     this.inMemoryHistory.unshift(summary);
     if (this.inMemoryHistory.length > 50) this.inMemoryHistory.pop();
-    // In production, Node fs is NEVER called. Reports reside safely in memory/DB.
+
+    // Async DB persistence to quality_audit_runs in Supabase
+    void (async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        if (!supabase) return;
+        await (supabase as any).from("quality_audit_runs").insert({
+          schema_version: summary.schemaVersion,
+          overall_score: summary.overallScore,
+          grade: summary.grade,
+          status: summary.status,
+          environment: summary.environment || "production",
+          audits_count: summary.auditsCount,
+          passed_count: summary.passedCount,
+          failed_count: summary.failedCount,
+          warning_count: summary.warningCount,
+          not_measured_count: summary.notMeasuredCount,
+          results: summary.results,
+          manifest: summary.manifest,
+        });
+      } catch (err) {
+        console.warn("[ProductionStorageAdapter] DB persistence notice:", err);
+      }
+    })();
   }
 
   loadReport(): QualityReportSummary | null {

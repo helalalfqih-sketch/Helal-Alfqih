@@ -413,31 +413,15 @@ export const getAgentSession = createServerFn({ method: "GET" })
         db.from("ai_agent_messages").select("*").eq("session_id", sessionId).eq("tenant_id", tenantId).order("created_at", { ascending: true }),
       ]);
 
-      if (sessionRes.error) throw new Error("الجلسة غير موجودة");
+      if (sessionRes.error) throw new Error(`الجلسة غير موجودة: ${sessionRes.error.message}`);
 
       return {
         session: sessionRes.data as AgentSession,
         messages: (messagesRes.data || []) as AgentMessage[],
       };
     } catch (e: any) {
-      return {
-        session: {
-          id: sessionId,
-          tenant_id: "default",
-          user_id: "default",
-          title: "جلسة افتراضية",
-          status: "active",
-          task_id: "TASK-001",
-          task_status: "idle",
-          task_plan: null,
-          task_report: null,
-          affected_files: [],
-          risk_level: "low",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        messages: [],
-      };
+      console.error("[AI Agent] getAgentSession error:", e.message);
+      throw new Error(`AGENT_SESSION_FETCH_FAILED: ${e.message}`);
     }
   });
 
@@ -700,10 +684,12 @@ export const getProjectMemory = createServerFn({ method: "GET" })
         .eq("tenant_id", tenantId)
         .order("category", { ascending: true });
 
-      if (error || !data || data.length === 0) return defaultMemoryEntries;
+      if (error) throw new Error(`فشل قراءة ذاكرة المشروع: ${error.message}`);
+      if (!data || data.length === 0) return defaultMemoryEntries;
       return data as AgentMemoryEntry[];
-    } catch {
-      return defaultMemoryEntries;
+    } catch (e: any) {
+      console.error("[AI Agent] getProjectMemory error:", e.message);
+      throw new Error(`AGENT_MEMORY_FETCH_FAILED: ${e.message}`);
     }
   });
 
@@ -735,8 +721,9 @@ export const saveProjectMemory = createServerFn({ method: "POST" })
       });
 
       return { ok: true };
-    } catch {
-      return { ok: true };
+    } catch (e: any) {
+      console.error("[AI Agent] saveProjectMemory error:", e.message);
+      throw new Error(`AGENT_MEMORY_SAVE_FAILED: ${e.message}`);
     }
   });
 

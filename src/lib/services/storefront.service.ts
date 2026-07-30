@@ -61,13 +61,21 @@ export async function fetchPublishedRows(
     }
     const { data, error } = await q;
     if (error || !data || data.length === 0) {
-      // Fallback query selecting key, value without tenant_id
-      const { data: d2 } = await db.from("storefront_settings").select("key, value");
-      if (!d2 || d2.length === 0) return null;
-      return d2.map((r: any) => ({ key: r.key, value: r.value }));
+      if (error) {
+        console.error("[fetchPublishedRows] Query error:", error.message);
+        return null;
+      }
+      // Fallback: load platform defaults (tenant_id IS NULL) strictly
+      const { data: globalData, error: globalErr } = await db
+        .from("storefront_settings")
+        .select("key, value")
+        .is("tenant_id", null);
+      if (globalErr || !globalData || globalData.length === 0) return null;
+      return globalData.map((r: any) => ({ key: r.key, value: r.value }));
     }
     return mergeRows(data as any[]).map((r: any) => ({ key: r.key, value: r.value }));
-  } catch {
+  } catch (err: any) {
+    console.error("[fetchPublishedRows] Exception:", err?.message || err);
     return null;
   }
 }
@@ -178,7 +186,6 @@ export async function saveDraftValue(
   const { data: rowExists } = await checkQ.maybeSingle();
 
   if (rowExists) {
-    // Try with draft_value first; fall back to value-only if column missing
     let uq = db
       .from("storefront_settings")
       .update({ draft_value: value, updated_at: now() })
@@ -186,24 +193,17 @@ export async function saveDraftValue(
     uq = scoped(uq, scope);
     const { error } = await uq;
     if (error) {
-      // draft_value column may not exist — fall back to live save
-      return saveLiveValue(db, key, value, scope);
+      console.error("[saveDraftValue] Failed to update draft_value:", error.message);
+      return { ok: false, message: `تعذر حفظ المسودة: ${error.message}`, oldValue };
     }
     return { ok: true, oldValue };
   } else {
-    // Try inserting with draft_value; fall back without it
     const payload: any = { key, value: {}, draft_value: value, type: "json" };
     if (scope !== null) payload.tenant_id = scope;
     const { error: insErr } = await db.from("storefront_settings").insert(payload);
     if (insErr) {
-      // Retry insert without draft_value (column may not exist)
-      const fallbackPayload: any = { key, value, type: "json" };
-      if (scope !== null) fallbackPayload.tenant_id = scope;
-      const { error: fbErr } = await db.from("storefront_settings").insert(fallbackPayload);
-      if (fbErr) {
-        // Last resort: update existing row
-        return saveLiveValue(db, key, value, scope);
-      }
+      console.error("[saveDraftValue] Failed to insert draft_value:", insErr.message);
+      return { ok: false, message: `تعذر إنشاء المسودة: ${insErr.message}`, oldValue };
     }
     return { ok: true, oldValue };
   }
@@ -230,12 +230,11 @@ export async function publishDraftKey(
     if (error) {
       let uq2 = db.from("storefront_settings").update({ value: row.draft_value, updated_at: now() }).eq("key", key);
       uq2 = scoped(uq2, scope);
-      await uq2;
+      const { error: e2 } = await uq2;
+      if (e2) return { ok: false, message: `فشل نشر المسودة: ${e2.message}` };
     }
-  } catch {
-    let uq3 = db.from("storefront_settings").update({ value: row.draft_value, updated_at: now() }).eq("key", key);
-    uq3 = scoped(uq3, scope);
-    await uq3;
+  } catch (err: any) {
+    return { ok: false, message: `خطأ أثناء النشر: ${err?.message || String(err)}` };
   }
 
   return { ok: true, oldValue: row.value, newValue: row.draft_value };
