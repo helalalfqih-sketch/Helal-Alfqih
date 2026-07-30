@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Star, Play, X, Heart, Eye, ShoppingCart, Video, Sparkles, Trophy, Clock, Flame, Check } from "lucide-react";
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import type { Product } from "@/lib/store-data";
 import type { LegacyProductShape } from "@/lib/data-adapter";
@@ -92,14 +93,23 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
     badgeLabel = product.badge;
   }
 
-  const categoryName = (product as any).category_name || (product as any).brand || "أجهزة منزلية";
-  const viewsText = (product as any).views_count || "1.2M مشاهدة";
+  const rawVideoUrl = (product as any).video_url || (product as any).videoUrl || null;
+  const hasValidVideo = Boolean(
+    videoPlaybackId || (typeof rawVideoUrl === "string" && rawVideoUrl.trim().length > 0)
+  );
+
+  const categoryName = (product as any).category_name || (product as any).brand || (product as any).sku || null;
+  const realViews =
+    (product as any).views_count && Number((product as any).views_count) > 0
+      ? `${(product as any).views_count} مشاهدة`
+      : null;
+  const realRating = product.rating && product.rating > 0 ? product.rating : null;
   const isFav = isFavorite(product.id);
 
   const handleVideoClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (videoPlaybackId) {
+    if (hasValidVideo) {
       setShowVideoModal(true);
     } else {
       setShowNoVideoModal(true);
@@ -162,13 +172,17 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           </button>
 
           <div className="flex items-center gap-1.5">
-            <span className="rounded-md bg-purple-600/80 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-              Video
-            </span>
-            <div className="flex items-center gap-0.5">
-              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              <span className="font-bold text-white text-[10px]">{product.rating || 4.5}</span>
-            </div>
+            {hasValidVideo && (
+              <span className="rounded-md bg-purple-600/80 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                فيديو
+              </span>
+            )}
+            {realRating && (
+              <div className="flex items-center gap-0.5">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                <span className="font-bold text-white text-[10px]">{realRating}</span>
+              </div>
+            )}
           </div>
 
           <button
@@ -188,15 +202,17 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
         {/* ================= 2. MEDIA & OVERLAY BADGES ================= */}
         <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-black/40">
           {/* Top Right Video Badge Overlay */}
-          <button
-            type="button"
-            onClick={handleVideoClick}
-            className="absolute start-2 top-2 z-20 flex items-center gap-1 rounded-full border border-cyan-400/40 bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white backdrop-blur-md transition hover:bg-cyan-500 hover:text-slate-950 active:scale-95 shadow-md"
-            title="مشاهدة الفيديو"
-          >
-            <Video className="h-3 w-3 text-cyan-400" />
-            <span>فيديو</span>
-          </button>
+          {hasValidVideo && (
+            <button
+              type="button"
+              onClick={handleVideoClick}
+              className="absolute start-2 top-2 z-20 flex items-center gap-1 rounded-full border border-cyan-400/40 bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white backdrop-blur-md transition hover:bg-cyan-500 hover:text-slate-950 active:scale-95 shadow-md"
+              title="مشاهدة الفيديو"
+            >
+              <Video className="h-3 w-3 text-cyan-400" />
+              <span>فيديو</span>
+            </button>
+          )}
 
           {/* Main Product Image / 3D Viewer */}
           <Link to="/product/$slug" params={{ slug: product.slug }} className="block h-full w-full">
@@ -215,9 +231,11 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           </Link>
 
           {/* Bottom Center Views Count Badge */}
-          <div className="absolute start-1/2 -translate-x-1/2 bottom-2 z-10 rounded-full bg-black/70 border border-white/15 px-2.5 py-0.5 text-[9px] font-medium text-slate-200 backdrop-blur-md whitespace-nowrap">
-            {viewsText}
-          </div>
+          {realViews && (
+            <div className="absolute start-1/2 -translate-x-1/2 bottom-2 z-10 rounded-full bg-black/70 border border-white/15 px-2.5 py-0.5 text-[9px] font-medium text-slate-200 backdrop-blur-md whitespace-nowrap">
+              {realViews}
+            </div>
+          )}
 
           {/* Discount Tag */}
           {discount > 0 && (
@@ -230,9 +248,11 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
         {/* ================= 3. PRODUCT INFORMATION ================= */}
         <div className="flex flex-col gap-0.5 text-start px-0.5">
           {/* Uppercase Brand/Code Label */}
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
-            {(product as any).brand || (product as any).sku || categoryName}
-          </span>
+          {categoryName && (
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+              {categoryName}
+            </span>
+          )}
 
           {/* Product Title (2-line clamp) */}
           <Link to="/product/$slug" params={{ slug: product.slug }}>
@@ -288,7 +308,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
       </div>
 
       {/* ================= MODAL 1: VIDEO PLAYER MODAL ================= */}
-      {showVideoModal && videoPlaybackId && (
+      {typeof document !== "undefined" && showVideoModal && videoPlaybackId && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
           <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3">
             <button
@@ -306,11 +326,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               <p className="text-xs text-slate-400 mt-0.5">فيديو عرض المنتج التوضيحي</p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ================= MODAL 2: NO VIDEO AVAILABLE / REQUEST VIDEO MODAL ================= */}
-      {showNoVideoModal && (
+      {typeof document !== "undefined" && showNoVideoModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
           <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4">
             <button
@@ -342,11 +363,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ================= MODAL 3: QUICK VIEW MODAL ================= */}
-      {showQuickViewModal && (
+      {typeof document !== "undefined" && showQuickViewModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
           <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 shadow-2xl text-start space-y-4 max-h-[90vh] overflow-y-auto">
             <button
@@ -386,7 +408,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               {/* Product Details & Actions */}
               <div className="flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-cyan-400">{categoryName}</span>
+                  {categoryName && <span className="text-xs font-bold text-cyan-400">{categoryName}</span>}
                   <h3 className="text-lg font-black text-white leading-tight">{product.name}</h3>
 
                   {(product.rating > 0 || (product as any).reviews > 0) && (
@@ -443,7 +465,8 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );

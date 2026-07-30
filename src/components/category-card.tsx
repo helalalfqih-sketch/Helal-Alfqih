@@ -21,7 +21,7 @@ export interface CategoryCardProps {
 
 export function CategoryCard({ category }: CategoryCardProps) {
   const imageUrl = (category as any).imageUrl || (category as any).image_url || "";
-  const count = (category as any).products_count ?? (category as any).count ?? 120;
+  const count = (category as any).products_count ?? (category as any).count ?? null;
   const description = (category as any).description || "تشكيلة واسعة بأفضل الأسعار والعروض";
   const badge = (category as any).badge || ((category as any).is_new ? "جديد" : null);
 
@@ -69,7 +69,7 @@ export function CategoryCard({ category }: CategoryCardProps) {
             {category.name}
           </h3>
           <p className="text-[11px] font-medium text-slate-400 line-clamp-1">
-            +{count} منتج | {description}
+            {count != null ? `+${count} منتج | ` : ""}{description}
           </p>
         </div>
 

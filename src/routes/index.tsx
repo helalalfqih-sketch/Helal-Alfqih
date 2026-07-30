@@ -458,7 +458,7 @@ function HomePage() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <span className="mb-0.5 inline-block text-[10px] font-bold tracking-[0.3em] text-cyan-400">
-                CATEGORIES
+                تصنيفات التصفح
               </span>
               <h3 className="text-xl font-black" style={{ color: LIGHT }}>
                 {settings.sections.categories.title || "التصنيفات"}
@@ -502,7 +502,7 @@ function HomePage() {
                 className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em]"
                 style={{ color: "color-mix(in oklab, var(--showcase-foreground) 55%, transparent)" }}
               >
-                TRENDING NOW
+                وصل حديثاً
               </span>
               <h2 className="text-xl font-black leading-tight sm:text-2xl" style={{ color: LIGHT }}>
                 {settings.sections.latest.title || "المنتجات الأكثر رواجاً"}
@@ -599,7 +599,7 @@ function HomePage() {
       {settings.sections.testimonials.enabled !== false && (
         <motion.section {...revealProps} className="relative z-10 px-4 mt-4 pb-4 border-t border-showcase-border/40 pt-6">
           <div className="mb-4 text-center">
-            <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-primary">REVIEWS & TESTIMONIALS</span>
+            <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-primary">تقييمات العملاء</span>
             <h3 className="text-base font-black text-showcase-foreground">
               {settings.sections.testimonials.title || "ماذا يقول عملاؤنا؟ ❤️"}
             </h3>

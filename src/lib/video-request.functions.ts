@@ -49,18 +49,22 @@ export const requestProductVideo = createServerFn({ method: "POST" })
       console.warn("[requestProductVideo] Insert warning:", err);
     }
 
-    // 3. Create Admin Audit Notification
-    await supabase.from("tenant_audit_logs").insert({
-      tenant_id: tenantId,
-      actor_id: userData.user?.id || null,
-      actor_email: userData.user?.email || null,
-      action: "video_request",
-      details: {
-        product_id: productId,
-        product_name: productName,
-        message: `العميل طلب توفير فيديو للمنتج: ${productName}`,
-      } as any,
-    });
+    // 3. Create Admin Audit Notification (best-effort)
+    try {
+      await (db.from("tenant_audit_logs") as any).insert({
+        tenant_id: tenantId,
+        actor_id: userData?.user?.id || null,
+        actor_email: userData?.user?.email || null,
+        action: "video_request",
+        details: {
+          product_id: productId,
+          product_name: productName,
+          message: `العميل طلب توفير فيديو للمنتج: ${productName}`,
+        } as any,
+      });
+    } catch (auditErr) {
+      console.warn("[requestProductVideo] audit log skipped:", auditErr);
+    }
 
     return {
       ok: true,
