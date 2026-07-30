@@ -10,6 +10,11 @@ jobs:
   verify-security:
     name: Verify P0 Security & Quality Gates
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://ci-placeholder.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+      VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
 
     steps:
       - name: Checkout Code
