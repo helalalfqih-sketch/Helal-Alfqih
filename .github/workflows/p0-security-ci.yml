@@ -14,11 +14,13 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: 1. Install Dependencies
@@ -27,8 +29,23 @@ jobs:
       - name: 2. Typecheck
         run: npm run typecheck
 
-      - name: 3. Lint
-        run: npm run lint
+      - name: 3. Lint Changed Files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mapfile -t changed_files < <(
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- \
+              '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs'
+          )
+
+          if (( ${#changed_files[@]} == 0 )); then
+            echo "No changed JavaScript or TypeScript files to lint."
+            exit 0
+          fi
+
+          printf 'Linting changed file: %s\n' "${changed_files[@]}"
+          npx eslint --max-warnings=0 "${changed_files[@]}"
 
       - name: 4. Unit Tests
         run: npm run test:unit
