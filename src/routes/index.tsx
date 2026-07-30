@@ -124,7 +124,7 @@ const revealProps = {
  */
 function ShowroomStageSection({ product }: { product: LegacyProductShape }) {
   const gateRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(gateRef, { once: true, margin: "500px 0px" });
+  const inView = useInView(gateRef, { once: true, margin: "100px 0px" });
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const showCanvas = mounted && inView;

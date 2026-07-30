@@ -643,7 +643,7 @@ export function ProductSphereHero({
   badgeText = "INDEXES · LIVE SHOWCASE",
   title = "معرض المنتجات الذكي",
   subtitle = "اسحب الكرة — كل وجه منتج، اضغط لتفتحه",
-  maxProducts = 28,
+  maxProducts = 16,
   radius = 2.2,
   tileScale = 0.8,
   cardShape = "rectangle",
@@ -671,10 +671,13 @@ export function ProductSphereHero({
   const [activeSpecsProduct, setActiveSpecsProduct] = useState<LegacyProductShape | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    // Hide the drag hint after first interaction or 4 seconds
+    // Defer WebGL Canvas mount slightly to allow main thread DOM paint first
+    const timer = setTimeout(() => setMounted(true), 60);
     const t = setTimeout(() => setShowHint(false), 4000);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(t);
+    };
   }, []);
 
   const dismissHint = useCallback(() => setShowHint(false), []);
