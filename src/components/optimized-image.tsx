@@ -60,23 +60,28 @@ export function OptimizedImage({
   };
 
   useEffect(() => {
-    // Generate blur placeholder and target URLs
-    setBlurSrc(getOptimizedUrl(src, "blur"));
+    // Set target optimized image URL (CSS background skeleton prevents layout shift)
     setOptimizedSrc(getOptimizedUrl(src, size));
-    setIsLoaded(false); // Reset loaded state if src changes
-    setErrorCount(0); // Reset errors
-  }, [src, size, errorCount]);
+    setBlurSrc(""); // Skip extra blur network fetch to eliminate 50% overfetch calls
+    setIsLoaded(false);
+    setErrorCount(0);
+  }, [src, size]);
 
   const handleError = () => {
-    if (errorCount === 0) {
-      // First retry: use original source directly bypassing proxy
-      setOptimizedSrc(src);
-      setErrorCount(1);
-    } else if (errorCount === 1) {
-      // Second failure: use fallback placeholder
-      setOptimizedSrc(`https://placehold.co/600x600/120226/eef4fc?text=INDEXES`);
-      setErrorCount(2);
-    }
+    setErrorCount((current) => {
+      if (current === 0) {
+        // First retry: use original source directly bypassing proxy
+        setOptimizedSrc(src);
+        return 1;
+      }
+      if (current === 1) {
+        // Second failure: use local fallback placeholder
+        setOptimizedSrc("/images/product-placeholder.webp");
+        setBlurSrc("");
+        return 2;
+      }
+      return current;
+    });
   };
 
   const loadingAttr = eager ? "eager" : "lazy";
@@ -99,6 +104,7 @@ export function OptimizedImage({
           src={blurSrc}
           alt=""
           aria-hidden="true"
+          onError={() => setBlurSrc("")}
           className="absolute inset-0 h-full w-full object-cover filter blur-md scale-[1.05] transition-opacity duration-300 pointer-events-none"
           loading="eager"
           decoding="async"

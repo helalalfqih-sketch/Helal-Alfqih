@@ -5,7 +5,7 @@
  * with full Multi-Tenant RLS & RBAC isolation.
  */
 
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface NotificationTemplate {
   id?: string;
@@ -43,7 +43,7 @@ export async function getNotificationTemplates(
   tenantId: string,
 ): Promise<NotificationTemplate[]> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("notification_templates")
       .select("*")
@@ -64,7 +64,7 @@ export async function saveNotificationTemplate(
   template: NotificationTemplate,
 ): Promise<NotificationTemplate | null> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("notification_templates")
       .upsert({
@@ -93,7 +93,7 @@ export async function dispatchOrderNotification(params: {
   channel?: "email" | "whatsapp" | "in_app";
 }): Promise<{ success: boolean; notificationId?: string; error?: string }> {
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     const channel = params.channel || "email";
 
     // 1. Fetch matching active template

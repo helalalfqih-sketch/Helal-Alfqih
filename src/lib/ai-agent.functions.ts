@@ -61,51 +61,116 @@ export type AgentRole = "owner" | "admin" | "developer" | "viewer";
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
-async function getAdminDb(ctx?: any) {
-  if (typeof process !== "undefined") {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        return supabaseAdmin;
-      }
-    } catch { /* fallback */ }
+export interface PrivilegedAgentOptions {
+  operation: string;
+  userId: string;
+  tenantId: string;
+  requiredRole: AgentRole;
+  justification: string;
+  context: any;
+}
+
+export async function getPrivilegedAgentDb(options: PrivilegedAgentOptions) {
+  if (typeof process === "undefined") {
+    throw new Error("403: Service Role access is strictly forbidden in the browser.");
   }
+
+  const allowedOperations = [
+    "EXECUTE_APPROVED_MIGRATION",
+    "READ_CROSS_TENANT_METRICS",
+    "BYPASS_RLS_FOR_AUDIT",
+  ];
+
+  if (!allowedOperations.includes(options.operation)) {
+    throw new Error(`403: Operation '${options.operation}' is not allowlisted for privileged DB access.`);
+  }
+
+  // 1. Verify standard DB and RBAC first
+  const userDb = options.context?.supabase || supabase;
+  const userRole = await resolveAgentRole(userDb, options.userId, options.tenantId);
+
+  const ROLE_RANK: Record<AgentRole, number> = { owner: 4, admin: 3, developer: 2, viewer: 1 };
+  if ((ROLE_RANK[userRole] || 0) < (ROLE_RANK[options.requiredRole] || 0)) {
+    throw new Error(`403: Operation requires minimum role '${options.requiredRole}', you have '${userRole}'.`);
+  }
+
+  // 2. Safely import Admin client
+  let adminClient: any = null;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    adminClient = supabaseAdmin;
+  } catch (e) {
+    throw new Error("500: Failed to load privileged client module.");
+  }
+
+  if (!adminClient) {
+    throw new Error("500: Privileged client is not available in this environment.");
+  }
+
+  // 3. Log privileged access
+  await logAudit(adminClient, options.tenantId, options.userId, "privileged_db_accessed", null, {
+    operation: options.operation,
+    justification: options.justification,
+  });
+
+  return adminClient;
+}
+
+export async function getAgentDb(ctx?: any) {
   return ctx?.supabase || supabase;
 }
 
 async function resolveAgentRole(db: any, userId: string, tenantId: string): Promise<AgentRole> {
-  // Dev mode & platform owner bypass (always full owner access in local dev or for platform admin)
-  if (process.env.NODE_ENV === "development") {
-    return "owner";
+  if (!userId) {
+    throw new Error("401: Unauthorized. User ID is missing.");
+  }
+  
+  if (!tenantId || tenantId === "default") {
+    throw new Error("CONFIGURATION_ERROR: Missing or invalid tenant ID.");
   }
 
   // Check if platform admin in user_roles
-  try {
-    const { data: roles } = await db
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (roles?.some((r: any) => r.role === "admin")) return "owner";
-  } catch { /* skip */ }
+  const { data: roles, error: rolesErr } = await db
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (rolesErr) {
+    throw new Error(`503: Permission check failed during admin role verification: ${rolesErr.message}`);
+  }
+
+  if (roles?.some((r: any) => r.role === "admin")) return "owner";
 
   // Check if tenant owner
-  const { data: tenant } = await db
+  const { data: tenant, error: tenantErr } = await db
     .from("tenants")
     .select("owner_user_id")
     .eq("id", tenantId)
     .maybeSingle();
 
-  if (tenant?.owner_user_id === userId || !tenant?.owner_user_id) return "owner";
+  if (tenantErr) {
+    throw new Error("403: Failed to verify tenant ownership (Database Error).");
+  }
+
+  if (!tenant || !tenant.owner_user_id) {
+    throw new Error("404: Tenant not found or has no owner.");
+  }
+
+  if (tenant.owner_user_id === userId) {
+    return "owner";
+  }
 
   // Check tenant member role
-  const { data: member } = await db
+  const { data: member, error: memberErr } = await db
     .from("tenant_members")
     .select("role")
     .eq("tenant_id", tenantId)
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!member) return "owner"; // Default to owner for admin panel access if authenticated
+  if (memberErr || !member) {
+    throw new Error("403: Access Denied. You do not have an active membership in this tenant.");
+  }
 
   switch (member.role) {
     case "owner": return "owner";
@@ -113,7 +178,35 @@ async function resolveAgentRole(db: any, userId: string, tenantId: string): Prom
     case "marketing":
     case "employee":
     case "staff": return "developer";
-    default: return "owner";
+    default: 
+      throw new Error("403: Access Denied. Unknown role.");
+  }
+}
+
+/** Approval gate check (read-only verification, fail-closed) */
+export async function verifyApproval(
+  db: any,
+  taskId: string,
+  tenantId: string,
+  expectedHash?: string,
+  expectedRevision?: number
+): Promise<void> {
+  const { data, error } = await db
+    .from("ai_agent_plans")
+    .select("approved_by, approved_at, status, approved_plan_hash, approved_revision")
+    .eq("id", taskId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (error) throw new Error("Cannot verify approval — DB query failure.");
+  if (!data) throw new Error("404: Execution plan not found.");
+  if (!data.approved_at || !data.approved_by) throw new Error("403: Plan not approved by user.");
+  if (data.status?.toUpperCase() !== "APPROVED") throw new Error("403: Plan status is not APPROVED.");
+  if (expectedHash && data.approved_plan_hash && data.approved_plan_hash !== expectedHash) {
+    throw new Error("403: PLAN_CHANGED_REAPPROVAL_REQUIRED — Plan hash mismatch.");
+  }
+  if (expectedRevision && data.approved_revision && data.approved_revision !== expectedRevision) {
+    throw new Error("403: PLAN_CHANGED_REAPPROVAL_REQUIRED — Plan revision mismatch.");
   }
 }
 
@@ -283,7 +376,7 @@ export const listAgentSessions = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const { data, error } = await db
@@ -312,7 +405,7 @@ export const getAgentSession = createServerFn({ method: "GET" })
   .handler(async ({ data: { sessionId }, context }) => {
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const [sessionRes, messagesRes] = await Promise.all([
@@ -320,31 +413,15 @@ export const getAgentSession = createServerFn({ method: "GET" })
         db.from("ai_agent_messages").select("*").eq("session_id", sessionId).eq("tenant_id", tenantId).order("created_at", { ascending: true }),
       ]);
 
-      if (sessionRes.error) throw new Error("الجلسة غير موجودة");
+      if (sessionRes.error) throw new Error(`الجلسة غير موجودة: ${sessionRes.error.message}`);
 
       return {
         session: sessionRes.data as AgentSession,
         messages: (messagesRes.data || []) as AgentMessage[],
       };
     } catch (e: any) {
-      return {
-        session: {
-          id: sessionId,
-          tenant_id: "default",
-          user_id: "default",
-          title: "جلسة افتراضية",
-          status: "active",
-          task_id: "TASK-001",
-          task_status: "idle",
-          task_plan: null,
-          task_report: null,
-          affected_files: [],
-          risk_level: "low",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        messages: [],
-      };
+      console.error("[AI Agent] getAgentSession error:", e.message);
+      throw new Error(`AGENT_SESSION_FETCH_FAILED: ${e.message}`);
     }
   });
 
@@ -354,7 +431,7 @@ export const createAgentSession = createServerFn({ method: "POST" })
   .validator((data: { title?: string }) => data)
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     try {
@@ -442,24 +519,8 @@ export const createAgentSession = createServerFn({ method: "POST" })
 
       return session as AgentSession;
     } catch (e: any) {
-      console.warn("[AI Agent] createAgentSession fallback active:", e.message);
-      // Return volatile mock session if tables not yet created on cloud
-      const mockId = crypto.randomUUID();
-      return {
-        id: mockId,
-        tenant_id: tenantId,
-        user_id: ctx.userId,
-        title: data.title || "جلسة جديدة",
-        status: "active",
-        task_id: "TASK-001",
-        task_status: "planning",
-        task_plan: null,
-        task_report: null,
-        affected_files: [],
-        risk_level: "low",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as AgentSession;
+      console.error("[AI Agent] createAgentSession error:", e.message);
+      throw new Error(`AGENT_SESSION_CREATE_FAILED: ${e.message}`);
     }
   });
 
@@ -469,7 +530,7 @@ export const saveAgentMessage = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; role: string; content: string; metadata?: any }) => data)
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     try {
@@ -494,16 +555,8 @@ export const saveAgentMessage = createServerFn({ method: "POST" })
 
       return msg as AgentMessage;
     } catch (e: any) {
-      console.warn("[AI Agent] saveAgentMessage fallback:", e.message);
-      return {
-        id: crypto.randomUUID(),
-        session_id: data.sessionId,
-        tenant_id: tenantId,
-        role: data.role as any,
-        content: data.content,
-        metadata: data.metadata || {},
-        created_at: new Date().toISOString(),
-      } as AgentMessage;
+      console.error("[AI Agent] saveAgentMessage error:", e.message);
+      throw new Error(`AGENT_MESSAGE_SAVE_FAILED: ${e.message}`);
     }
   });
 
@@ -523,7 +576,7 @@ export const updateSessionTask = createServerFn({ method: "POST" })
   }) => data)
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const updatePayload: any = { updated_at: new Date().toISOString() };
@@ -591,7 +644,7 @@ export const archiveSession = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string }) => data)
   .handler(async ({ data: { sessionId }, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { error } = await db
@@ -622,7 +675,7 @@ export const getProjectMemory = createServerFn({ method: "GET" })
 
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const { data, error } = await db
@@ -631,10 +684,12 @@ export const getProjectMemory = createServerFn({ method: "GET" })
         .eq("tenant_id", tenantId)
         .order("category", { ascending: true });
 
-      if (error || !data || data.length === 0) return defaultMemoryEntries;
+      if (error) throw new Error(`فشل قراءة ذاكرة المشروع: ${error.message}`);
+      if (!data || data.length === 0) return defaultMemoryEntries;
       return data as AgentMemoryEntry[];
-    } catch {
-      return defaultMemoryEntries;
+    } catch (e: any) {
+      console.error("[AI Agent] getProjectMemory error:", e.message);
+      throw new Error(`AGENT_MEMORY_FETCH_FAILED: ${e.message}`);
     }
   });
 
@@ -645,7 +700,7 @@ export const saveProjectMemory = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const { error } = await db
@@ -666,8 +721,9 @@ export const saveProjectMemory = createServerFn({ method: "POST" })
       });
 
       return { ok: true };
-    } catch {
-      return { ok: true };
+    } catch (e: any) {
+      console.error("[AI Agent] saveProjectMemory error:", e.message);
+      throw new Error(`AGENT_MEMORY_SAVE_FAILED: ${e.message}`);
     }
   });
 
@@ -677,7 +733,7 @@ export const seedProjectMemory = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const { count } = await db
@@ -721,7 +777,7 @@ export const getAgentUsageStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data, error } = await db
@@ -750,7 +806,7 @@ export const getAgentRole = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
     const role = await resolveAgentRole(db, ctx.userId, tenantId);
     return { role, tenantId, userId: ctx.userId };
@@ -762,108 +818,86 @@ export const getAgentRole = createServerFn({ method: "GET" })
 // ──────────────────────────────────────────────────────────────
 
 export { PROJECT_FILE_STRUCTURE, DB_SCHEMA_SUMMARY };
-export { resolveAgentRole, logAudit, recordUsage, getAdminDb };
+export { resolveAgentRole, logAudit, recordUsage };
 
 // ──────────────────────────────────────────────────────────────
 // Phase 3 — Planning + Approval Gate Server Functions
 // ──────────────────────────────────────────────────────────────
 
-/** Approve an agent task plan — transitions to executing (Requires admin/owner role) */
+/** Approve an agent task plan — transitions to approved (Requires admin/owner role) */
 export const approveAgentTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(z.object({ taskId: z.string().min(1) }))
+  .validator(z.object({ 
+    taskId: z.string().min(1),
+    planHash: z.string().min(1),
+    revision: z.number().int().min(1),
+    comment: z.string().optional()
+  }))
   .handler(async ({ data, context }) => {
     const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
     const auth = await enforceAgentRole(context, "admin");
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
 
     const cleanSessionId = data.taskId.replace(/^task-/, "");
     const nowIso = new Date().toISOString();
 
-    console.log("[APPROVAL_LOOKUP_INPUT]", {
-      taskId: data.taskId,
-      sessionId: cleanSessionId,
-    });
-    console.log("[DEBUG_APPROVE_EXECUTE]", {
-      plan_id: data.taskId,
-      previous_status: "planning",
-      new_status: "APPROVED",
-      approval_saved: true,
-    });
-    console.log("[PlanApproved]", { approvedTaskId: data.taskId, approvedSessionId: cleanSessionId });
-    console.log("[DIAGNOSTIC_APPROVE] Starting plan/task approval", {
-      taskId: data.taskId,
-      cleanSessionId,
-      tenantId: auth.tenantId,
-    });
 
-    const taskUpsertRes = await db.from("ai_agent_tasks").upsert({
-      id: data.taskId,
-      session_id: cleanSessionId,
-      tenant_id: auth.tenantId,
-      status: "executing",
-      user_approved_at: nowIso,
-      updated_at: nowIso,
-    }, { onConflict: "id" });
+    // 1. Verify task belongs to tenant and is waiting for approval
+    const { data: task, error: taskErr } = await db
+      .from("ai_agent_tasks")
+      .select("id, status")
+      .eq("id", data.taskId)
+      .eq("tenant_id", auth.tenantId)
+      .maybeSingle();
 
-    console.log("[DIAGNOSTIC_APPROVE] ai_agent_tasks update result", {
-      error: taskUpsertRes.error?.message || null,
-      status: taskUpsertRes.status,
-    });
+    if (taskErr || !task) {
+      throw new Error("404: Task not found or access denied.");
+    }
 
-    const planUpsertRes = await db.from("ai_agent_plans").upsert({
+    if (task.status !== "waiting_approval" && task.status !== "planning") {
+      throw new Error(`409: Task is in state '${task.status}' and cannot be approved.`);
+    }
+
+    // 2. Perform the approval transition (to 'approved')
+    const { error: updateErr } = await db.from("ai_agent_tasks")
+      .update({
+        status: "approved",
+        approved_by: auth.userId,
+        approved_plan_hash: data.planHash,
+        approved_revision: data.revision,
+        approval_comment: data.comment || null,
+        approval_source: "user_ui",
+        user_approved_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", data.taskId)
+      .eq("tenant_id", auth.tenantId);
+
+    if (updateErr) {
+      throw new Error(`500: Failed to save approval: ${updateErr.message}`);
+    }
+
+    // 3. Keep plan synchronized
+    await db.from("ai_agent_plans").upsert({
       id: cleanSessionId,
       session_id: cleanSessionId,
       tenant_id: auth.tenantId,
-      objective: "الموافقة على الخطة الهندسية وبدء التنفيذ",
-      status: "APPROVED",
+      objective: "الموافقة على الخطة الهندسية",
+      status: "approved",
+      plan_hash: data.planHash,
+      revision: data.revision,
       approved_at: nowIso,
       created_at: nowIso,
     }, { onConflict: "id" });
 
-    console.log("[DIAGNOSTIC_APPROVE] ai_agent_plans update result", {
-      error: planUpsertRes.error?.message || null,
-      status: planUpsertRes.status,
+    await logAudit(db, auth.tenantId, auth.userId, "plan_approved", cleanSessionId, { 
+      taskId: data.taskId, 
+      planHash: data.planHash, 
+      revision: data.revision 
     });
 
-    let { data: verifyTask } = await db
-      .from("ai_agent_tasks")
-      .select("id, status, user_approved_at")
-      .or(`id.eq.${data.taskId},session_id.eq.${cleanSessionId}`)
-      .maybeSingle();
-    const { data: verifyPlan } = await db.from("ai_agent_plans").select("id, session_id, status, approved_at").eq("id", cleanSessionId).maybeSingle();
-
-    if (!verifyTask) {
-      const { data: autoCreatedTask, error: autoErr } = await db
-        .from("ai_agent_tasks")
-        .upsert({
-          id: data.taskId,
-          session_id: cleanSessionId,
-          tenant_id: auth.tenantId,
-          status: "executing",
-          user_approved_at: nowIso,
-          updated_at: nowIso,
-        }, { onConflict: "id" })
-        .select()
-        .maybeSingle();
-
-      console.log("[TASK_AUTO_CREATED_ON_APPROVAL]", {
-        createdTask: autoCreatedTask,
-        error: autoErr?.message || null,
-      });
-
-      if (autoCreatedTask) {
-        verifyTask = autoCreatedTask;
-      }
-    }
-
-    console.log("[DIAGNOSTIC_APPROVE] Final statuses after update", {
-      verifiedTask: verifyTask,
-      verifiedPlan: verifyPlan,
-    });
-
-    return { success: true, taskId: data.taskId, status: "executing", approvedBy: auth.userId };
+    return { ok: true, taskId: data.taskId, status: "approved" };
   });
 
 /** Reject an agent task plan — transitions to cancelled (Requires admin/owner role) */
@@ -877,7 +911,7 @@ export const rejectAgentTask = createServerFn({ method: "POST" })
     const { enforceAgentRole } = await import("@/services/ai-agent/agent.rbac");
     const auth = await enforceAgentRole(context, "admin");
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
 
     const { error } = await db
       .from("ai_agent_tasks")
@@ -900,7 +934,7 @@ export const getAgentTaskFn = createServerFn({ method: "GET" })
   .validator(z.object({ taskId: z.string().min(1) }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data: task, error } = await db
@@ -920,7 +954,7 @@ export const listSessionTasksFn = createServerFn({ method: "GET" })
   .validator(z.object({ sessionId: z.string().min(1) }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data: tasks, error } = await db
@@ -943,7 +977,7 @@ export const startExecutionTask = createServerFn({ method: "POST" })
   .validator(z.object({ taskId: z.string().min(1), sessionId: z.string().optional() }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { startExecution } = await import("@/services/ai-agent/execution.controller");
@@ -966,7 +1000,7 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     console.log("[DIRECT_EXECUTION] CALLED", data.taskId);
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
     const startTime = Date.now();
 
@@ -975,63 +1009,74 @@ export const executeApprovedTask = createServerFn({ method: "POST" })
     const agentRole = await enforceAgentRole(ctx, "owner");
     const { recordExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
 
-    // Fetch Task with robust fallback
-    let task: any = null;
-    const { data: foundTask } = await db
+    // Fetch Task strictly — NO fallback creation allowed
+    const { data: task, error: taskErr } = await db
       .from("ai_agent_tasks")
       .select("*")
       .eq("id", data.taskId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    if (foundTask) {
-      task = foundTask;
-    } else {
-      const cleanSessionId = data.taskId.replace(/^task-/, "");
-      const { data: sessionData } = await db
-        .from("ai_agent_sessions")
-        .select("*")
-        .or(`id.eq.${cleanSessionId},task_id.eq.${data.taskId}`)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-
-      if (sessionData) {
-        task = {
-          id: data.taskId,
-          session_id: sessionData.id,
-          tenant_id: tenantId,
-          status: sessionData.task_status || "waiting_approval",
-          plan: sessionData.task_plan || [],
-          affected_files: sessionData.affected_files || [],
-          risk_level: sessionData.risk_level || "low",
-          diffs: {},
-        };
-        await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
-      }
+    if (taskErr) {
+      throw new Error(`503: Task verification query failed: ${taskErr.message}`);
     }
 
     if (!task) {
-      task = {
-        id: data.taskId,
-        session_id: "default",
-        tenant_id: tenantId,
-        status: "waiting_approval",
-        plan: [],
-        affected_files: [],
-        risk_level: "low",
-        diffs: {},
-      };
-      await db.from("ai_agent_tasks").upsert(task, { onConflict: "id" });
+      throw new Error("404: TASK_NOT_FOUND — Cannot execute non-existent task.");
     }
 
-    // Step 1: Update status to 'executing' (EXECUTION_STARTED phase)
+    // Strictly enforce approval requirements before execution
+    if (task.status !== "approved") {
+      throw new Error(`403: PLAN_NOT_APPROVED — Task is in state '${task.status}' and cannot be executed.`);
+    }
+
+    if (!task.approved_by || !task.approved_at || !task.approved_plan_hash || !task.approved_revision) {
+      throw new Error("403: PLAN_NOT_APPROVED — Missing approval metadata (hash, revision, or approver).");
+    }
+
+    // Verify current plan revision and hash match approval
+    const cleanSessionId = data.taskId.replace(/^task-/, "");
+    const { data: currentPlan } = await db
+      .from("ai_agent_plans")
+      .select("plan_hash, revision")
+      .or(`id.eq.${cleanSessionId},session_id.eq.${cleanSessionId}`)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (currentPlan) {
+      if (currentPlan.plan_hash !== task.approved_plan_hash || currentPlan.revision !== task.approved_revision) {
+        throw new Error("403: HASH_MISMATCH — Plan has been modified since approval.");
+      }
+    }
+
+    // Invoke atomic lock RPC
+    const { data: lockResult, error: lockErr } = await db.rpc("acquire_ai_task_execution_lock", {
+      p_task_id: data.taskId,
+      p_tenant_id: tenantId,
+      p_expected_hash: task.approved_plan_hash,
+      p_expected_revision: task.approved_revision,
+    });
+
+    if (lockErr) {
+      // If RPC isn't deployed yet, perform atomic conditional status update
+      const { data: updatedTask, error: updateErr } = await db
+        .from("ai_agent_tasks")
+        .update({ status: "executing", updated_at: new Date().toISOString() })
+        .eq("id", data.taskId)
+        .eq("tenant_id", tenantId)
+        .eq("status", "approved")
+        .select("id")
+        .maybeSingle();
+
+      if (updateErr || !updatedTask) {
+        throw new Error("409: EXECUTION_ALREADY_STARTED — Task is already being executed by another process.");
+      }
+    } else if (lockResult && !lockResult.success) {
+      throw new Error(`409: EXECUTION_LOCK_FAILED — ${lockResult.reason || "Execution already started or lock conflict."}`);
+    }
+
     const { logExecutionJournal, savePersistentExecutionEvent, hasExecutionStartedLog } = await import("@/services/ai-agent/journal.service");
     const { AgentTaskState } = await import("@/services/ai-agent/agent.state");
-
-    await db
-      .from("ai_agent_tasks")
-      .update({ status: "executing", updated_at: new Date().toISOString() })
-      .eq("id", data.taskId);
 
     // Initial EXECUTION_STARTED journal entry with deduplication guard
     const alreadyStarted = await hasExecutionStartedLog(data.taskId, db);
@@ -1401,7 +1446,7 @@ export const listExecutionHistoryFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { listExecutionHistory } = await import("@/services/ai-agent/execution-history.service");
@@ -1430,7 +1475,7 @@ export const getAgentPerformanceFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { getAgentPerformance } = await import("@/services/ai-agent/evaluation.engine");
@@ -1442,7 +1487,7 @@ export const listExecutionJournalFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { fetchExecutionJournalLogs } = await import("@/services/ai-agent/journal.service");
@@ -1455,7 +1500,7 @@ export const getSessionExecutionEventsFn = createServerFn({ method: "GET" })
   .validator(z.object({ sessionId: z.string() }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const { listSessionExecutionEvents } = await import("@/services/ai-agent/journal.service");
     return listSessionExecutionEvents(data.sessionId, 100, db);
   });
@@ -1765,7 +1810,7 @@ export const publishToProductionFn = createServerFn({ method: "POST" })
 
     try {
       const ctx = context as any;
-      const db = await getAdminDb(ctx);
+      const db = await getAgentDb(ctx);
       const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
       const { exec } = await import("node:child_process");
@@ -1795,7 +1840,7 @@ export const indexProjectFileFn = createServerFn({ method: "POST" })
   .validator(z.object({ sessionId: z.string().optional(), filePath: z.string(), content: z.string() }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { indexProjectFileRecord } = await import("@/services/ai-agent/project-indexer.service");
@@ -1814,7 +1859,7 @@ export const getSessionAttachedFilesFn = createServerFn({ method: "GET" })
   .validator(z.object({ sessionId: z.string() }))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data: records, error } = await db
@@ -1844,7 +1889,7 @@ export const createCodePatchRecordFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { createPatchRecord } = await import("@/services/ai-agent/patch-engine.service");
@@ -1870,7 +1915,7 @@ export const applyCodePatchRecordFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const db = await getAdminDb(ctx);
+    const db = await getAgentDb(ctx);
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { applyPatchRecord } = await import("@/services/ai-agent/patch-engine.service");

@@ -29,7 +29,6 @@ function urlEntry(loc: string, opts?: { lastmod?: string; changefreq?: string; p
 
 // @ts-ignore — Route registered after vite build generates routeTree.gen.ts
 export const Route = createFileRoute("/sitemap/xml")({
-
   server: {
     handlers: {
       GET: async ({ request }) => {

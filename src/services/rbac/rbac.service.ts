@@ -6,7 +6,7 @@
  */
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 
 export type RoleType = "owner" | "admin" | "manager" | "staff" | "viewer" | "customer";
@@ -85,7 +85,7 @@ export async function enforcePermission(
     throw new Error("401: غير مصرح. يرجى تسجيل الدخول أولاً.");
   }
 
-  const db = await getAdminDb(context);
+  const db = await getAgentDb(context);
   const tenantId = await resolveTenantId(db, { userId });
   if (!tenantId) {
     throw new Error("400: تعذر تحديد معرف المتجر (Tenant ID).");

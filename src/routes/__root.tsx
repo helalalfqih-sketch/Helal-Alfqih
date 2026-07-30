@@ -80,12 +80,16 @@ function NotFoundComponent() {
   );
 }
 
+import { MonitoringService } from "../lib/monitoring/sentry";
+
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    MonitoringService.captureException(error, { component: "RootErrorComponent" });
   }, [error]);
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -305,8 +309,10 @@ function RootComponent() {
     cleanPath.startsWith("/auth/");
 
   useEffect(() => {
+    MonitoringService.init();
     let lastUserId: string | null | undefined;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+
       const uid = session?.user?.id ?? null;
       if (event === "INITIAL_SESSION") {
         lastUserId = uid;

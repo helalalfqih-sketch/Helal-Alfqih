@@ -124,7 +124,10 @@ function StoreSettingsPage() {
             <textarea value={identity.description} onChange={(e) => setIdentity({ ...identity, description: e.target.value })} rows={3} className={inputCls} />
           </label>
         </div>
-        <button onClick={() => profileMut.mutate()} disabled={profileMut.isPending} className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
+        <button onClick={() => {
+          if (profileMut.isPending) return;
+          profileMut.mutate();
+        }} disabled={profileMut.isPending} className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
           {profileMut.isPending ? "جارٍ الحفظ..." : "حفظ الهوية"}
         </button>
       </section>
@@ -144,7 +147,10 @@ function StoreSettingsPage() {
             <input value={business.hours} onChange={(e) => setBusiness({ ...business, hours: e.target.value })} placeholder="مثال: 9ص – 10م يومياً" className={inputCls} />
           </label>
         </div>
-        <button onClick={() => businessMut.mutate()} disabled={businessMut.isPending} className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
+        <button onClick={() => {
+          if (businessMut.isPending) return;
+          businessMut.mutate();
+        }} disabled={businessMut.isPending} className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
           {businessMut.isPending ? "جارٍ الحفظ..." : "حفظ بيانات العمل"}
         </button>
       </section>
@@ -269,7 +275,10 @@ function AppearanceQuickEditor() {
         ))}
       </div>
       <button
-        onClick={() => themeMut.mutate()}
+        onClick={() => {
+          if (themeMut.isPending) return;
+          themeMut.mutate();
+        }}
         disabled={themeMut.isPending}
         className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
       >
@@ -287,7 +296,10 @@ function AppearanceQuickEditor() {
         </label>
       </div>
       <button
-        onClick={() => heroMut.mutate()}
+        onClick={() => {
+          if (heroMut.isPending) return;
+          heroMut.mutate();
+        }}
         disabled={heroMut.isPending}
         className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
       >

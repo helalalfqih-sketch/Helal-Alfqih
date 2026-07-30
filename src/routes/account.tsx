@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { performSecureLogout } from "@/lib/auth/logout";
 import { useAppearance } from "@/components/appearance-provider";
 import { whatsappLink } from "@/lib/whatsapp";
 import { formatPrice } from "@/lib/store-data";
@@ -153,11 +154,7 @@ function AccountPage() {
   }, [user, activeTab]);
 
   const handleLogout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-      toast.success("تم تسجيل الخروج بنجاح");
-      navigate({ to: "/", replace: true });
-    }
+    await performSecureLogout("/auth");
   };
 
   const handleSaveAddress = async () => {

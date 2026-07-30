@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,22 +17,31 @@ import { useStoreContext } from "@/components/store/store-shell";
 import { StorefrontRealtimeService } from "@/lib/services/storefront-realtime.service";
 import { formatPrice } from "@/lib/store-data";
 
+const FILTERS = ["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"] as const;
+type FilterType = (typeof FILTERS)[number];
+
 export const Route = createFileRoute("/store/orders")({
+  validateSearch: (search: Record<string, unknown>): { status?: FilterType } => {
+    return {
+      status: FILTERS.includes(search.status as any) ? (search.status as FilterType) : undefined,
+    };
+  },
   component: StoreOrdersPage,
 });
-
-const FILTERS = ["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"] as const;
 
 function StoreOrdersPage() {
   const { can } = useStoreContext();
   const qc = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<(typeof FILTERS)[number]>("all");
+  const navigate = useNavigate({ from: Route.fullPath });
+  const searchParams = Route.useSearch();
+  const statusFilter = searchParams.status || "all";
+  
   const [openId, setOpenId] = useState<string | null>(null);
 
   const listQ = useQuery({
     queryKey: ["store-orders", statusFilter],
     queryFn: () =>
-      listTenantOrders({ data: { status: statusFilter === "all" ? undefined : statusFilter, limit: 30 } }),
+      listTenantOrders({ data: { status: statusFilter === "all" ? undefined : (statusFilter as OrderStatus), limit: 30 } }),
   });
 
   const detailsQ = useQuery({
@@ -59,6 +68,10 @@ function StoreOrdersPage() {
   const rows = listQ.data?.rows ?? [];
   const canWrite = can("staff");
 
+  const setStatusFilter = (status: FilterType) => {
+    navigate({ search: { status: status === "all" ? undefined : status } });
+  };
+
   return (
     <div className="space-y-5">
       <div>
@@ -78,7 +91,7 @@ function StoreOrdersPage() {
                 statusFilter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {f === "all" ? "الكل" : ORDER_STATUS_LABELS_AR[f]}
+              {f === "all" ? "الكل" : ORDER_STATUS_LABELS_AR[f as OrderStatus]}
             </button>
           ))}
         </div>

@@ -148,7 +148,7 @@ function SettingsPage() {
       };
 
       // Save each section to CMS storefront_settings
-      await Promise.all([
+      const saveResults = await Promise.all([
         updateStorefrontAppearance({ data: { key: "store_identity", value: storeIdentity } }),
         updateStorefrontAppearance({ data: { key: "brand_settings", value: brandSettings } }),
         updateStorefrontAppearance({ data: { key: "social_links", value: socialLinks } }),
@@ -156,6 +156,11 @@ function SettingsPage() {
         updateStorefrontAppearance({ data: { key: "navigation", value: updatedNavigation } }),
         updateStorefrontAppearance({ data: { key: "theme", value: updatedTheme } }),
       ]);
+
+      const failedSave = saveResults.find((res) => !res.success);
+      if (failedSave) {
+        throw new Error(failedSave.message || "تعذر حفظ بعض الإعدادات في قاعدة البيانات.");
+      }
 
       // Update local React state context
       setSettings({

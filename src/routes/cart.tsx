@@ -30,6 +30,7 @@ function CartPage() {
   const total = useCart((s) => s.total());
   const setQty = useCart((s) => s.setQty);
   const remove = useCart((s) => s.remove);
+  const clearCart = useCart((s) => s.clear);
   const { settings } = useAppearance();
 
   const discount = coupon ? Math.round(total * 0.1) : 0;
@@ -81,6 +82,7 @@ function CartPage() {
       };
       const result = await submitOrder(input);
       setOrderId(result.orderId);
+      clearCart();
 
       // Human-friendly order number (matches DB orders.order_number) + tracking link.
       const orderNumber = formatOrderNumber(result.orderId);

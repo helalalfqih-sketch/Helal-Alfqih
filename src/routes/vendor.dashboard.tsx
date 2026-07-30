@@ -30,19 +30,29 @@ import {
 import { getVendorOrders, updateVendorOrderStatus } from '@/lib/services/vendor-order.service';
 import { getVendorCommissionLedger } from '@/lib/services/commission.service';
 
+const TABS = ['overview', 'products', 'orders', 'analytics', 'settings', 'earnings'] as const;
+type TabType = (typeof TABS)[number];
+
 export const Route = createFileRoute('/vendor/dashboard')({
+  validateSearch: (search: Record<string, unknown>): { tab?: TabType } => {
+    return {
+      tab: TABS.includes(search.tab as any) ? (search.tab as TabType) : undefined,
+    };
+  },
   component: VendorDashboardPage,
 });
 
 function VendorDashboardPage() {
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const searchParams = Route.useSearch();
+  const activeTab = searchParams.tab || 'overview';
+  
   const [loading, setLoading] = useState(true);
   const [vendor, setVendor] = useState<VendorDetails | null>(null);
   const [analytics, setAnalytics] = useState<VendorAnalytics | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'analytics' | 'settings' | 'earnings'>('overview');
 
   // Form states for profile/bank settings
   const [bankName, setBankName] = useState('');
@@ -227,10 +237,12 @@ function VendorDashboardPage() {
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const setActiveTab = (id: TabType) => navigate({ search: { tab: id === 'overview' ? undefined : id } });
+            
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as TabType)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'

@@ -427,8 +427,7 @@ export const SeoConfigSchema = z
     schemaBusinessName: z.string().catch(""),
     schemaCountry: z.string().catch("اليمن"),
     schemaOpeningHours: z.string().catch("يومياً 9:00 ص - 10:00 م"),
-  })
-  .passthrough();
+  });
 export type SeoConfig = z.infer<typeof SeoConfigSchema>;
 
 // ── 17. Advanced Config Schema ─────────────────────────────────────────────────

@@ -17,6 +17,19 @@ export const Route = createFileRoute("/admin")({
           search: { next: location.pathname },
         });
       }
+
+      // Check if user has platform admin or store staff/owner roles
+      const hasAdminAccess =
+        user.roles?.includes("admin") ||
+        user.roles?.includes("owner" as any) ||
+        user.roles?.includes("manager" as any) ||
+        user.roles?.includes("staff" as any);
+
+      if (!hasAdminAccess) {
+        throw redirect({
+          to: "/",
+        });
+      }
     } catch (e: any) {
       // If it's already a redirect, rethrow it
       if (e?.to || e?.isRedirect) throw e;

@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { checkTenantPermission } from "@/lib/users.functions";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface MediaFileRecord {
   id: string;
@@ -25,6 +27,7 @@ export const BANNED_EXTENSIONS = new Set(["exe", "js", "html", "htm", "sh", "bat
 
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
+const MEDIA_BUCKET = "product-images";
 
 /** Validate file upload type and size */
 export function validateMediaFile(file: { name: string; size: number; type: string }): { valid: boolean; error?: string } {
@@ -52,200 +55,97 @@ export function validateMediaFile(file: { name: string; size: number; type: stri
   return { valid: true };
 }
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const DEFAULT_DEMO_MEDIA: MediaFileRecord[] = [
-  {
-    id: "demo-media-1",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "منشار-تقليم-كهربائي-48V.jpg",
-    file_path: "whatsapp/demo1.jpg",
-    file_url: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 1450000,
-    sequence_number: 1,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967738609222",
-      caption: "منشار تقليم 48V",
-      category: "معدات وأدوات",
-      tags: ["منشار", "تقليم", "48V"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "demo-media-2",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "كاميرا-فحص-أنابيب-4K.jpg",
-    file_path: "whatsapp/demo2.jpg",
-    file_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 2100000,
-    sequence_number: 2,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967738609222",
-      caption: "كاميرا فحص أنابيب",
-      category: "إلكترونيات",
-      tags: ["كاميرا", "فحص", "أنابيب"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "demo-media-3",
-    tenant_id: "00000000-0000-0000-0000-000000000001",
-    file_name: "ساعة-ابل-واش-الترا-سوداء.jpg",
-    file_path: "whatsapp/demo3.jpg",
-    file_url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop",
-    file_type: "image",
-    mime_type: "image/jpeg",
-    size_bytes: 1890000,
-    sequence_number: 3,
-    metadata: {
-      source: "whatsapp",
-      sender_phone: "+967785574271",
-      caption: "ساعة ابل واش الترا سوداء",
-      category: "ساعات ومجوهرات",
-      tags: ["ساعة", "ابل", "الترا"],
-      received_at: new Date().toISOString(),
-    },
-    created_at: new Date(Date.now() - 10800000).toISOString(),
-  },
-];
-
-/** Server Fn: List media files with search & filter */
+/** Server Fn: List media files with search & filter (Tenant-Isolated) */
 export const listMediaFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: { search?: string; type?: string; source?: string; category?: string; sort?: string; limit?: number }) => data)
-  .handler(async ({ data: { search, type, source, category, sort = "newest", limit = 200 }, context }): Promise<MediaFileRecord[]> => {
-    try {
-      const ctx = context as any;
-      let db = ctx?.supabase || supabase;
+  .handler(async ({ data: { search, type, source, category, sort = "newest", limit = 200 }, context }: { data: any; context: any }): Promise<MediaFileRecord[]> => {
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          // fallback
-        }
-      }
+    let q = db
+      .from("media_files")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-      let q = db
-        .from("media_files")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-      if (type && type !== "all") {
-        q = q.eq("file_type", type);
-      }
-
-      const { data: rows, error } = await q;
-
-      if (error) {
-        console.warn("[Media] Supabase media_files query error:", error.message);
-      }
-
-      let results = (rows as unknown as MediaFileRecord[]) || [];
-
-      // If DB has no rows at all, append DEMO media to show demo items alongside new uploads
-      if (results.length === 0) {
-        console.log("[Media] DB empty, returning DEMO media fallback");
-        results = DEFAULT_DEMO_MEDIA;
-      }
-
-      // Filter by Search (Name or Tags)
-      if (search && search.trim()) {
-        const query = search.trim().toLowerCase();
-        results = results.filter((file: any) => {
-          const nameMatch = file.file_name?.toLowerCase().includes(query);
-          const tags = (file.metadata?.tags as string[]) || [];
-          const tagsMatch = tags.some((tag) => tag.toLowerCase().includes(query));
-          const captionMatch = (file.metadata?.caption as string)?.toLowerCase().includes(query);
-          return nameMatch || tagsMatch || captionMatch;
-        });
-      }
-
-      // Filter by Source
-      if (source && source !== "all") {
-        results = results.filter((file: any) => {
-          const itemSource = file.source || file.metadata?.source || "upload";
-          return itemSource === source;
-        });
-      }
-
-      // Filter by Category
-      if (category && category !== "all") {
-        results = results.filter((file: any) => {
-          const itemCategory = file.metadata?.category || "وسائط متنوعة";
-          return itemCategory === category;
-        });
-      }
-
-      // Sort Results
-      results.sort((a: any, b: any) => {
-        if (sort === "oldest") {
-          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-        }
-        if (sort === "seq_asc") {
-          return (a.sequence_number || 0) - (b.sequence_number || 0);
-        }
-        if (sort === "seq_desc") {
-          return (b.sequence_number || 0) - (a.sequence_number || 0);
-        }
-        if (sort === "largest") {
-          return (b.size_bytes || 0) - (a.size_bytes || 0);
-        }
-        if (sort === "smallest") {
-          return (a.size_bytes || 0) - (b.size_bytes || 0);
-        }
-        if (sort === "name_asc") {
-          return (a.file_name || "").localeCompare(b.file_name || "", "ar");
-        }
-        if (sort === "name_desc") {
-          return (b.file_name || "").localeCompare(a.file_name || "", "ar");
-        }
-        // default: newest
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-      });
-
-      return results;
-    } catch (err) {
-      console.warn("listMediaFiles exception fallback:", err);
-      return DEFAULT_DEMO_MEDIA;
+    if (type && type !== "all") {
+      q = q.eq("file_type", type);
     }
+
+    const { data: rows, error } = await q;
+
+    if (error) {
+      console.error("[Media] Supabase media_files query error:", error.message);
+      throw new Error(`فشل تحميل مكتبة الوسائط: ${error.message}`);
+    }
+
+    let results = (rows as unknown as MediaFileRecord[]) || [];
+
+    // Filter by Search (Name or Tags)
+    if (search && search.trim()) {
+      const query = search.trim().toLowerCase();
+      results = results.filter((file: any) => {
+        const nameMatch = file.file_name?.toLowerCase().includes(query);
+        const tags = (file.metadata?.tags as string[]) || [];
+        const tagsMatch = tags.some((tag) => tag.toLowerCase().includes(query));
+        const captionMatch = (file.metadata?.caption as string)?.toLowerCase().includes(query);
+        return nameMatch || tagsMatch || captionMatch;
+      });
+    }
+
+    // Filter by Source
+    if (source && source !== "all") {
+      results = results.filter((file: any) => {
+        const itemSource = file.source || file.metadata?.source || "upload";
+        return itemSource === source;
+      });
+    }
+
+    // Filter by Category
+    if (category && category !== "all") {
+      results = results.filter((file: any) => {
+        const itemCategory = file.metadata?.category || "وسائط متنوعة";
+        return itemCategory === category;
+      });
+    }
+
+    // Sort Results
+    results.sort((a: any, b: any) => {
+      if (sort === "oldest") {
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      }
+      if (sort === "seq_asc") {
+        return (a.sequence_number || 0) - (b.sequence_number || 0);
+      }
+      if (sort === "seq_desc") {
+        return (b.sequence_number || 0) - (a.sequence_number || 0);
+      }
+      if (sort === "largest") {
+        return (b.size_bytes || 0) - (a.size_bytes || 0);
+      }
+      if (sort === "smallest") {
+        return (a.size_bytes || 0) - (b.size_bytes || 0);
+      }
+      if (sort === "name_asc") {
+        return (a.file_name || "").localeCompare(b.file_name || "", "ar");
+      }
+      if (sort === "name_desc") {
+        return (b.file_name || "").localeCompare(a.file_name || "", "ar");
+      }
+      // default: newest
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    return results;
   });
 
-const MEDIA_BUCKET = "product-images"; // Supabase Storage bucket for all media
-
-async function ensureBucketExists(db: any, bucketName: string): Promise<boolean> {
-  try {
-    const { data: buckets } = await db.storage.listBuckets();
-    const exists = Array.isArray(buckets) && buckets.some((b: any) => b.name === bucketName || b.id === bucketName);
-    if (!exists) {
-      console.log(`[Media Storage] Bucket "${bucketName}" not found. Creating bucket...`);
-      const { error: createErr } = await db.storage.createBucket(bucketName, { public: true });
-      if (createErr) {
-        console.warn(`[Media Storage] Could not auto-create bucket "${bucketName}": ${createErr.message}`);
-        return false;
-      }
-      console.log(`[Media Storage] ✅ Bucket "${bucketName}" created successfully!`);
-    }
-    return true;
-  } catch (err) {
-    console.warn(`[Media Storage] Bucket check/create exception for "${bucketName}":`, err);
-    return false;
-  }
-}
-
 /**
- * Upload a base64 data URL or raw Buffer to Supabase Storage.
- * Returns the permanent public URL on success, throws on failure.
+ * Upload base64 data URL to Supabase Storage.
+ * NO runtime bucket creation — buckets must exist.
+ * NO base64 fallbacks — throws on failure.
  */
 async function uploadDataUrlToStorage(
   passedDb: any,
@@ -253,15 +153,8 @@ async function uploadDataUrlToStorage(
   dataUrl: string,
   mimeType: string
 ): Promise<string> {
-  let db = passedDb;
-  if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin) db = supabaseAdmin;
-    } catch { /* fallback */ }
-  }
+  const db = passedDb;
 
-  // Decode base64 to binary
   const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
   const binaryStr = atob(base64Data);
   const bytes = new Uint8Array(binaryStr.length);
@@ -269,64 +162,25 @@ async function uploadDataUrlToStorage(
     bytes[i] = binaryStr.charCodeAt(i);
   }
 
-  console.log(`[Media] 💾 decoded ${bytes.byteLength} bytes from base64`);
+  const { error: storageError } = await db.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, bytes.buffer, {
+      contentType: mimeType,
+      upsert: true,
+      cacheControl: "2592000",
+    });
 
-  const bucketsToTry = [MEDIA_BUCKET, "media", "uploads"];
-  let lastError: any = null;
-
-  for (const bucketName of bucketsToTry) {
-    try {
-      await ensureBucketExists(db, bucketName);
-      console.log(`[Media Storage] Attempting upload to bucket="${bucketName}" path="${storagePath}"`);
-      
-      let { error: storageError } = await db.storage
-        .from(bucketName)
-        .upload(storagePath, bytes.buffer, {
-          contentType: mimeType,
-          upsert: true,
-          cacheControl: "2592000",
-        });
-
-      // If failed due to bucket missing, try creating it directly and retrying upload
-      if (storageError && storageError.message?.toLowerCase().includes("not found")) {
-        console.log(`[Media Storage] Bucket "${bucketName}" reported missing. Retrying after explicit creation...`);
-        await db.storage.createBucket(bucketName, { public: true });
-        const retryRes = await db.storage
-          .from(bucketName)
-          .upload(storagePath, bytes.buffer, {
-            contentType: mimeType,
-            upsert: true,
-            cacheControl: "2592000",
-          });
-        storageError = retryRes.error;
-      }
-
-      if (storageError) {
-        console.error(`[Media Storage] Bucket "${bucketName}" error: ${storageError.message}`);
-        lastError = storageError;
-        continue;
-      }
-
-      const { data: urlData } = db.storage.from(bucketName).getPublicUrl(storagePath);
-      const publicUrl = urlData?.publicUrl;
-      if (publicUrl) {
-        console.log(`[Media Storage] ✅ Storage upload success: ${publicUrl}`);
-        return publicUrl;
-      }
-    } catch (err: any) {
-      console.error(`[Media Storage] Exception on bucket "${bucketName}":`, err?.message || err);
-      lastError = err;
-    }
+  if (storageError) {
+    throw new Error(`فشل رفع الملف إلى التخزين: ${storageError.message}`);
   }
 
-  // If all storage buckets fail (e.g. Supabase Storage buckets not created in dashboard yet),
-  // return dataUrl as a resilient fallback so the user upload operation never fails!
-  console.warn(`[Media Storage] All bucket upload attempts failed (${lastError?.message || "Bucket not found"}). Using Data URL fallback.`);
-  if (dataUrl && dataUrl.startsWith("data:")) {
-    return dataUrl;
+  const { data: urlData } = db.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+  const publicUrl = urlData?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("فشل الحصول على رابط التخزين العريض بعد الرفع.");
   }
 
-  throw new Error(`فشل رفع الملف إلى التخزين: ${lastError?.message || "Bucket not found. يرجى إنشاء الحاوية product-images في Supabase."}`);
+  return publicUrl;
 }
 
 /** Server Fn: Record newly uploaded media file with Supabase Storage upload */
@@ -335,52 +189,39 @@ export const recordMediaFile = createServerFn({ method: "POST" })
   .validator((data: {
     file_name: string;
     file_path: string;
-    file_url: string;   // base64 data URL OR an existing public URL
+    file_url: string;
     file_type: "image" | "video" | "other";
     mime_type: string;
     size_bytes: number;
     dimensions?: { width?: number; height?: number };
     metadata?: Record<string, any>;
   }) => data)
-  .handler(async ({ data, context }): Promise<MediaFileRecord> => {
-    const ctx = context as any;
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<MediaFileRecord> => {
+    const ctx = context;
     const hasPerm = await checkTenantPermission("cms", ctx);
     if (!hasPerm) {
       throw new Error("صلاحية مرفوضة: تتطلب صلاحية رفع ومكتبة الوسائط.");
     }
 
-    // Prefer service role client for Storage uploads
-    let db = ctx.supabase || supabase;
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+    const db = ctx.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
-    console.log(`[Media] 🔍 recordMediaFile: file=${data.file_name} size=${data.size_bytes} mime=${data.mime_type} tenant=${tenantId}`);
-
-    // ── Upload to Supabase Storage if file_url is a base64 data URL ──────────
     let finalUrl = data.file_url;
     let storagePath = data.file_path;
 
     const isDataUrl = data.file_url.startsWith("data:");
-    console.log(`[Media] 🔍 isDataUrl=${isDataUrl} urlLen=${data.file_url.length}`);
-
     if (isDataUrl) {
-      // Build a safe storage path under tenant folder
       const safeName = data.file_name.replace(/[^a-zA-Z0-9._\-\u0600-\u06FF]/g, "-");
       storagePath = `uploads/${tenantId}/${Date.now()}_${safeName}`;
-
-      // Upload → throws on failure (prevents orphan DB record)
+      // Throws on storage error — NEVER persists Base64 data: URLs into DB
       finalUrl = await uploadDataUrlToStorage(db, storagePath, data.file_url, data.mime_type);
-    } else {
-      console.log(`[Media] 🔍 file_url is already a public URL, skipping Storage upload`);
     }
 
-    // ── Insert into media_files ───────────────────────────────────────────────
+    // Safety check: ensure file_url is NEVER a data: URL when inserting into DB
+    if (finalUrl.startsWith("data:")) {
+      throw new Error("فشل الرفع: لا يمكن تعقّب ملف بصيغة Base64 غير مرفوعة.");
+    }
+
     const source: string = (data.metadata?.source as string) || "upload";
     const payload: any = {
       tenant_id: tenantId,
@@ -396,24 +237,21 @@ export const recordMediaFile = createServerFn({ method: "POST" })
       created_by: ctx.userId || null,
     };
 
-    console.log(`[Media] 💾 inserting media_files record: path=${storagePath}`);
     const { data: record, error } = await db.from("media_files").insert(payload).select("*").single();
 
     if (error) {
-      console.error(`[Media] ❌ DB insert failed: ${error.message}`);
-      throw new Error(error.message);
+      throw new Error(`فشل تسجيل ملف الوسائط: ${error.message}`);
     }
 
-    console.log(`[Media] ✅ media_files record saved: id=${(record as any)?.id}`);
     return record as unknown as MediaFileRecord;
   });
 
-/** Server Fn: Delete media file */
+/** Server Fn: Delete media file (Tenant-Isolated) */
 export const deleteMediaFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { id: string; filePath?: string }) => data)
-  .handler(async ({ data: { id }, context }) => {
-    const ctx = context as any;
+  .handler(async ({ data: { id }, context }: { data: any; context: any }) => {
+    const ctx = context;
     const hasPerm = await checkTenantPermission("cms", ctx);
     if (!hasPerm) {
       throw new Error("صلاحية مرفوضة: تتطلب صلاحية حذف الوسائط.");
@@ -425,7 +263,6 @@ export const deleteMediaFile = createServerFn({ method: "POST" })
     const { error } = await db.from("media_files").delete().eq("id", id).eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
 
-    // Audit log
     await db.from("tenant_audit_logs").insert({
       tenant_id: tenantId,
       actor_id: ctx.userId || null,
@@ -437,19 +274,18 @@ export const deleteMediaFile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Server Fn: Find unused media files scanner */
+/** Server Fn: Find unused media files scanner (Tenant-Isolated) */
 export const findUnusedMediaFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<MediaFileRecord[]> => {
-    const ctx = context as any;
+  .handler(async ({ context }: { context: any }): Promise<MediaFileRecord[]> => {
+    const ctx = context;
     const db = ctx.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
-    // 1. Fetch all media files for tenant
-    const { data: mediaRows } = await db.from("media_files").select("*").eq("tenant_id", tenantId);
+    const { data: mediaRows, error: mediaErr } = await db.from("media_files").select("*").eq("tenant_id", tenantId);
+    if (mediaErr) throw new Error(`Database error: ${mediaErr.message}`);
     if (!mediaRows || mediaRows.length === 0) return [];
 
-    // 2. Fetch used product images
     const { data: products } = await db.from("products").select("images, model_3d_url").eq("tenant_id", tenantId);
     const usedUrls = new Set<string>();
 
@@ -460,66 +296,64 @@ export const findUnusedMediaFiles = createServerFn({ method: "GET" })
       if (p.model_3d_url) usedUrls.add(p.model_3d_url);
     });
 
-    // 3. Fetch category images
     const { data: categories } = await db.from("categories").select("image_url").eq("tenant_id", tenantId);
     categories?.forEach((c: any) => {
       if (c.image_url) usedUrls.add(c.image_url);
     });
 
-    // Filter media files that are not referenced anywhere
     const unused = mediaRows.filter((m: any) => !usedUrls.has(m.file_url) && !usedUrls.has(m.file_path));
     return unused as unknown as MediaFileRecord[];
   });
 
-/** Server Fn: Get media files by IDs */
+/** Core tenant-isolated media files lookup logic */
+export async function fetchMediaFilesByIdsCore(db: any, tenantId: string, ids: string[]): Promise<MediaFileRecord[]> {
+  if (!ids || ids.length === 0) return [];
+
+  const { data: rows, error } = await db
+    .from("media_files")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .in("id", ids)
+    .order("sequence_number", { ascending: true });
+
+  if (error) {
+    if (error.code === "42703") {
+      throw new Error("MEDIA_SEQUENCE_SCHEMA_MISSING: PostgreSQL 42703 column sequence_number does not exist in schema");
+    }
+    throw new Error(`Failed to fetch media records: ${error.message}`);
+  }
+
+  return (rows as unknown as MediaFileRecord[]) || [];
+}
+
+/**
+ * Server Fn: Get media files by IDs (Strict Tenant Isolation & Schema Safety)
+ */
 export const getMediaFilesByIds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: { ids: string[] }) => data)
-  .handler(async ({ data: { ids }, context }): Promise<MediaFileRecord[]> => {
+  .validator(z.object({
+    ids: z.array(z.string().uuid()).max(100)
+  }))
+  .handler(async ({ data: { ids }, context }: { data: { ids: string[] }; context: any }): Promise<MediaFileRecord[]> => {
     if (!ids || ids.length === 0) return [];
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
-    const { data: rows, error } = await db
-      .from("media_files")
-      .select("*")
-      .in("id", ids)
-      .order("sequence_number", { ascending: true });
-
-    if (error) {
-      console.warn("[Media] getMediaFilesByIds error:", error.message);
-      return [];
-    }
-
-    return (rows as unknown as MediaFileRecord[]) || [];
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
+    const tenantId = await resolveTenantId(db, { userId: ctx.userId });
+    return fetchMediaFilesByIdsCore(db, tenantId, ids);
   });
 
-/** Server Fn: Link product to media files in product_media table */
+/** Server Fn: Link product to media files in product_media table (Tenant-Isolated) */
 export const linkProductMedia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { productId: string; mediaIds: string[] }) => data)
-  .handler(async ({ data: { productId, mediaIds }, context }) => {
+  .handler(async ({ data: { productId, mediaIds }, context }: { data: any; context: any }) => {
     if (!productId || !mediaIds || mediaIds.length === 0) return { ok: true };
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
 
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
-    const records = mediaIds.map((mediaId, idx) => ({
+    const records = mediaIds.map((mediaId: string, idx: number) => ({
       tenant_id: tenantId,
       product_id: productId,
       media_id: mediaId,
@@ -528,32 +362,25 @@ export const linkProductMedia = createServerFn({ method: "POST" })
 
     const { error } = await db.from("product_media").upsert(records, { onConflict: "product_id,media_id" });
     if (error) {
-      console.warn("[Media] linkProductMedia warning:", error.message);
+      throw new Error(`فشل ربط ملفات المنتج: ${error.message}`);
     }
 
     return { ok: true };
   });
 
-/** Server Fn: Bulk delete media files */
+/** Server Fn: Bulk delete media files (Tenant-Isolated) */
 export const bulkDeleteMediaFiles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { ids: string[] }) => data)
-  .handler(async ({ data: { ids }, context }) => {
+  .handler(async ({ data: { ids }, context }: { data: any; context: any }) => {
     if (!ids || ids.length === 0) return { ok: true };
-    const ctx = context as any;
+    const ctx = context;
     const hasPerm = await checkTenantPermission("cms", ctx);
     if (!hasPerm) {
       throw new Error("صلاحية مرفوضة: تتطلب صلاحية حذف الوسائط.");
     }
 
-    let db = ctx?.supabase || supabase;
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { error } = await db.from("media_files").delete().in("id", ids).eq("tenant_id", tenantId);
@@ -562,21 +389,13 @@ export const bulkDeleteMediaFiles = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Server Fn: Search existing products for linking media */
+/** Server Fn: Search existing products for linking media (Tenant-Isolated) */
 export const searchExistingProductsForLink = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: { query?: string }) => data)
-  .handler(async ({ data: { query }, context }) => {
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+  .handler(async ({ data: { query }, context }: { data: any; context: any }) => {
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     let q = db
@@ -592,40 +411,37 @@ export const searchExistingProductsForLink = createServerFn({ method: "GET" })
 
     const { data: products, error } = await q;
     if (error) {
-      console.warn("[Media] searchExistingProductsForLink error:", error.message);
-      return [];
+      throw new Error(`فشل البحث عن المنتجات: ${error.message}`);
     }
 
     return products || [];
   });
 
-/** Server Fn: Attach selected media files to an existing product */
+/** Server Fn: Attach selected media files to an existing product (Tenant-Isolated) */
 export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { productId: string; mediaIds: string[] }) => data)
-  .handler(async ({ data: { productId, mediaIds }, context }) => {
+  .handler(async ({ data: { productId, mediaIds }, context }: { data: any; context: any }) => {
     if (!productId || !mediaIds || mediaIds.length === 0) {
       throw new Error("يرجى تحديد المنتج والوسائط المراد ربطها.");
     }
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
-    // 1. Fetch selected media files
-    const { data: mediaRows } = await db.from("media_files").select("*").in("id", mediaIds);
+    // Fetch selected media files WITH tenant isolation
+    const { data: mediaRows, error: mediaErr } = await db
+      .from("media_files")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .in("id", mediaIds);
+
+    if (mediaErr) throw new Error(`فشل استعلام الوسائط: ${mediaErr.message}`);
     if (!mediaRows || mediaRows.length === 0) {
-      throw new Error("لم يتم العثور على الملفات المحددة");
+      throw new Error("لم يتم العثور على الملفات المحددة للربط");
     }
 
-    // 2. Fetch existing product
+    // Fetch existing product WITH tenant isolation
     const { data: product, error: prodErr } = await db
       .from("products")
       .select("images, source_url, video_playback_id")
@@ -637,7 +453,6 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
       throw new Error("المنتج المحدد غير موجود");
     }
 
-    // Sort media by sequence_number
     const sortedMedia = [...mediaRows].sort(
       (a: any, b: any) => (a.sequence_number || 0) - (b.sequence_number || 0)
     );
@@ -657,14 +472,12 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
       updatePayload.source_url = firstVideo.file_url;
     }
 
-    // 3. Update Product
-    const { error: updateErr } = await db.from("products").update(updatePayload).eq("id", productId);
+    const { error: updateErr } = await db.from("products").update(updatePayload).eq("id", productId).eq("tenant_id", tenantId);
     if (updateErr) {
       throw new Error(`فشل تحديث المنتج: ${updateErr.message}`);
     }
 
-    // 4. Link in product_media table
-    const pmRecords = mediaIds.map((mediaId, idx) => ({
+    const pmRecords = mediaIds.map((mediaId: string, idx: number) => ({
       tenant_id: tenantId,
       product_id: productId,
       media_id: mediaId,
@@ -676,20 +489,12 @@ export const attachMediaToExistingProduct = createServerFn({ method: "POST" })
     return { ok: true, linkedCount: mediaIds.length, imagesAdded: newImageUrls.length };
   });
 
-/** Server Fn: Fetch last 50 WhatsApp media files for Diagnostics */
+/** Server Fn: Fetch last 50 WhatsApp media files for Diagnostics (Tenant-Isolated) */
 export const getWhatsAppDiagnosticsMedia = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+  .handler(async ({ context }: { context: any }) => {
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data, error } = await db
@@ -701,28 +506,19 @@ export const getWhatsAppDiagnosticsMedia = createServerFn({ method: "GET" })
       .limit(50);
 
     if (error) {
-      console.warn("[Media] getWhatsAppDiagnosticsMedia error:", error.message);
-      return [];
+      throw new Error(`فشل تشخيصات ميديا واتساب: ${error.message}`);
     }
 
     return (data as unknown as MediaFileRecord[]) || [];
   });
 
-/** Server Fn: Update thumbnail_url for a media file */
+/** Server Fn: Update thumbnail_url for a media file (Tenant-Isolated) */
 export const updateMediaFileThumbnail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { mediaId: string; thumbnailUrl: string }) => data)
-  .handler(async ({ data: { mediaId, thumbnailUrl }, context }) => {
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+  .handler(async ({ data: { mediaId, thumbnailUrl }, context }: { data: any; context: any }) => {
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { error } = await db
@@ -735,20 +531,12 @@ export const updateMediaFileThumbnail = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Server Fn: Backfill video thumbnails for all media files lacking thumbnail_url */
+/** Server Fn: Backfill video thumbnails for all media files lacking thumbnail_url (Tenant-Isolated) */
 export const backfillVideoThumbnails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const ctx = context as any;
-    let db = ctx?.supabase || supabase;
-
-    if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        if (supabaseAdmin) db = supabaseAdmin;
-      } catch { /* fallback */ }
-    }
-
+  .handler(async ({ context }: { context: any }) => {
+    const ctx = context;
+    const db = ctx?.supabase || supabase;
     const tenantId = await resolveTenantId(db, { userId: ctx.userId });
 
     const { data: missingVideos, error } = await db

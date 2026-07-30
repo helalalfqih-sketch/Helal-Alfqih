@@ -1,0 +1,55 @@
+name: P0 Security Verification Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [fix/p0-security-critical-finalization]
+
+jobs:
+  verify-security:
+    name: Verify P0 Security & Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 1. Install Dependencies
+        run: npm ci
+
+      - name: 2. Typecheck
+        run: npm run typecheck
+
+      - name: 3. Lint
+        run: npm run lint
+
+      - name: 4. Unit Tests
+        run: npm run test:unit
+
+      - name: 5. Integration Tests
+        run: npm run test:integration
+
+      - name: 6. Security Tests
+        run: npm run test:security
+
+      - name: 7. Test Coverage
+        run: npm run test:coverage
+
+      - name: 8. Build Verification
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium
+
+      - name: 9. E2E Tests
+        run: npm run test:e2e
+
+      - name: 10. Accessibility Tests
+        run: npm run test:accessibility

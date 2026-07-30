@@ -13,7 +13,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface CodebaseIndex {
   routes: string[];
@@ -212,7 +212,7 @@ export async function getProjectContextForAgent(
 
   // Persist snapshot to ai_project_context DB table
   try {
-    const db = await getAdminDb({});
+    const db = await getAgentDb({});
     await (db as any).from("ai_project_context").upsert(
       {
         tenant_id: tenantId,

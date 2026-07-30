@@ -2,7 +2,7 @@
  * Database RLS & Security Quality Auditor
  */
 import { QualityAudit, AuditResult } from "../types";
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export const DatabaseAuditor: QualityAudit = {
   id: "database-audit",
@@ -33,7 +33,7 @@ export const DatabaseAuditor: QualityAudit = {
     }
 
     try {
-      const db = await getAdminDb({});
+      const db = await getAgentDb({});
       const tablesToCheck = ["ai_agent_tasks", "orders", "users", "stores", "agent_execution_logs"];
       const tableStatus: Record<string, boolean> = {};
 

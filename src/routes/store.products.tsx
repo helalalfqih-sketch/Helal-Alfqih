@@ -130,6 +130,7 @@ function StoreProductsPage() {
           </label>
           <button
             onClick={() => {
+              if (createMut.isPending) return;
               if (form.name.trim().length < 2 || !form.price) {
                 toast.error("أدخل اسم المنتج وسعره");
                 return;
@@ -204,16 +205,22 @@ function StoreProductsPage() {
                 {canWrite && (
                   <span className="ms-auto flex items-center gap-1.5">
                     <button
-                      onClick={() => updateMut.mutate({ id: p.id, patch: { is_published: !p.is_published } })}
-                      disabled={updateMut.isPending}
+                      onClick={() => {
+                        if (updateMut.isPending) return;
+                        updateMut.mutate({ id: p.id, patch: { is_published: !p.is_published } });
+                      }}
+                      disabled={updateMut.isPending && updateMut.variables?.id === p.id}
                       className="rounded-lg bg-primary/10 px-2 py-1 font-bold text-primary hover:bg-primary/20"
                     >
                       {p.is_published ? "إخفاء" : "نشر"}
                     </button>
                     {can("manager") && (
                       <button
-                        onClick={() => deleteMut.mutate(p.id)}
-                        disabled={deleteMut.isPending}
+                        onClick={() => {
+                          if (deleteMut.isPending) return;
+                          deleteMut.mutate(p.id);
+                        }}
+                        disabled={deleteMut.isPending && deleteMut.variables === p.id}
                         className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10"
                         title="حذف"
                       >

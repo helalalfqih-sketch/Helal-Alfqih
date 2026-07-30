@@ -1,4 +1,4 @@
-import { getAdminDb } from "@/lib/ai-agent.functions";
+import { getAgentDb } from "@/lib/ai-agent.functions";
 
 export interface AgentExecutionError {
   message: string;
@@ -24,7 +24,7 @@ export interface ExecutionJournalLog {
 export async function hasExecutionStartedLog(taskId: string, customDb?: any): Promise<boolean> {
   if (!taskId) return false;
   try {
-    const db = customDb || (await getAdminDb({}));
+    const db = customDb || (await getAgentDb({}));
     const { count, error } = await db
       .from("agent_execution_logs")
       .select("id", { count: "exact", head: true })
@@ -43,7 +43,7 @@ export async function hasExecutionStartedLog(taskId: string, customDb?: any): Pr
 
 export async function logExecutionJournal(log: ExecutionJournalLog, customDb?: any): Promise<void> {
   try {
-    const db = customDb || (await getAdminDb({}));
+    const db = customDb || (await getAgentDb({}));
     const { error } = await db.from("agent_execution_logs").insert({
       task_id: log.taskId || null,
       tenant_id: log.tenantId || "default",
@@ -65,7 +65,7 @@ export async function logExecutionJournal(log: ExecutionJournalLog, customDb?: a
 
 export async function fetchExecutionJournalLogs(tenantId: string, limit = 50, customDb?: any): Promise<ExecutionJournalLog[]> {
   try {
-    const db = customDb || (await getAdminDb({}));
+    const db = customDb || (await getAgentDb({}));
     let query = db
       .from("agent_execution_logs")
       .select("*")
@@ -114,7 +114,7 @@ export interface PersistentExecutionEvent {
 
 export async function savePersistentExecutionEvent(event: PersistentExecutionEvent, customDb?: any): Promise<void> {
   try {
-    const db = customDb || (await getAdminDb({}));
+    const db = customDb || (await getAgentDb({}));
     const { error } = await db.from("agent_execution_events").insert({
       session_id: event.sessionId,
       task_id: event.taskId || null,
@@ -137,7 +137,7 @@ export async function savePersistentExecutionEvent(event: PersistentExecutionEve
 
 export async function listSessionExecutionEvents(sessionId: string, limit = 100, customDb?: any): Promise<PersistentExecutionEvent[]> {
   try {
-    const db = customDb || (await getAdminDb({}));
+    const db = customDb || (await getAgentDb({}));
     const { data, error } = await db
       .from("agent_execution_events")
       .select("*")

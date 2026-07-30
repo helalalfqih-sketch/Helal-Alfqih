@@ -20,6 +20,10 @@ import {
   SectionsConfigSchema,
   SeoConfigSchema,
   AdvancedConfigSchema,
+  StoreIdentitySchema,
+  BrandSettingsSchema,
+  SocialLinksSettingsSchema,
+  GeneralStoreSettingsSchema,
 } from "@/lib/domain/appearance";
 
 /** Zod schema per CMS storage key. */
@@ -37,6 +41,10 @@ export const SCHEMA_BY_KEY: Record<string, { safeParse: (v: unknown) => any }> =
   sections: SectionsConfigSchema,
   seo: SeoConfigSchema,
   advanced: AdvancedConfigSchema,
+  store_identity: StoreIdentitySchema,
+  brand_settings: BrandSettingsSchema,
+  social_links: SocialLinksSettingsSchema,
+  general_settings: GeneralStoreSettingsSchema,
 };
 
 export type ValidationResult =

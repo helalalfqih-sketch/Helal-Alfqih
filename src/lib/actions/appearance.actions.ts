@@ -1,4 +1,4 @@
-// @ts-nocheck
+// Security-critical CMS file — no @ts-nocheck allowed
 import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -17,6 +17,10 @@ import {
   SectionsConfigSchema,
   SeoConfigSchema,
   AdvancedConfigSchema,
+  StoreIdentitySchema,
+  BrandSettingsSchema,
+  SocialLinksSettingsSchema,
+  GeneralStoreSettingsSchema,
   type StorefrontSettingsShape,
 } from "@/lib/domain/appearance";
 
@@ -30,10 +34,10 @@ import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { resolveCurrentTenant } from "@/lib/saas/tenant-resolver";
 
 /**
- * P5 — CMS write scope resolution:
+ * P5 — CMS write scope resolution (Fail-Closed):
  *   platform admin → GLOBAL rows (tenant_id NULL, platform defaults)
  *   store owner    → THEIR tenant's override rows
- * Anyone else is rejected. RLS enforces the same split as backstop.
+ * Anyone else is REJECTED (allowed: false, scope: null).
  */
 async function resolveCmsScope(
   authSupabase: any,
@@ -41,24 +45,26 @@ async function resolveCmsScope(
 ): Promise<{ allowed: boolean; scope: string | null }> {
   if (!userId) return { allowed: false, scope: null };
 
-  const { data: isAdmin } = await authSupabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "admin",
-  });
-  if (isAdmin) return { allowed: true, scope: null };
-
   try {
-    const tenantId = await resolveCurrentTenant(authSupabase, { userId });
-    const { data: isOwner } = await authSupabase.rpc("has_tenant_permission", {
-      _tenant_id: tenantId,
+    const { data: isAdmin } = await authSupabase.rpc("has_role", {
       _user_id: userId,
-      _required_role: "owner",
+      _role: "admin",
     });
-    if (isOwner) return { allowed: true, scope: tenantId };
+    if (isAdmin) return { allowed: true, scope: null };
+
+    const tenantId = await resolveCurrentTenant(authSupabase, { userId });
+    if (tenantId) {
+      const { data: isOwner } = await authSupabase.rpc("has_tenant_permission", {
+        _tenant_id: tenantId,
+        _user_id: userId,
+        _required_role: "owner",
+      });
+      if (isOwner) return { allowed: true, scope: tenantId };
+    }
   } catch {
-    /* fall through */
+    /* fail-closed on any error */
   }
-  return { allowed: true, scope: null };
+  return { allowed: false, scope: null };
 }
 
 /** Resolve the storefront tenant for PUBLIC reads from request headers. */
@@ -67,31 +73,6 @@ async function resolvePublicCmsTenant(db: any): Promise<string | null> {
     const { getRequest } = await import("@tanstack/react-start/server");
     const headers = getRequest()?.headers ?? null;
     return await resolveTenantId(db, { headers });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Verify the caller of a public (middleware-less) server fn is a platform
- * admin, using the request bearer token verified against Supabase Auth.
- * Returns the service-role client when authorized, otherwise null.
- */
-async function getAdminClientIfAuthorized() {
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const authHeader = getRequest()?.headers?.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return null;
-    const token = authHeader.slice("Bearer ".length).trim();
-    if (!token || token.split(".").length !== 3) return null;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data?.user) return null;
-    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
-      _user_id: data.user.id,
-      _role: "admin",
-    });
-    return isAdmin ? supabaseAdmin : null;
   } catch {
     return null;
   }
@@ -149,48 +130,63 @@ function rowsToSettings(
     advanced: AdvancedConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.advanced).parse(
       settingsMap.get("advanced") ?? {}
     ),
+    store_identity: StoreIdentitySchema.catch(DEFAULT_STOREFRONT_SETTINGS.store_identity).parse(
+      settingsMap.get("store_identity") ?? {}
+    ),
+    brand_settings: BrandSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.brand_settings).parse(
+      settingsMap.get("brand_settings") ?? {}
+    ),
+    social_links: SocialLinksSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.social_links).parse(
+      settingsMap.get("social_links") ?? {}
+    ),
+    general_settings: GeneralStoreSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.general_settings).parse(
+      settingsMap.get("general_settings") ?? {}
+    ),
   };
 }
 
-// ── 1. Get Storefront Settings ────────────────────────────────────────────────
+// ── 1. Get Published Storefront Settings (Public — No Auth & No Service Role) ──
 
 /**
- * Fetch all global storefront settings.
- * - previewMode=true → returns draft_value when available (for admin live preview)
- * - previewMode=false (default) → returns published value only (for public storefront)
+ * Fetch published storefront settings.
+ * Publicly accessible — reads published "value" column ONLY. Never uses Service Role.
  */
-export const getStorefrontAppearance = createServerFn({ method: "GET" })
-  .validator((data: { previewMode?: boolean } | undefined) => data)
-  .handler(async ({ data }): Promise<StorefrontSettingsShape> => {
-    const previewMode = data?.previewMode ?? false;
+export const getPublishedStorefrontAppearance = createServerFn({ method: "GET" })
+  .handler(async (): Promise<StorefrontSettingsShape> => {
     try {
-      let db = supabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = supabase;
-        }
-      }
-
-      if (!db) return DEFAULT_STOREFRONT_SETTINGS;
-
-      const publicTenantId = await resolvePublicCmsTenant(db);
-
-      if (previewMode) {
-        const rows = await storefrontService.fetchRowsWithDrafts(db, publicTenantId);
-        if (rows && rows.length > 0) return rowsToSettings(rows, true);
-      }
-
-      const rows = await storefrontService.fetchPublishedRows(db, publicTenantId);
+      const publicTenantId = await resolvePublicCmsTenant(supabase);
+      const rows = await storefrontService.fetchPublishedRows(supabase, publicTenantId);
       if (!rows || rows.length === 0) return DEFAULT_STOREFRONT_SETTINGS;
       return rowsToSettings(rows, false);
     } catch (err) {
-      console.warn("[getStorefrontAppearance] Returning fallback defaults:", err);
+      console.warn("[getPublishedStorefrontAppearance] Returning fallback defaults:", err);
       return DEFAULT_STOREFRONT_SETTINGS;
     }
   });
+
+/**
+ * Fetch draft preview storefront settings (Protected — Auth & CMS Scope Gated).
+ * Reads draft_value for authorized tenant/platform admin callers only.
+ */
+export const getStorefrontDraftPreview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<StorefrontSettingsShape> => {
+    const { supabase: authSupabase, userId } = context as any;
+    const gate = await resolveCmsScope(authSupabase, userId);
+    if (!gate.allowed) {
+      throw new Error("403: Forbidden — CMS draft preview requires tenant membership or admin role.");
+    }
+
+    // Fail-closed: admin preview must expose truthful errors, never silently return defaults
+    const rows = await storefrontService.fetchRowsWithDrafts(authSupabase, gate.scope);
+    if (rows && rows.length > 0) return rowsToSettings(rows, true);
+    const published = await storefrontService.fetchPublishedRows(authSupabase, gate.scope);
+    if (published && published.length > 0) return rowsToSettings(published, false);
+    return DEFAULT_STOREFRONT_SETTINGS;
+  });
+
+/** Backward compatibility alias for public appearance reads */
+export const getStorefrontAppearance = getPublishedStorefrontAppearance;
 
 // ── 2. Save Draft ────────────────────────────────────────────────────────────
 
@@ -201,7 +197,7 @@ export const getStorefrontAppearance = createServerFn({ method: "GET" })
 export const saveStorefrontDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape; value: unknown }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -214,15 +210,8 @@ export const saveStorefrontDraft = createServerFn({ method: "POST" })
       const validated = validateSettingValue(data.key, data.value);
       if (!validated.ok) return { success: false, message: validated.message };
 
-      let db = authSupabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = authSupabase;
-        }
-      }
+      // CMS writes use the authenticated user's client — no Service Role escalation
+      const db = authSupabase;
 
       // C1-safe draft save through the unified service (never touches `value`).
       const res = await storefrontService.saveDraftValue(db, data.key, validated.value, gate.scope);
@@ -262,7 +251,7 @@ export const saveStorefrontDraft = createServerFn({ method: "POST" })
 export const publishStorefrontSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -300,7 +289,7 @@ export const publishStorefrontSettings = createServerFn({ method: "POST" })
  */
 export const publishAllStorefrontSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ success: boolean; message?: string; published: string[] }> => {
+  .handler(async ({ context }: { context: any }): Promise<{ success: boolean; message?: string; published: string[] }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -344,7 +333,7 @@ export type ChangeLogEntry = {
   created_at: string;
   /** Present after migration 20260722000008 — snapshot of the replaced value. */
   changed_section?: string | null;
-  old_value?: unknown;
+  old_value?: any;
 };
 
 /**
@@ -353,7 +342,7 @@ export type ChangeLogEntry = {
 export const getStorefrontChangeLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((data: { limit?: number } | undefined) => data)
-  .handler(async ({ data, context }): Promise<ChangeLogEntry[]> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<ChangeLogEntry[]> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -381,7 +370,7 @@ export const getStorefrontChangeLogs = createServerFn({ method: "GET" })
 export const restoreStorefrontVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { logId: string }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string; key?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string; key?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -433,7 +422,7 @@ export const restoreStorefrontVersion = createServerFn({ method: "POST" })
 export const updateStorefrontAppearance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { key: keyof StorefrontSettingsShape; value: unknown }) => data)
-  .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
+  .handler(async ({ data, context }: { data: any; context: any }): Promise<{ success: boolean; message?: string }> => {
     try {
       const { supabase: authSupabase, userId } = context;
 
@@ -446,15 +435,8 @@ export const updateStorefrontAppearance = createServerFn({ method: "POST" })
       const validated = validateSettingValue(data.key, data.value);
       if (!validated.ok) return { success: false, message: validated.message };
 
-      let db = authSupabase;
-      if (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          if (supabaseAdmin) db = supabaseAdmin;
-        } catch {
-          db = authSupabase;
-        }
-      }
+      // CMS writes use the authenticated user's client — no Service Role escalation
+      const db = authSupabase;
 
       // Direct live save through the unified service (snapshots the old value).
       const res = await storefrontService.saveLiveValue(db, data.key, validated.value, gate.scope);

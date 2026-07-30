@@ -49,3 +49,5 @@ dist-ssr
 
 # Quality Reports
 reports/
+playwright-report/
+test-results/
