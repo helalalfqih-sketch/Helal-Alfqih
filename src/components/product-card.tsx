@@ -29,11 +29,23 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   const requestVideoFn = useServerFn(requestProductVideo);
 
   const modelUrl = (product as LegacyProductShape).modelUrl ?? null;
-  const videoPlaybackId = (product as any).videoPlaybackId || (product as any).video_playback_id || null;
+  const rawPlaybackId = (product as any).videoPlaybackId || (product as any).video_playback_id || null;
+  const isMuxFormat =
+    rawPlaybackId &&
+    typeof rawPlaybackId === "string" &&
+    !rawPlaybackId.startsWith("demo-") &&
+    !rawPlaybackId.startsWith("mux-playback-") &&
+    !rawPlaybackId.startsWith("test-") &&
+    !rawPlaybackId.includes("http") &&
+    !rawPlaybackId.includes("/") &&
+    /^[A-Za-z0-9_-]{10,40}$/.test(rawPlaybackId.trim());
 
-  const discount = product.oldPrice
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
-    : 0;
+  const videoPlaybackId = isMuxFormat ? rawPlaybackId.trim() : null;
+
+  const discount =
+    product.oldPrice && product.oldPrice > product.price && product.price > 0
+      ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+      : 0;
 
   // Modals state
   const [showVideoModal, setShowVideoModal] = useState(false);

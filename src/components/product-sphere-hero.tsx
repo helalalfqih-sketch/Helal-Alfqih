@@ -23,6 +23,21 @@ import { Play, X } from "lucide-react";
 import MuxPlayer from "@mux/mux-player-react";
 import { OptimizedImage } from "@/components/optimized-image";
 
+function getValidMuxId(id?: string | null): string | null {
+  if (!id || typeof id !== "string") return null;
+  const trimmed = id.trim();
+  if (
+    trimmed.startsWith("demo-") ||
+    trimmed.startsWith("mux-playback-") ||
+    trimmed.startsWith("test-") ||
+    trimmed.includes("http") ||
+    trimmed.includes("/")
+  ) {
+    return null;
+  }
+  return /^[A-Za-z0-9_-]{10,40}$/.test(trimmed) ? trimmed : null;
+}
+
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 const BG_TOP    = "#040818";   // deep navy top
 const BG_MID    = "#06091f";   // midnight center
@@ -978,11 +993,20 @@ export function ProductSphereHero({
               <X className="h-4 w-4" />
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-              <MuxPlayer
-                playbackId={hovered.videoPlaybackId}
-                autoPlay={true}
-                style={{ width: "100%", height: "100%" }}
-              />
+              {getValidMuxId(hovered.videoPlaybackId) ? (
+                <MuxPlayer
+                  playbackId={getValidMuxId(hovered.videoPlaybackId)!}
+                  autoPlay={true}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              ) : (
+                <video
+                  src={hovered.videoPlaybackId}
+                  controls
+                  autoPlay
+                  className="h-full w-full object-contain"
+                />
+              )}
             </div>
             <div className="p-4 text-start">
               <h4 className="text-sm font-black text-foreground">{hovered.name}</h4>
@@ -1071,12 +1095,20 @@ export function ProductSphereHero({
               {/* Video Section */}
               <div className="space-y-2 border-t border-white/5 pt-4 text-right">
                 <h4 className="text-xs font-bold text-white/60">الفيديو التوضيحي:</h4>
-                {activeSpecsProduct.videoPlaybackId ? (
+                {getValidMuxId(activeSpecsProduct.videoPlaybackId) ? (
                   <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
                     <MuxPlayer
-                      playbackId={activeSpecsProduct.videoPlaybackId}
+                      playbackId={getValidMuxId(activeSpecsProduct.videoPlaybackId)!}
                       autoPlay={false}
                       style={{ width: "100%", height: "100%" }}
+                    />
+                  </div>
+                ) : activeSpecsProduct.videoPlaybackId ? (
+                  <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
+                    <video
+                      src={activeSpecsProduct.videoPlaybackId}
+                      controls
+                      className="h-full w-full object-contain"
                     />
                   </div>
                 ) : (

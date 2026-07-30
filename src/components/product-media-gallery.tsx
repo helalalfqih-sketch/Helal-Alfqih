@@ -80,6 +80,14 @@ function extractMuxId(url?: string | null): string | null {
   const m = trimmed.match(/(?:stream\.mux\.com\/|player\.mux\.com\/|mux\.com\/)([A-Za-z0-9]+)/);
   if (m) return m[1];
   if (!trimmed.includes("http") && !trimmed.includes("/") && /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)) {
+    if (
+      trimmed.startsWith("demo-") ||
+      trimmed.startsWith("mux-playback-") ||
+      trimmed.startsWith("test-") ||
+      trimmed.includes(" ")
+    ) {
+      return null;
+    }
     return trimmed;
   }
   return null;
