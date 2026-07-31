@@ -221,7 +221,7 @@ function SearchPage() {
 
         {/* Live Auto-Suggestions Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute inset-x-0 top-full mt-2 z-50 rounded-2xl border border-white/10 bg-[#0c1a29]/95 p-3 shadow-2xl backdrop-blur-xl space-y-2">
+          <div className="absolute inset-x-0 top-full mt-2 z-40 rounded-2xl border border-white/10 bg-[#0c1a29]/95 p-3 shadow-2xl backdrop-blur-xl space-y-2">
             <div className="text-[10px] font-bold text-muted-foreground px-2">
               اقتراحات البحث الذكي:
             </div>
@@ -230,7 +230,10 @@ function SearchPage() {
                 <li key={s.id} role="option" aria-selected="false">
                   <button
                     type="button"
-                    onClick={() => handleSelectSuggestion(s)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      handleSelectSuggestion(s);
+                    }}
                     className="flex w-full items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/10 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

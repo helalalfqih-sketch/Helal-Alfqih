@@ -44,6 +44,8 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   const quickViewTriggerRef = useRef<HTMLButtonElement>(null);
   const quickViewDialogRef = useRef<HTMLDivElement>(null);
   const quickViewCloseRef = useRef<HTMLButtonElement>(null);
+  const videoTriggerRef = useRef<HTMLButtonElement>(null);
+  const videoCloseRef = useRef<HTMLButtonElement>(null);
 
   const modelUrl = (product as LegacyProductShape).modelUrl ?? null;
   const rawPlaybackId =
@@ -116,6 +118,41 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
       quickViewTriggerRef.current?.focus();
     };
   }, [showQuickViewModal]);
+
+  // Video modal lifecycle — scroll-lock, focus, Escape
+  useEffect(() => {
+    if (!showVideoModal) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Defer focus to close button after portal renders
+    const frame = requestAnimationFrame(() => videoCloseRef.current?.focus());
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowVideoModal(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      videoTriggerRef.current?.focus();
+    };
+  }, [showVideoModal]);
+
+  // NoVideo modal lifecycle
+  useEffect(() => {
+    if (!showNoVideoModal) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowNoVideoModal(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showNoVideoModal]);
 
   // Badge & Theme determination
   const rawBadge = (product as any).badge || "";
@@ -223,6 +260,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           {/* Top Right Video Badge Overlay */}
           {hasValidVideo && (
             <button
+              ref={videoTriggerRef}
               type="button"
               onClick={handleVideoClick}
               aria-label={`تشغيل فيديو ${product.name}`}
@@ -340,16 +378,21 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${dialogId}-video-title`}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowVideoModal(false); }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
           >
-            <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3 cursor-default"
+            >
               <button
+                ref={videoCloseRef}
                 type="button"
                 onClick={() => setShowVideoModal(false)}
                 aria-label="إغلاق فيديو المنتج"
-                className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+                className="absolute top-4 end-4 z-50 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/70 text-white hover:bg-black/90 transition shadow-lg focus-visible:ring-2 focus-visible:ring-white"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
               <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
                 {videoPlaybackId ? (
@@ -387,16 +430,20 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${dialogId}-novideo-title`}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowNoVideoModal(false); }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
           >
-            <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4 cursor-default"
+            >
               <button
                 type="button"
                 onClick={() => setShowNoVideoModal(false)}
                 aria-label="إغلاق النافذة"
-                className="absolute top-4 end-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                className="absolute top-4 end-4 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
 
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">

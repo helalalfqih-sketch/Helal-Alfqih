@@ -1,7 +1,8 @@
 import { fetchProducts } from "@/lib/actions/product.actions";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 
-export const MIN_RELEVANCE_SCORE = 4;
+export const MIN_RELEVANCE_SCORE = 8;
+
 const searchCache = new Map<string, LegacyProductShape[]>();
 let productCatalogPromise: Promise<LegacyProductShape[]> | null = null;
 
@@ -132,39 +133,53 @@ export async function searchProductsAdvanced(
 
   // Text Search Matching & Scoring
   if (search && search.trim()) {
-    const tokens = getExpandedTokens(search);
+    const rawTokens = getExpandedTokens(search);
 
-    const scored = filtered.map((p) => {
-      let score = 0;
-      const normName = normalizeArabic(p.name);
-      const normDesc = normalizeArabic(p.description || "");
-      const normBrand = normalizeArabic((p as any).brand || "");
-      const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
-      const normSku = normalizeArabic((p as any).sku || "");
-      const normBarcode = normalizeArabic((p as any).barcode || "");
-      const normTags = normalizeArabic(((p as any).tags || []).join(" "));
-      const normMeta = normalizeArabic(JSON.stringify((p as any).metadata || {}));
+    // Stop-words: tokens that are too common or semantically empty to drive relevance
+    const STOP_WORDS = new Set([
+      "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of", "to", "for", "with", "and", "or", "is",
+      "من", "في", "على", "عن", "مع", "لا", "او", "ام", "ال", "ما", "هذا", "هذه"
+    ]);
 
-      for (const token of tokens) {
-        if (!token) continue;
+    // Content tokens: not a stop-word AND at least 3 chars (eliminates single-letter fragments
+    // and common English noise tokens like "no", "on", "in" that cause accidental matches)
+    const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t) && t.length >= 3);
 
-        // Exact Title Match (highest priority)
-        if (normName.includes(token)) score += 10;
-        if (normSku.includes(token) || normBarcode.includes(token)) score += 8;
-        if (normBrand.includes(token)) score += 6;
-        if (normCat.includes(token)) score += 5;
-        if (normTags.includes(token)) score += 4;
-        if (normDesc.includes(token)) score += 2;
-        if (normMeta.includes(token)) score += 2;
-      }
+    // If NO meaningful tokens remain, the query is pure noise — return empty immediately
+    if (contentTokens.length === 0) {
+      filtered = [];
+    } else {
+      const scored = filtered.map((p) => {
+        let score = 0;
+        const normName = normalizeArabic(p.name);
+        const normDesc = normalizeArabic(p.description || "");
+        const normBrand = normalizeArabic((p as any).brand || "");
+        const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
+        const normSku = normalizeArabic((p as any).sku || "");
+        const normBarcode = normalizeArabic((p as any).barcode || "");
+        const normTags = normalizeArabic(((p as any).tags || []).join(" "));
 
-      return { product: p, score };
-    });
+        for (const token of contentTokens) {
+          // Score only on product-facing fields; intentionally omit metadata JSON
+          // to avoid accidental substring matches on internal identifiers
+          if (normName.includes(token)) score += 10;       // name match
+          if (normSku.includes(token) || normBarcode.includes(token)) score += 8; // sku/barcode
+          if (normBrand.includes(token)) score += 6;       // brand
+          if (normCat.includes(token)) score += 5;         // category
+          if (normTags.includes(token)) score += 4;        // tags
+          if (normDesc.includes(token)) score += 2;        // description
+        }
 
-    filtered = scored
-      .filter((s) => s.score >= MIN_RELEVANCE_SCORE)
-      .sort((a, b) => b.score - a.score)
-      .map((s) => s.product);
+        return { product: p, score };
+      });
+
+      // Require name/SKU/brand-level match (score >= 8) to surface a result.
+      // This prevents tag-only (score 4) or description-only (score 2) noise matches.
+      filtered = scored
+        .filter((s) => s.score >= MIN_RELEVANCE_SCORE)
+        .sort((a, b) => b.score - a.score)
+        .map((s) => s.product);
+    }
   }
 
   // Sorting
