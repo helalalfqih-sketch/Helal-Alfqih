@@ -10,6 +10,9 @@ export default defineConfig({
   },
   vite: {
     base: process.env.VERCEL ? "/" : "/app/",
+    resolve: {
+      dedupe: ["three"],
+    },
     plugins: [
       VitePWA({
         registerType: "autoUpdate",

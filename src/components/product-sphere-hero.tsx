@@ -22,6 +22,25 @@ import { toast } from "sonner";
 import { Play, X } from "lucide-react";
 import MuxPlayer from "@mux/mux-player-react";
 import { OptimizedImage } from "@/components/optimized-image";
+import { ProductCard } from "@/components/product-card";
+
+function supportsWebGL(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function deterministicUnit(index: number, salt = 0): number {
+  const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+  return value - Math.floor(value);
+}
 
 function getValidMuxId(id?: string | null): string | null {
   if (!id || typeof id !== "string") return null;
@@ -39,15 +58,15 @@ function getValidMuxId(id?: string | null): string | null {
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-const BG_TOP    = "#040818";   // deep navy top
-const BG_MID    = "#06091f";   // midnight center
-const BG_BOT    = "#000209";   // pure dark bottom
-const ACCENT    = "#4f8cff";   // electric blue
-const ACCENT2   = "#a259ff";   // violet
-const LIGHT     = "#eeeeff";
-const RING_CLR  = "#3a6bdb";
-const RADIUS    = 2.2;         // sphere radius
-const TILE      = 0.70;        // card size
+const BG_TOP = "#040818"; // deep navy top
+const BG_MID = "#06091f"; // midnight center
+const BG_BOT = "#000209"; // pure dark bottom
+const ACCENT = "#4f8cff"; // electric blue
+const ACCENT2 = "#a259ff"; // violet
+const LIGHT = "#eeeeff";
+const RING_CLR = "#3a6bdb";
+const RADIUS = 2.2; // sphere radius
+const TILE = 0.7; // card size
 
 // ─── Image proxy ─────────────────────────────────────────────────────────────
 function proxiedTextureUrl(value: string): string {
@@ -66,13 +85,49 @@ class TileErrorBoundary extends Component<
   { hasError: boolean }
 > {
   state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
   componentDidCatch(error: unknown, info: ErrorInfo) {
     console.warn("[TileErrorBoundary]", error, info);
   }
   render() {
     return this.state.hasError ? this.props.fallback : this.props.children;
   }
+}
+
+class WebGLErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode; onError: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    console.error("[ProductSphereHero] WebGL renderer failed", error, info);
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function ProductSphereFallback({ products }: { products: LegacyProductShape[] }) {
+  return (
+    <section
+      data-testid="hero-sphere-fallback"
+      aria-label="معرض المنتجات"
+      className="grid grid-cols-2 gap-4 p-6 md:grid-cols-4"
+    >
+      {products.slice(0, 8).map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </section>
+  );
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -95,19 +150,19 @@ function r3f(type: string, props: R3FProps) {
   const { children, ...rest } = props;
   return createElement(type, cleanR3FProps(rest), children);
 }
-const RMesh               = (p: R3FProps) => r3f("mesh", p);
-const RGroup              = (p: R3FProps) => r3f("group", p);
-const RPlaneGeometry      = (p: R3FProps) => r3f("planeGeometry", p);
-const RSphereGeometry     = (p: R3FProps) => r3f("sphereGeometry", p);
-const RTorusGeometry      = (p: R3FProps) => r3f("torusGeometry", p);
-const RCircleGeometry     = (p: R3FProps) => r3f("circleGeometry", p);
-const RMeshBasicMaterial  = (p: R3FProps) => r3f("meshBasicMaterial", p);
+const RMesh = (p: R3FProps) => r3f("mesh", p);
+const RGroup = (p: R3FProps) => r3f("group", p);
+const RPlaneGeometry = (p: R3FProps) => r3f("planeGeometry", p);
+const RSphereGeometry = (p: R3FProps) => r3f("sphereGeometry", p);
+const RTorusGeometry = (p: R3FProps) => r3f("torusGeometry", p);
+const RCircleGeometry = (p: R3FProps) => r3f("circleGeometry", p);
+const RMeshBasicMaterial = (p: R3FProps) => r3f("meshBasicMaterial", p);
 const RMeshStandardMaterial = (p: R3FProps) => r3f("meshStandardMaterial", p);
-const RColor              = (p: R3FProps) => r3f("color", p);
-const RFog                = (p: R3FProps) => r3f("fog", p);
-const RAmbientLight       = (p: R3FProps) => r3f("ambientLight", p);
-const RDirectionalLight   = (p: R3FProps) => r3f("directionalLight", p);
-const RPointLight         = (p: R3FProps) => r3f("pointLight", p);
+const RColor = (p: R3FProps) => r3f("color", p);
+const RFog = (p: R3FProps) => r3f("fog", p);
+const RAmbientLight = (p: R3FProps) => r3f("ambientLight", p);
+const RDirectionalLight = (p: R3FProps) => r3f("directionalLight", p);
+const RPointLight = (p: R3FProps) => r3f("pointLight", p);
 
 // ─── Fibonacci sphere distribution ───────────────────────────────────────────
 function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
@@ -118,9 +173,7 @@ function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
     const y = 1 - (i / (count - 1)) * 2;
     const r = Math.sqrt(1 - y * y);
     const theta = phi * i;
-    pts.push(
-      new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r).multiplyScalar(radius),
-    );
+    pts.push(new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r).multiplyScalar(radius));
   }
   return pts;
 }
@@ -151,8 +204,8 @@ function OrbitalRing2() {
   });
   return (
     <RMesh ref={meshRef} rotation={[0.8, 1.2, 0.4]}>
-      <RTorusGeometry args={[RADIUS + 0.9, 0.010, 12, 100]} />
-      <RMeshBasicMaterial color={ACCENT2} transparent opacity={0.30} />
+      <RTorusGeometry args={[RADIUS + 0.9, 0.01, 12, 100]} />
+      <RMeshBasicMaterial color={ACCENT2} transparent opacity={0.3} />
     </RMesh>
   );
 }
@@ -165,9 +218,9 @@ function AmbientParticles({ count = 60 }: { count?: number }) {
     for (let i = 0; i < count; i++) {
       arr.push(
         new THREE.Vector3(
-          (Math.random() - 0.5) * 14,
-          (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 10 - 3,
+          (deterministicUnit(i, 1) - 0.5) * 14,
+          (deterministicUnit(i, 2) - 0.5) * 10,
+          (deterministicUnit(i, 3) - 0.5) * 10 - 3,
         ),
       );
     }
@@ -179,7 +232,7 @@ function AmbientParticles({ count = 60 }: { count?: number }) {
     const dummy = new THREE.Object3D();
     positions.forEach((p, i) => {
       dummy.position.copy(p);
-      const s = 0.015 + Math.random() * 0.025;
+      const s = 0.015 + deterministicUnit(i, 4) * 0.025;
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
@@ -194,7 +247,7 @@ function AmbientParticles({ count = 60 }: { count?: number }) {
     positions.forEach((p, i) => {
       dummy.position.set(
         p.x + Math.sin(t * 0.3 + i) * 0.12,
-        p.y + Math.cos(t * 0.25 + i * 1.3) * 0.10,
+        p.y + Math.cos(t * 0.25 + i * 1.3) * 0.1,
         p.z,
       );
       const s = 0.015 + Math.abs(Math.sin(t * 0.5 + i)) * 0.018;
@@ -300,11 +353,7 @@ function ProductTile({
         ) : (
           <RPlaneGeometry args={[tileScale, tileScale]} />
         )}
-        <RMeshBasicMaterial
-          map={texture}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
+        <RMeshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
       </RMesh>
     </RGroup>
   );
@@ -339,7 +388,9 @@ function useDragRotation(groupRef: React.RefObject<THREE.Group>) {
     const onUp = () => {
       isDragging.current = false;
       // Resume auto-rotate after 2.5 s of inactivity
-      setTimeout(() => { autoRotate.current = true; }, 2500);
+      setTimeout(() => {
+        autoRotate.current = true;
+      }, 2500);
     };
 
     const mouseDown = (e: MouseEvent) => onDown(e.clientX, e.clientY);
@@ -434,9 +485,7 @@ function ProductSphere({
     }
   });
 
-  const fallbackMat = (
-    <RMeshBasicMaterial color="#1e2a4a" side={THREE.DoubleSide} />
-  );
+  const fallbackMat = <RMeshBasicMaterial color="#1e2a4a" side={THREE.DoubleSide} />;
 
   return (
     <RGroup ref={groupRef}>
@@ -605,11 +654,11 @@ function StarField() {
     const arr: { x: number; y: number; r: number; op: number; dur: number }[] = [];
     for (let i = 0; i < 80; i++) {
       arr.push({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        r: 0.5 + Math.random() * 1.2,
-        op: 0.15 + Math.random() * 0.45,
-        dur: 2 + Math.random() * 4,
+        x: deterministicUnit(i, 5) * 100,
+        y: deterministicUnit(i, 6) * 100,
+        r: 0.5 + deterministicUnit(i, 7) * 1.2,
+        op: 0.15 + deterministicUnit(i, 8) * 0.45,
+        dur: 2 + deterministicUnit(i, 9) * 4,
       });
     }
     return arr;
@@ -629,7 +678,7 @@ function StarField() {
             background: "white",
             opacity: s.op,
             animationDuration: `${s.dur}s`,
-            animationDelay: `${Math.random() * 4}s`,
+            animationDelay: `${((i * 37) % 40) / 10}s`,
           }}
         />
       ))}
@@ -665,12 +714,15 @@ export function ProductSphereHero({
 }) {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
+  const [renderFailed, setRenderFailed] = useState(false);
   const [hovered, setHovered] = useState<LegacyProductShape | null>(null);
   const [showHint, setShowHint] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
   const [activeSpecsProduct, setActiveSpecsProduct] = useState<LegacyProductShape | null>(null);
 
   useEffect(() => {
+    setWebglSupported(supportsWebGL());
     // Defer WebGL Canvas mount slightly to allow main thread DOM paint first
     const timer = setTimeout(() => setMounted(true), 60);
     const t = setTimeout(() => setShowHint(false), 4000);
@@ -693,6 +745,10 @@ export function ProductSphereHero({
     (p: LegacyProductShape) => navigate({ to: "/product/$slug", params: { slug: p.slug } }),
     [navigate],
   );
+
+  if (webglSupported === false || renderFailed) {
+    return <ProductSphereFallback products={pool} />;
+  }
 
   return (
     <section
@@ -720,36 +776,41 @@ export function ProductSphereHero({
 
       {/* WebGL Canvas */}
       <div className="absolute inset-0" style={{ touchAction: "pan-y" }}>
-        <Suspense fallback={<Fallback />}>
-          {mounted && pool.length > 0 ? (
-            <Canvas
-               dpr={[1, 1.5]}
-              camera={{ position: [0, 0.3, 5.8], fov: 44 }}
-              gl={{
-                antialias: true,
-                alpha: false,
-                powerPreference: "high-performance",
-                stencil: false,
-                depth: true,
-              }}
-            >
-              <Suspense fallback={null}>
-              <Scene
-                  products={pool}
-                  onHoverAny={setHovered}
-                  onSelect={handleSelect}
-                  hoveredId={hoveredId}
-                  radius={radius}
-                  tileScale={tileScale}
-                  cardShape={cardShape}
-                  showParticles={showParticles}
-                />
-              </Suspense>
-            </Canvas>
-          ) : (
-            <Fallback />
-          )}
-        </Suspense>
+        <WebGLErrorBoundary
+          fallback={<ProductSphereFallback products={pool} />}
+          onError={() => setRenderFailed(true)}
+        >
+          <Suspense fallback={<Fallback />}>
+            {mounted && webglSupported === true && pool.length > 0 ? (
+              <Canvas
+                dpr={[1, 1.5]}
+                camera={{ position: [0, 0.3, 5.8], fov: 44 }}
+                gl={{
+                  antialias: true,
+                  alpha: false,
+                  powerPreference: "high-performance",
+                  stencil: false,
+                  depth: true,
+                }}
+              >
+                <Suspense fallback={null}>
+                  <Scene
+                    products={pool}
+                    onHoverAny={setHovered}
+                    onSelect={handleSelect}
+                    hoveredId={hoveredId}
+                    radius={radius}
+                    tileScale={tileScale}
+                    cardShape={cardShape}
+                    showParticles={showParticles}
+                  />
+                </Suspense>
+              </Canvas>
+            ) : (
+              <Fallback />
+            )}
+          </Suspense>
+        </WebGLErrorBoundary>
       </div>
 
       {/* Top vignette */}
@@ -785,10 +846,7 @@ export function ProductSphereHero({
             backdropFilter: "blur(8px)",
           }}
         >
-          <span
-            className="h-1.5 w-1.5 animate-pulse rounded-full"
-            style={{ background: ACCENT }}
-          />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: ACCENT }} />
           <span
             className="text-[9px] font-bold tracking-[0.35em]"
             style={{ color: "rgba(200,220,255,0.85)" }}
@@ -890,9 +948,7 @@ export function ProductSphereHero({
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-bold text-slate-100 truncate">
-                    {hovered.name}
-                  </h3>
+                  <h3 className="text-xs font-bold text-slate-100 truncate">{hovered.name}</h3>
                   <p className="text-[10px] text-slate-400 mt-0.5">
                     الماركة: {hovered.brand || "ماركة متميزة"} | {hovered.badge || "ضمان سنة"}
                   </p>
@@ -972,198 +1028,219 @@ export function ProductSphereHero({
           className="h-1.5 w-1.5 rounded-full animate-pulse"
           style={{ background: "#4ade80" }}
         />
-        <span
-          className="text-[9px] font-bold"
-          style={{ color: "rgba(180,210,255,0.65)" }}
-        >
+        <span className="text-[9px] font-bold" style={{ color: "rgba(180,210,255,0.65)" }}>
           {pool.length} منتج
         </span>
       </motion.div>
 
       {/* Video Modal Overlay */}
-      {showVideo && hovered && hovered.videoPlaybackId && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-surface/90 shadow-2xl p-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowVideo(false);
-              }}
-              className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-              {getValidMuxId(hovered.videoPlaybackId) ? (
-                <MuxPlayer
-                  playbackId={getValidMuxId(hovered.videoPlaybackId)!}
-                  autoPlay={true}
-                  style={{ width: "100%", height: "100%" }}
-                />
-              ) : (
-                <video
-                  src={hovered.videoPlaybackId}
-                  controls
-                  autoPlay
-                  className="h-full w-full object-contain"
-                />
-              )}
+      {showVideo &&
+        hovered &&
+        hovered.videoPlaybackId &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+            <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-surface/90 shadow-2xl p-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowVideo(false);
+                }}
+                className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                {getValidMuxId(hovered.videoPlaybackId) ? (
+                  <MuxPlayer
+                    playbackId={getValidMuxId(hovered.videoPlaybackId)!}
+                    autoPlay={true}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                ) : (
+                  <video
+                    src={hovered.videoPlaybackId}
+                    controls
+                    autoPlay
+                    className="h-full w-full object-contain"
+                  />
+                )}
+              </div>
+              <div className="p-4 text-start">
+                <h4 className="text-sm font-black text-foreground">{hovered.name}</h4>
+                <p className="text-xs text-muted-foreground mt-1">فيديو توضيحي للمنتج</p>
+              </div>
             </div>
-            <div className="p-4 text-start">
-              <h4 className="text-sm font-black text-foreground">{hovered.name}</h4>
-              <p className="text-xs text-muted-foreground mt-1">فيديو توضيحي للمنتج</p>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Product Specs & Details Modal */}
       <AnimatePresence>
-        {activeSpecsProduct && typeof document !== "undefined" && createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
-            onClick={() => setActiveSpecsProduct(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 20, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="relative w-full max-w-lg overflow-y-auto max-h-[85vh] rounded-3xl glass-dark p-6 shadow-2xl space-y-6 text-start"
-              onClick={(e) => e.stopPropagation()}
+        {activeSpecsProduct &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+              onClick={() => setActiveSpecsProduct(null)}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-primary tracking-widest uppercase">تفاصيل ومواصفات المنتج</span>
-                  <h3 className="text-base font-black text-white mt-0.5">{activeSpecsProduct.name}</h3>
+              <motion.div
+                initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="relative w-full max-w-lg overflow-y-auto max-h-[85vh] rounded-3xl glass-dark p-6 shadow-2xl space-y-6 text-start"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-primary tracking-widest uppercase">
+                      تفاصيل ومواصفات المنتج
+                    </span>
+                    <h3 className="text-base font-black text-white mt-0.5">
+                      {activeSpecsProduct.name}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSpecsProduct(null)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveSpecsProduct(null)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
 
-              {/* Media Preview */}
-              <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center">
-                <OptimizedImage
-                  src={activeSpecsProduct.image}
-                  alt={activeSpecsProduct.name}
-                  size="large"
-                  className="h-full w-full object-contain p-2"
-                />
-                {activeSpecsProduct.badge && (
-                  <span className="absolute end-3 top-3 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg">
-                    {activeSpecsProduct.badge}
-                  </span>
-                )}
-              </div>
-
-              {/* Specifications List */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                  <span className="text-white/40 block">السعر الحالي</span>
-                  <span className="text-sm font-black text-primary mt-0.5 block">{formatPrice(activeSpecsProduct.price)}</span>
+                {/* Media Preview */}
+                <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center">
+                  <OptimizedImage
+                    src={activeSpecsProduct.image}
+                    alt={activeSpecsProduct.name}
+                    size="large"
+                    className="h-full w-full object-contain p-2"
+                  />
+                  {activeSpecsProduct.badge && (
+                    <span className="absolute end-3 top-3 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg">
+                      {activeSpecsProduct.badge}
+                    </span>
+                  )}
                 </div>
-                {activeSpecsProduct.oldPrice && (
+
+                {/* Specifications List */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                    <span className="text-white/40 block">السعر السابق</span>
-                    <span className="text-sm font-black text-white/40 line-through mt-0.5 block">{formatPrice(activeSpecsProduct.oldPrice)}</span>
+                    <span className="text-white/40 block">السعر الحالي</span>
+                    <span className="text-sm font-black text-primary mt-0.5 block">
+                      {formatPrice(activeSpecsProduct.price)}
+                    </span>
                   </div>
-                )}
-                <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                  <span className="text-white/40 block">الفئة</span>
-                  <span className="text-sm font-bold text-white mt-0.5 block">
-                    {activeSpecsProduct.categoryId === "electronics" ? "إلكترونيات" : activeSpecsProduct.categoryId === "kitchen" ? "المطبخ" : "متنوعات"}
-                  </span>
+                  {activeSpecsProduct.oldPrice && (
+                    <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
+                      <span className="text-white/40 block">السعر السابق</span>
+                      <span className="text-sm font-black text-white/40 line-through mt-0.5 block">
+                        {formatPrice(activeSpecsProduct.oldPrice)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
+                    <span className="text-white/40 block">الفئة</span>
+                    <span className="text-sm font-bold text-white mt-0.5 block">
+                      {activeSpecsProduct.categoryId === "electronics"
+                        ? "إلكترونيات"
+                        : activeSpecsProduct.categoryId === "kitchen"
+                          ? "المطبخ"
+                          : "متنوعات"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
+                    <span className="text-white/40 block">حالة التوفر</span>
+                    <span className="text-sm font-bold text-emerald-400 mt-0.5 block">
+                      متوفر في المتجر
+                    </span>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                  <span className="text-white/40 block">حالة التوفر</span>
-                  <span className="text-sm font-bold text-emerald-400 mt-0.5 block">متوفر في المتجر</span>
+
+                {/* Description */}
+                <div className="space-y-1.5 text-right">
+                  <h4 className="text-xs font-bold text-white/60">وصف المنتج ومميزاته:</h4>
+                  <p className="text-xs text-white/80 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 whitespace-pre-wrap">
+                    {activeSpecsProduct.description || "لا يوجد وصف متوفر لهذا المنتج حالياً."}
+                  </p>
                 </div>
-              </div>
 
-              {/* Description */}
-              <div className="space-y-1.5 text-right">
-                <h4 className="text-xs font-bold text-white/60">وصف المنتج ومميزاته:</h4>
-                <p className="text-xs text-white/80 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 whitespace-pre-wrap">{activeSpecsProduct.description || "لا يوجد وصف متوفر لهذا المنتج حالياً."}</p>
-              </div>
-
-              {/* Video Section */}
-              <div className="space-y-2 border-t border-white/5 pt-4 text-right">
-                <h4 className="text-xs font-bold text-white/60">الفيديو التوضيحي:</h4>
-                {getValidMuxId(activeSpecsProduct.videoPlaybackId) ? (
-                  <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
-                    <MuxPlayer
-                      playbackId={getValidMuxId(activeSpecsProduct.videoPlaybackId)!}
-                      autoPlay={false}
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  </div>
-                ) : activeSpecsProduct.videoPlaybackId ? (
-                  <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
-                    <video
-                      src={activeSpecsProduct.videoPlaybackId}
-                      controls
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-5 text-center flex flex-col items-center gap-3">
-                    <span className="text-[10px] text-white/50">لا يتوفر فيديو توضيحي لهذا المنتج في الوقت الحالي</span>
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.preventDefault();
-                        try {
-                          const { supabase } = await import("@/integrations/supabase/client");
-                          if (supabase) {
-                            await (supabase as any).from("product_video_requests").insert({
-                              product_id: activeSpecsProduct.id,
-                              product_name: activeSpecsProduct.name
-                            });
+                {/* Video Section */}
+                <div className="space-y-2 border-t border-white/5 pt-4 text-right">
+                  <h4 className="text-xs font-bold text-white/60">الفيديو التوضيحي:</h4>
+                  {getValidMuxId(activeSpecsProduct.videoPlaybackId) ? (
+                    <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
+                      <MuxPlayer
+                        playbackId={getValidMuxId(activeSpecsProduct.videoPlaybackId)!}
+                        autoPlay={false}
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </div>
+                  ) : activeSpecsProduct.videoPlaybackId ? (
+                    <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
+                      <video
+                        src={activeSpecsProduct.videoPlaybackId}
+                        controls
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-5 text-center flex flex-col items-center gap-3">
+                      <span className="text-[10px] text-white/50">
+                        لا يتوفر فيديو توضيحي لهذا المنتج في الوقت الحالي
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          try {
+                            const { supabase } = await import("@/integrations/supabase/client");
+                            if (supabase) {
+                              await (supabase as any).from("product_video_requests").insert({
+                                product_id: activeSpecsProduct.id,
+                                product_name: activeSpecsProduct.name,
+                              });
+                            }
+                          } catch (err) {
+                            console.error("Failed to request video:", err);
                           }
-                        } catch (err) {
-                          console.error("Failed to request video:", err);
-                        }
-                        toast.success("تم إرسال طلب توفير فيديو للمنتج بنجاح إلى المدير! 👍");
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white hover:bg-primary/95 transition cursor-pointer shadow-brand"
-                    >
-                      طلب توفير فيديو للمنتج 🎥
-                    </button>
-                  </div>
-                )}
-              </div>
+                          toast.success("تم إرسال طلب توفير فيديو للمنتج بنجاح إلى المدير! 👍");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white hover:bg-primary/95 transition cursor-pointer shadow-brand"
+                      >
+                        طلب توفير فيديو للمنتج 🎥
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              {/* Footer Actions */}
-              <div className="flex gap-3 border-t border-white/10 pt-4">
-                <a
-                  href={`https://wa.me/${STORE_CONTACT}?text=${encodeURIComponent(`مرحباً، أريد طلب منتج: ${activeSpecsProduct.name}\nالسعر: ${formatPrice(activeSpecsProduct.price)}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 px-5 py-3.5 text-xs font-black text-white transition shadow-lg"
-                >
-                  اطلب الآن عبر واتساب 💬
-                </a>
-                <Link
-                  to="/product/$slug"
-                  params={{ slug: activeSpecsProduct.slug }}
-                  className="inline-flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/15 px-5 py-3.5 text-xs font-bold text-white transition"
-                >
-                  صفحة المنتج الكاملة
-                </Link>
-              </div>
-            </motion.div>
-          </div>,
-          document.body
-        )}
+                {/* Footer Actions */}
+                <div className="flex gap-3 border-t border-white/10 pt-4">
+                  <a
+                    href={`https://wa.me/${STORE_CONTACT}?text=${encodeURIComponent(`مرحباً، أريد طلب منتج: ${activeSpecsProduct.name}\nالسعر: ${formatPrice(activeSpecsProduct.price)}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 px-5 py-3.5 text-xs font-black text-white transition shadow-lg"
+                  >
+                    اطلب الآن عبر واتساب 💬
+                  </a>
+                  <Link
+                    to="/product/$slug"
+                    params={{ slug: activeSpecsProduct.slug }}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/15 px-5 py-3.5 text-xs font-bold text-white transition"
+                  >
+                    صفحة المنتج الكاملة
+                  </Link>
+                </div>
+              </motion.div>
+            </div>,
+            document.body,
+          )}
       </AnimatePresence>
     </section>
   );

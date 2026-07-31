@@ -173,7 +173,7 @@ export function AppInstallBanner() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/20 text-[11px] font-bold text-cyan-300">2</span>
-                    <span>اختر **إضافة إلى الشاشة الرئيسية** أو **تثبيت التطبيق** (Install app).</span>
+                    <span>اختر <strong>إضافة إلى الشاشة الرئيسية</strong> أو <strong>تثبيت التطبيق</strong> (Install app).</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/20 text-[11px] font-bold text-cyan-300">3</span>

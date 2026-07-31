@@ -3,18 +3,14 @@ import { MessageCircle, Minus, Plus, ShoppingBag, Trash2, Truck } from "lucide-r
 import { useState, useId } from "react";
 import { useCart } from "@/lib/cart-store";
 import { formatPrice } from "@/lib/store-data";
+import { yemeniPhoneSchema } from "@/lib/validation/phone";
 import { buildOrderMessage, whatsappLink } from "@/lib/whatsapp";
 import { formatOrderNumber } from "@/lib/order-status";
 import { submitOrder } from "@/lib/actions/order.actions";
 import type { CreateOrderInput } from "@/lib/actions/order.actions";
 import { useAppearance } from "@/components/appearance-provider";
 import { OptimizedImage } from "@/components/optimized-image";
-import {
-  computeShippingFee,
-  amountToFreeShipping,
-  DEFAULT_FREE_SHIPPING_THRESHOLD,
-  DEFAULT_SHIPPING_FEE,
-} from "@/lib/shipping";
+import { computeShippingFee, amountToFreeShipping } from "@/lib/shipping";
 
 export const Route = createFileRoute("/cart")({
   validateSearch: (search): { coupon?: string } => ({
@@ -28,7 +24,6 @@ export const Route = createFileRoute("/cart")({
   }),
   component: CartPage,
 });
-
 
 function CartPage() {
   const { coupon } = Route.useSearch();
@@ -44,9 +39,12 @@ function CartPage() {
   const subtotalAfterDiscount = total - discount;
 
   // Centralized shipping config
-  const freeShippingThreshold =
-    settings.cart_config.freeShippingThreshold || DEFAULT_FREE_SHIPPING_THRESHOLD;
-  const shippingFee = computeShippingFee(subtotalAfterDiscount, freeShippingThreshold, DEFAULT_SHIPPING_FEE);
+  const freeShippingThreshold = settings.cart_config.freeShippingThreshold;
+  const shippingFee = computeShippingFee(
+    subtotalAfterDiscount,
+    freeShippingThreshold,
+    settings.cart_config.defaultShippingFee,
+  );
   const remainingForFree = amountToFreeShipping(subtotalAfterDiscount, freeShippingThreshold);
   const finalTotal = subtotalAfterDiscount + shippingFee;
 
@@ -87,8 +85,10 @@ function CartPage() {
     if (!name || name.trim().length < 2) {
       errors.name = "الرجاء إدخال الاسم الكامل (حرفان على الأقل).";
     }
-    if (!phone || phone.trim().length < 5) {
-      errors.phone = "الرجاء إدخال رقم هاتف صالح لإتمام الطلب.";
+    const phoneResult = yemeniPhoneSchema.safeParse(phone);
+    if (!phoneResult.success) {
+      errors.phone =
+        phoneResult.error.issues[0]?.message || "الرجاء إدخال رقم هاتف صالح لإتمام الطلب.";
     }
     if (!address || address.trim().length < 3) {
       errors.address = "الرجاء إدخال عنوان التسليم (المدينة والحي).";
@@ -112,7 +112,7 @@ function CartPage() {
       const input: CreateOrderInput = {
         items: items.map((it) => ({ productId: it.productId, quantity: it.qty })),
         customerName: name.trim(),
-        customerPhone: phone.trim(),
+        customerPhone: yemeniPhoneSchema.parse(phone),
         customerAddress: address.trim(),
         notes: notes.trim() || undefined,
         couponCode: coupon || undefined,
@@ -133,11 +133,12 @@ function CartPage() {
       const template = settings.cart_config.whatsappOrderTemplate;
       if (template) {
         const prodList = items.map((it) => `- ${it.name} (${it.qty}x)`).join("\n");
-        orderMessage = template
-          .replace("{products}", prodList)
-          .replace("{total}", formatPrice(finalTotal))
-          .replace("{name}", name || "غير محدد")
-          .replace("{address}", address || "غير محدد") + orderFooter;
+        orderMessage =
+          template
+            .replace("{products}", prodList)
+            .replace("{total}", formatPrice(finalTotal))
+            .replace("{name}", name || "غير محدد")
+            .replace("{address}", address || "غير محدد") + orderFooter;
       } else {
         orderMessage =
           buildOrderMessage(items, finalTotal, { name, phone, address, notes }, coupon, discount) +
@@ -148,7 +149,8 @@ function CartPage() {
       window.open(whatsappLink(orderMessage, waPhone), "_blank");
     } catch (err) {
       console.error("Order submission failed:", err);
-      const message = err instanceof Error ? err.message : "فشل في إنشاء الطلب. الرجاء المحاولة مرة أخرى.";
+      const message =
+        err instanceof Error ? err.message : "فشل في إنشاء الطلب. الرجاء المحاولة مرة أخرى.";
       setOrderError(message);
     } finally {
       setIsSubmitting(false);
@@ -162,7 +164,8 @@ function CartPage() {
     <div className="flex flex-col gap-4 px-4 pt-4">
       {/* Cart header with clear unit/type labels */}
       <h1 className="text-lg font-black">
-        سلة المشتريات ({items.length} {items.length === 1 ? "منتج" : items.length === 2 ? "منتجان" : "منتجات"})
+        سلة المشتريات ({items.length}{" "}
+        {items.length === 1 ? "منتج" : items.length === 2 ? "منتجان" : "منتجات"})
       </h1>
       <p className="text-xs text-muted-foreground -mt-3">
         {itemCount} {itemCount === 1 ? "قطعة" : itemCount === 2 ? "قطعتان" : "قطع"} إجمالاً
@@ -173,7 +176,10 @@ function CartPage() {
         <div className="flex items-center gap-2 rounded-2xl glass-float p-3 text-xs">
           <Truck className="h-4 w-4 text-success shrink-0" />
           {remainingForFree > 0 ? (
-            <span>أضف <strong className="text-primary">{formatPrice(remainingForFree)}</strong> لتحصل على شحن مجاني 🚚</span>
+            <span>
+              أضف <strong className="text-primary">{formatPrice(remainingForFree)}</strong> لتحصل
+              على شحن مجاني 🚚
+            </span>
           ) : (
             <span className="font-bold text-success">🎉 مبروك! طلبك مؤهل للشحن المجاني</span>
           )}
@@ -183,11 +189,13 @@ function CartPage() {
       {/* Cart items with line totals and aria-labels */}
       <ul className="flex flex-col gap-2" aria-label="عناصر السلة">
         {items.map((it) => (
-          <li
-            key={it.productId}
-            className="flex gap-3 rounded-3xl glass-float p-3"
-          >
-            <OptimizedImage src={it.image} alt={it.name} size="thumbnail" className="h-24 w-24 rounded-2xl object-cover" />
+          <li key={it.productId} className="flex gap-3 rounded-3xl glass-float p-3">
+            <OptimizedImage
+              src={it.image}
+              alt={it.name}
+              size="thumbnail"
+              className="h-24 w-24 rounded-2xl object-cover"
+            />
             <div className="flex flex-1 flex-col justify-between">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="line-clamp-2 text-xs font-bold leading-tight">{it.name}</h3>
@@ -259,7 +267,13 @@ function CartPage() {
                 }`}
               />
               {fieldErrors.name && (
-                <p id={`${formId}-name-error`} role="alert" className="text-[11px] font-semibold text-destructive">{fieldErrors.name}</p>
+                <p
+                  id={`${formId}-name-error`}
+                  role="alert"
+                  className="text-[11px] font-semibold text-destructive"
+                >
+                  {fieldErrors.name}
+                </p>
               )}
             </label>
             <label
@@ -286,7 +300,13 @@ function CartPage() {
                 }`}
               />
               {fieldErrors.phone && (
-                <p id={`${formId}-phone-error`} role="alert" className="text-[11px] font-semibold text-destructive">{fieldErrors.phone}</p>
+                <p
+                  id={`${formId}-phone-error`}
+                  role="alert"
+                  className="text-[11px] font-semibold text-destructive"
+                >
+                  {fieldErrors.phone}
+                </p>
               )}
             </label>
             <label
@@ -312,7 +332,13 @@ function CartPage() {
                 }`}
               />
               {fieldErrors.address && (
-                <p id={`${formId}-address-error`} role="alert" className="text-[11px] font-semibold text-destructive">{fieldErrors.address}</p>
+                <p
+                  id={`${formId}-address-error`}
+                  role="alert"
+                  className="text-[11px] font-semibold text-destructive"
+                >
+                  {fieldErrors.address}
+                </p>
               )}
             </label>
             <label

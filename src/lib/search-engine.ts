@@ -1,23 +1,34 @@
 import { fetchProducts } from "@/lib/actions/product.actions";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 
+export const MIN_RELEVANCE_SCORE = 4;
+const searchCache = new Map<string, LegacyProductShape[]>();
+let productCatalogPromise: Promise<LegacyProductShape[]> | null = null;
+
+function loadProductCatalog(): Promise<LegacyProductShape[]> {
+  productCatalogPromise ??= fetchProducts();
+  return productCatalogPromise;
+}
+
 /** Arabic Text Normalizer & Typo Tolerator */
 export function normalizeArabic(text: string): string {
   if (!text) return "";
-  return text
-    .toLowerCase()
-    .trim()
-    // Remove Tashkeel / Diacritics
-    .replace(/[\u064B-\u0652]/g, "")
-    // Normalize Alef
-    .replace(/[أإآٱ]/g, "ا")
-    // Normalize Yaa / Alef Maqsura
-    .replace(/[ىئ]/g, "ي")
-    // Normalize Taa Marbouta
-    .replace(/ة/g, "ه")
-    // Replace non-alphanumeric except spaces
-    .replace(/[^\w\s\u0600-\u06FF]/g, " ")
-    .replace(/\s+/g, " ");
+  return (
+    text
+      .toLowerCase()
+      .trim()
+      // Remove Tashkeel / Diacritics
+      .replace(/[\u064B-\u0652]/g, "")
+      // Normalize Alef
+      .replace(/[أإآٱ]/g, "ا")
+      // Normalize Yaa / Alef Maqsura
+      .replace(/[ىئ]/g, "ي")
+      // Normalize Taa Marbouta
+      .replace(/ة/g, "ه")
+      // Replace non-alphanumeric except spaces
+      .replace(/[^\w\s\u0600-\u06FF]/g, " ")
+      .replace(/\s+/g, " ")
+  );
 }
 
 /** Arabic & English Synonym & Typo Dictionary */
@@ -72,9 +83,15 @@ export interface SearchFilterOptions {
 /** Advanced Search & Rank Engine */
 export async function searchProductsAdvanced(
   options: SearchFilterOptions = {},
+  signal?: AbortSignal,
 ): Promise<LegacyProductShape[]> {
+  const cacheKey = JSON.stringify(options);
+  const cached = searchCache.get(cacheKey);
+  if (cached) return [...cached];
+
   const { search, categoryId, minPrice, maxPrice, dealsOnly, inStockOnly, brand, sortBy } = options;
-  const allProducts = await fetchProducts();
+  const allProducts = await loadProductCatalog();
+  if (signal?.aborted) throw new DOMException("Search aborted", "AbortError");
 
   let filtered = allProducts.filter((p) => {
     // Category Filter
@@ -144,7 +161,10 @@ export async function searchProductsAdvanced(
       return { product: p, score };
     });
 
-    filtered = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).map((s) => s.product);
+    filtered = scored
+      .filter((s) => s.score >= MIN_RELEVANCE_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.product);
   }
 
   // Sorting
@@ -157,7 +177,11 @@ export async function searchProductsAdvanced(
         filtered.sort((a, b) => b.price - a.price);
         break;
       case "latest":
-        filtered.sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
+        filtered.sort(
+          (a, b) =>
+            new Date((b as any).created_at || 0).getTime() -
+            new Date((a as any).created_at || 0).getTime(),
+        );
         break;
       case "rating":
         filtered.sort((a, b) => b.rating - a.rating);
@@ -169,7 +193,16 @@ export async function searchProductsAdvanced(
     }
   }
 
+  if (signal?.aborted) throw new DOMException("Search aborted", "AbortError");
+  searchCache.set(cacheKey, [...filtered]);
   return filtered;
+}
+
+export async function getRecommendations(limit = 8): Promise<LegacyProductShape[]> {
+  const products = await loadProductCatalog();
+  return [...products]
+    .sort((a, b) => (b.rating ?? 0) * (b.reviews ?? 0) - (a.rating ?? 0) * (a.reviews ?? 0))
+    .slice(0, limit);
 }
 
 export interface SearchSuggestionItem {

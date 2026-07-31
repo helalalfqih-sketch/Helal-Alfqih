@@ -3,12 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveCurrentTenant } from "@/lib/saas/tenant-resolver";
-import {
-  computeShippingFee,
-  normalizeYemeniPhone,
-  DEFAULT_FREE_SHIPPING_THRESHOLD,
-  DEFAULT_SHIPPING_FEE,
-} from "@/lib/shipping";
+import { computeShippingFee, normalizeYemeniPhone } from "@/lib/shipping";
 import {
   getMyOrders as getMyOrdersFromDb,
   getMyOrderDetails as getMyOrderDetailsFromDb,
@@ -17,6 +12,7 @@ import {
   type MyOrderDetails,
 } from "@/lib/services/order-history.service";
 import { normalizeOrderNumber } from "@/lib/order-status";
+import { yemeniPhoneSchema } from "@/lib/validation/phone";
 
 /**
  * Order server functions — the AUTH BOUNDARY for orders (spec Phase 5).
@@ -48,7 +44,7 @@ const createOrderInput = z.object({
     .min(1)
     .max(100),
   customerName: z.string().trim().min(2, "الاسم مطلوب (حرفان على الأقل)").max(200),
-  customerPhone: z.string().trim().min(5, "رقم الهاتف مطلوب").max(40),
+  customerPhone: yemeniPhoneSchema,
   customerAddress: z.string().trim().min(3, "العنوان مطلوب").max(500),
   customerEmail: z.preprocess(
     (v) => (v === "" || v == null ? undefined : v),
@@ -77,7 +73,9 @@ export interface CreateOrderResult {
  * Never throws for missing/invalid tokens — order creation stays open to guests.
  */
 async function getOptionalUserId(admin: {
-  auth: { getUser: (jwt: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }> };
+  auth: {
+    getUser: (jwt: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+  };
 }): Promise<string | null> {
   try {
     const req = getRequest();
@@ -91,6 +89,29 @@ async function getOptionalUserId(admin: {
   } catch {
     return null;
   }
+}
+
+async function loadShippingSettings(
+  tenantId: string,
+  db: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
+): Promise<{ freeShippingThreshold: number; defaultShippingFee: number }> {
+  const selectSetting = async (scopedTenantId: string | null) => {
+    let query = db.from("storefront_settings").select("value").eq("key", "cart_config");
+    query = scopedTenantId ? query.eq("tenant_id", scopedTenantId) : query.is("tenant_id", null);
+    return query.maybeSingle();
+  };
+
+  let { data, error } = await selectSetting(tenantId);
+  if (!data && !error) ({ data, error } = await selectSetting(null));
+  if (error) throw new Error(`Shipping settings unavailable: ${error.message}`);
+  if (!data) throw new Error("Shipping settings not configured for tenant");
+
+  return z
+    .object({
+      freeShippingThreshold: z.number().min(0),
+      defaultShippingFee: z.number().min(0),
+    })
+    .parse(data.value);
 }
 
 // ---------- server functions ----------
@@ -171,15 +192,17 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const byId = new Map(
-      ((products ?? []) as Array<{
-        id: string;
-        name: string;
-        price: number;
-        currency: string | null;
-        sku: string | null;
-        vendor_id: string | null;
-        stock: number | null;
-      }>).map((p) => [p.id, p]),
+      (
+        (products ?? []) as Array<{
+          id: string;
+          name: string;
+          price: number;
+          currency: string | null;
+          sku: string | null;
+          vendor_id: string | null;
+          stock: number | null;
+        }>
+      ).map((p) => [p.id, p]),
     );
 
     const missing = productIds.filter((id) => !byId.has(id));
@@ -210,7 +233,9 @@ export const createOrder = createServerFn({ method: "POST" })
       if (availableStock <= 0) {
         hasRestockNeededItem = true;
       } else if (i.quantity > availableStock) {
-        stockErrors.push(`الكمية المطلوبة من "${p.name}" (${i.quantity}) أكبر من المخزون المتاح (${availableStock}).`);
+        stockErrors.push(
+          `الكمية المطلوبة من "${p.name}" (${i.quantity}) أكبر من المخزون المتاح (${availableStock}).`,
+        );
       }
 
       return {
@@ -233,12 +258,11 @@ export const createOrder = createServerFn({ method: "POST" })
     // P0: Compute discount server-side (currently 0 — coupon validation TBD).
     const validatedDiscount = 0;
 
-    // P0: Compute shipping fee server-side from centralized config.
-    //     TODO: Load freeShippingThreshold from storefront_settings when available.
+    const shippingSettings = await loadShippingSettings(tenantId, supabaseAdmin);
     const shippingFee = computeShippingFee(
       subtotal - validatedDiscount,
-      DEFAULT_FREE_SHIPPING_THRESHOLD,
-      DEFAULT_SHIPPING_FEE,
+      shippingSettings.freeShippingThreshold,
+      shippingSettings.defaultShippingFee,
     );
 
     const total = Math.max(0, subtotal - validatedDiscount + shippingFee);
@@ -246,7 +270,9 @@ export const createOrder = createServerFn({ method: "POST" })
     // Build notes with restock request flag if stock is 0
     let finalNotes = data.notes ?? "";
     if (hasRestockNeededItem) {
-      finalNotes = finalNotes ? `${finalNotes} | [طلب توفير كمية - المخزون 0]` : "[طلب توفير كمية - المخزون 0]";
+      finalNotes = finalNotes
+        ? `${finalNotes} | [طلب توفير كمية - المخزون 0]`
+        : "[طلب توفير كمية - المخزون 0]";
     }
 
     // 5. Insert the order (service role). user_id is our verified value or null.
@@ -339,7 +365,9 @@ export const createOrder = createServerFn({ method: "POST" })
         from_status: null,
         to_status: "pending",
         changed_by: userId,
-        note: hasRestockNeededItem ? "Order created — يحتوي على طلب توفير كمية (المخزون 0)" : "Order created via checkout",
+        note: hasRestockNeededItem
+          ? "Order created — يحتوي على طلب توفير كمية (المخزون 0)"
+          : "Order created via checkout",
       });
       if (histErr) console.warn("[createOrder] status history notice:", histErr.message);
     } catch (histEx) {
@@ -381,7 +409,10 @@ export const getTrackedOrder = createServerFn({ method: "POST" })
     z
       .object({
         orderNumber: z.string().trim().min(8).max(45),
-        phoneLast4: z.string().trim().regex(/^\d{4}$/, "أدخل آخر 4 أرقام من هاتفك"),
+        phoneLast4: z
+          .string()
+          .trim()
+          .regex(/^\d{4}$/, "أدخل آخر 4 أرقام من هاتفك"),
       })
       .parse(raw),
   )

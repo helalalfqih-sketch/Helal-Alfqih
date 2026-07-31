@@ -3,6 +3,11 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "overrides": {
+    "stats-gl": {
+      "three": "$three"
+    }
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
