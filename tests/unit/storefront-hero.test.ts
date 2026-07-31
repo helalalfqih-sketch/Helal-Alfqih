@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { HeroConfigSchema } from "@/lib/domain/appearance";
+import { HeroConfigSchema } from "../../src/lib/domain/appearance";
 
 describe("Storefront Hero Routing and Schema Verification", () => {
   it("validates hero config type defaults and enum options", () => {
