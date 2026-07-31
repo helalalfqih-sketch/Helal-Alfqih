@@ -1114,12 +1114,15 @@ function CheckoutTab({
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <div className="grid grid-cols-1 gap-3 mt-2 sm:grid-cols-3">
           <Field label="رقم واتساب استقبال الطلبات">
             <input value={cart.whatsappPhone} onChange={(e) => setCart("whatsappPhone", e.target.value)} className={fieldCls} placeholder="967771370740" dir="ltr" />
           </Field>
           <Field label="حد الشحن المجاني (0 = معطّل)">
             <input type="number" min={0} value={cart.freeShippingThreshold} onChange={(e) => setCart("freeShippingThreshold", Number(e.target.value))} className={fieldCls} dir="ltr" placeholder="مثال: 50000" />
+          </Field>
+          <Field label="رسوم الشحن الأساسية">
+            <input type="number" min={0} value={cart.shippingFee} onChange={(e) => setCart("shippingFee", Number(e.target.value))} className={fieldCls} dir="ltr" placeholder="مثال: 3000" />
           </Field>
         </div>
 

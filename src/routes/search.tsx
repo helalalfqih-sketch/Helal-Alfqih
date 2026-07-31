@@ -58,11 +58,12 @@ function SearchPage() {
   const [maxPrice, setMaxPrice] = useState<number | undefined>(searchParams.maxPrice);
   const [dealsOnly, setDealsOnly] = useState<boolean>(!!searchParams.dealsOnly);
   const [inStockOnly, setInStockOnly] = useState<boolean>(!!searchParams.inStockOnly);
-  const [sortBy, setSortBy] = useState<"bestselling" | "latest" | "price_asc" | "price_desc" | "rating">(
-    searchParams.sortBy || "bestselling",
-  );
+  const [sortBy, setSortBy] = useState<
+    "bestselling" | "latest" | "price_asc" | "price_desc" | "rating"
+  >(searchParams.sortBy || "bestselling");
 
   const [results, setResults] = useState<LegacyProductShape[]>([]);
+  const [recommendations, setRecommendations] = useState<LegacyProductShape[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -73,10 +74,15 @@ function SearchPage() {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const hasSearchCriteria = Boolean(
+    q.trim() || selectedCat !== "all" || minPrice !== undefined || maxPrice !== undefined || dealsOnly || inStockOnly,
+  );
 
   // Fetch Categories for Filter
   useEffect(() => {
-    fetchCategories().then((cats) => setCategoriesList(cats)).catch(() => {});
+    fetchCategories()
+      .then((cats) => setCategoriesList(cats))
+      .catch(() => {});
   }, []);
 
   // Sync state with URL params
@@ -98,7 +104,8 @@ function SearchPage() {
           trackEvent("click_search", { query: q });
         }
 
-        const data = await searchProductsAdvanced({
+        const data = hasSearchCriteria ? await searchProductsAdvanced(
+          {
           search: q,
           categoryId: selectedCat,
           minPrice,
@@ -106,7 +113,9 @@ function SearchPage() {
           dealsOnly,
           inStockOnly,
           sortBy,
-        });
+          },
+          controller.signal,
+        ) : [];
 
         if (!controller.signal.aborted) {
           setResults(data);
@@ -121,13 +130,23 @@ function SearchPage() {
           setLoading(false);
         }
       }
-    }, 200);
+    }, 300);
 
     return () => {
       clearTimeout(t);
       controller.abort();
     };
-  }, [q, selectedCat, minPrice, maxPrice, dealsOnly, inStockOnly, sortBy]);
+  }, [q, selectedCat, minPrice, maxPrice, dealsOnly, inStockOnly, sortBy, hasSearchCriteria]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    searchProductsAdvanced({ sortBy: "bestselling" }, controller.signal)
+      .then((items) => {
+        if (!controller.signal.aborted) setRecommendations(items.slice(0, 6));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   // Live Auto-Suggestions with error handling
   useEffect(() => {
@@ -136,17 +155,24 @@ function SearchPage() {
       setShowSuggestions(false);
       return;
     }
+    const controller = new AbortController();
     const t = setTimeout(async () => {
       try {
-        const items = await getSearchSuggestions(q);
+        const items = await getSearchSuggestions(q, controller.signal);
+        if (!controller.signal.aborted) {
         setSuggestions(items);
         setShowSuggestions(items.length > 0);
-      } catch {
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 150);
-    return () => clearTimeout(t);
+    }, 300);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [q]);
 
   const handleSelectSuggestion = (s: SearchSuggestionItem) => {
@@ -164,6 +190,11 @@ function SearchPage() {
     setMaxPrice(undefined);
     setDealsOnly(false);
     setInStockOnly(false);
+  };
+
+  const handleOpenFilters = () => {
+    setShowSuggestions(false);
+    setShowFilterDrawer(true);
   };
 
   return (
@@ -202,16 +233,23 @@ function SearchPage() {
         {/* Live Auto-Suggestions Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute inset-x-0 top-full mt-2 z-50 rounded-2xl border border-white/10 bg-[#0c1a29]/95 p-3 shadow-2xl backdrop-blur-xl space-y-2">
-            <div className="text-[10px] font-bold text-muted-foreground px-2">اقتراحات البحث الذكي:</div>
+            <div className="text-[10px] font-bold text-muted-foreground px-2">
+              اقتراحات البحث الذكي:
+            </div>
             {suggestions.map((s) => (
-              <div
+              <button
+                type="button"
                 key={s.id}
                 onClick={() => handleSelectSuggestion(s)}
-                className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/10 cursor-pointer transition"
+                className="flex w-full items-center justify-between gap-3 rounded-xl p-2 text-start transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {s.image ? (
-                    <img src={s.image} alt="" className="h-8 w-8 rounded-lg object-cover bg-black" />
+                    <img
+                      src={s.image}
+                      alt=""
+                      className="h-8 w-8 rounded-lg object-cover bg-black"
+                    />
                   ) : (
                     <SearchIcon className="h-4 w-4 text-neon" />
                   )}
@@ -225,7 +263,7 @@ function SearchPage() {
                     {formatPrice(s.price)}
                   </span>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -243,7 +281,12 @@ function SearchPage() {
         <div className="flex items-center gap-2">
           {/* Mobile Filter Button */}
           <button
-            onClick={() => setShowFilterDrawer(!showFilterDrawer)}
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              setShowSuggestions(false);
+            }}
+            onClick={handleOpenFilters}
             aria-label="تصفية النتائج"
             aria-expanded={showFilterDrawer}
             className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px]"
@@ -264,11 +307,21 @@ function SearchPage() {
               aria-label="ترتيب النتائج حسب"
               className="bg-transparent text-foreground font-bold outline-none text-xs"
             >
-              <option value="bestselling" className="bg-slate-900 text-white">الأكثر مبيعاً</option>
-              <option value="latest" className="bg-slate-900 text-white">الأحدث</option>
-              <option value="price_asc" className="bg-slate-900 text-white">السعر: الأقل إلى الأعلى</option>
-              <option value="price_desc" className="bg-slate-900 text-white">السعر: الأعلى إلى الأقل</option>
-              <option value="rating" className="bg-slate-900 text-white">الأعلى تقييماً</option>
+              <option value="bestselling" className="bg-slate-900 text-white">
+                الأكثر مبيعاً
+              </option>
+              <option value="latest" className="bg-slate-900 text-white">
+                الأحدث
+              </option>
+              <option value="price_asc" className="bg-slate-900 text-white">
+                السعر: الأقل إلى الأعلى
+              </option>
+              <option value="price_desc" className="bg-slate-900 text-white">
+                السعر: الأعلى إلى الأقل
+              </option>
+              <option value="rating" className="bg-slate-900 text-white">
+                الأعلى تقييماً
+              </option>
             </select>
           </div>
         </div>
@@ -276,7 +329,10 @@ function SearchPage() {
 
       {/* Filter Drawer / Bar (Collapsible) */}
       {showFilterDrawer && (
-        <div className="rounded-2xl border border-primary/30 bg-surface/90 p-4 space-y-4 shadow-lg text-xs" dir="rtl">
+        <div
+          className="rounded-2xl border border-primary/30 bg-surface/90 p-4 space-y-4 shadow-lg text-xs"
+          dir="rtl"
+        >
           <div className="flex items-center justify-between border-b border-border/50 pb-2">
             <h4 className="font-black text-sm flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-primary" /> فلاتر البحث المتقدم
@@ -292,7 +348,9 @@ function SearchPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {/* Category Filter */}
             <div className="space-y-1.5">
-              <label className="font-bold text-muted-foreground" htmlFor="search-cat-select">التصنيف:</label>
+              <label className="font-bold text-muted-foreground" htmlFor="search-cat-select">
+                التصنيف:
+              </label>
               <select
                 id="search-cat-select"
                 value={selectedCat}
@@ -310,7 +368,9 @@ function SearchPage() {
 
             {/* Price Range Filter */}
             <div className="space-y-1.5">
-              <label className="font-bold text-muted-foreground" htmlFor="search-min-price">نطاق السعر (ريال):</label>
+              <label className="font-bold text-muted-foreground" htmlFor="search-min-price">
+                نطاق السعر (ريال):
+              </label>
               <div className="flex items-center gap-2">
                 <input
                   id="search-min-price"
@@ -394,14 +454,17 @@ function SearchPage() {
           ))}
         </div>
       ) : results.length === 0 ? (
+        <div className="space-y-8">
         <div className="rounded-3xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md p-8 sm:p-12 text-center space-y-4">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-showcase-foreground/10 text-showcase-muted">
             <PackageX className="h-7 w-7" />
           </div>
           <div className="space-y-1">
-            <p className="text-base font-black text-showcase-foreground">لم يتم العثور على منتجات مطابقة</p>
+            <p className="text-base font-black text-showcase-foreground">
+              {hasSearchCriteria ? "لم يتم العثور على منتجات مطابقة" : "ابدأ بكتابة اسم المنتج الذي تبحث عنه"}
+            </p>
             <p className="text-xs text-showcase-muted">
-              تأكد من صحة كلمة البحث، أو اختَر أحد التصنيفات السريعة أدناه:
+              {hasSearchCriteria ? "تأكد من صحة كلمة البحث، أو اختَر أحد التصنيفات السريعة أدناه:" : "ستظهر النتائج والاقتراحات المطابقة أثناء الكتابة."}
             </p>
           </div>
 
@@ -420,6 +483,17 @@ function SearchPage() {
               </button>
             ))}
           </div>
+        </div>
+        {!hasSearchCriteria && recommendations.length > 0 && (
+          <section aria-labelledby="search-recommendations-title" className="space-y-4">
+            <h2 id="search-recommendations-title" className="text-base font-black text-showcase-foreground">منتجات مقترحة</h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+              {recommendations.map((product) => (
+                <ProductCard key={product.id} product={product as unknown as Product} />
+              ))}
+            </div>
+          </section>
+        )}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

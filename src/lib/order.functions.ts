@@ -3,12 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveCurrentTenant } from "@/lib/saas/tenant-resolver";
-import {
-  computeShippingFee,
-  normalizeYemeniPhone,
-  DEFAULT_FREE_SHIPPING_THRESHOLD,
-  DEFAULT_SHIPPING_FEE,
-} from "@/lib/shipping";
+import { computeShippingFee, normalizeYemeniPhone } from "@/lib/shipping";
 import {
   getMyOrders as getMyOrdersFromDb,
   getMyOrderDetails as getMyOrderDetailsFromDb,
@@ -17,6 +12,8 @@ import {
   type MyOrderDetails,
 } from "@/lib/services/order-history.service";
 import { normalizeOrderNumber } from "@/lib/order-status";
+import { yemeniPhoneSchema } from "@/lib/validation/phone";
+import { CartConfigSchema } from "@/lib/domain/appearance";
 
 /**
  * Order server functions — the AUTH BOUNDARY for orders (spec Phase 5).
@@ -48,7 +45,7 @@ const createOrderInput = z.object({
     .min(1)
     .max(100),
   customerName: z.string().trim().min(2, "الاسم مطلوب (حرفان على الأقل)").max(200),
-  customerPhone: z.string().trim().min(5, "رقم الهاتف مطلوب").max(40),
+  customerPhone: yemeniPhoneSchema,
   customerAddress: z.string().trim().min(3, "العنوان مطلوب").max(500),
   customerEmail: z.preprocess(
     (v) => (v === "" || v == null ? undefined : v),
@@ -77,7 +74,9 @@ export interface CreateOrderResult {
  * Never throws for missing/invalid tokens — order creation stays open to guests.
  */
 async function getOptionalUserId(admin: {
-  auth: { getUser: (jwt: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }> };
+  auth: {
+    getUser: (jwt: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+  };
 }): Promise<string | null> {
   try {
     const req = getRequest();
@@ -123,7 +122,8 @@ export const createOrder = createServerFn({ method: "POST" })
 
     // 0b. Normalize the Yemeni phone number to 967XXXXXXXXX.
     const normalizedPhone = normalizeYemeniPhone(data.customerPhone);
-    const customerPhone = normalizedPhone ?? data.customerPhone;
+    if (!normalizedPhone) throw new Error("رقم الهاتف اليمني غير صالح.");
+    const customerPhone = normalizedPhone;
 
     // 1. Verified user id from the token (or null → guest). Never from the client.
     const userId = await getOptionalUserId(supabaseAdmin as any);
@@ -171,7 +171,8 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const byId = new Map(
-      ((products ?? []) as Array<{
+      (
+        (products ?? []) as Array<{
         id: string;
         name: string;
         price: number;
@@ -179,7 +180,8 @@ export const createOrder = createServerFn({ method: "POST" })
         sku: string | null;
         vendor_id: string | null;
         stock: number | null;
-      }>).map((p) => [p.id, p]),
+        }>
+      ).map((p) => [p.id, p]),
     );
 
     const missing = productIds.filter((id) => !byId.has(id));
@@ -210,7 +212,9 @@ export const createOrder = createServerFn({ method: "POST" })
       if (availableStock <= 0) {
         hasRestockNeededItem = true;
       } else if (i.quantity > availableStock) {
-        stockErrors.push(`الكمية المطلوبة من "${p.name}" (${i.quantity}) أكبر من المخزون المتاح (${availableStock}).`);
+        stockErrors.push(
+          `الكمية المطلوبة من "${p.name}" (${i.quantity}) أكبر من المخزون المتاح (${availableStock}).`,
+        );
       }
 
       return {
@@ -233,12 +237,25 @@ export const createOrder = createServerFn({ method: "POST" })
     // P0: Compute discount server-side (currently 0 — coupon validation TBD).
     const validatedDiscount = 0;
 
-    // P0: Compute shipping fee server-side from centralized config.
-    //     TODO: Load freeShippingThreshold from storefront_settings when available.
+    // Compute shipping from the published CMS value for this tenant. A missing or
+    // malformed setting is an operational error, not a reason to silently charge
+    // a hardcoded amount that disagrees with the storefront.
+    const { data: shippingRows, error: shippingConfigError } = await supabaseAdmin
+      .from("storefront_settings")
+      .select("value, tenant_id")
+      .eq("key", "cart_config")
+      .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+    if (shippingConfigError) throw new Error("تعذر تحميل إعدادات الشحن المنشورة.");
+    const tenantShipping = shippingRows?.find((row) => row.tenant_id === tenantId);
+    const globalShipping = shippingRows?.find((row) => row.tenant_id == null);
+    const shippingConfig = CartConfigSchema.safeParse(
+      tenantShipping?.value ?? globalShipping?.value,
+    );
+    if (!shippingConfig.success) throw new Error("إعدادات الشحن المنشورة غير صالحة.");
     const shippingFee = computeShippingFee(
       subtotal - validatedDiscount,
-      DEFAULT_FREE_SHIPPING_THRESHOLD,
-      DEFAULT_SHIPPING_FEE,
+      shippingConfig.data.freeShippingThreshold,
+      shippingConfig.data.shippingFee,
     );
 
     const total = Math.max(0, subtotal - validatedDiscount + shippingFee);
@@ -246,7 +263,9 @@ export const createOrder = createServerFn({ method: "POST" })
     // Build notes with restock request flag if stock is 0
     let finalNotes = data.notes ?? "";
     if (hasRestockNeededItem) {
-      finalNotes = finalNotes ? `${finalNotes} | [طلب توفير كمية - المخزون 0]` : "[طلب توفير كمية - المخزون 0]";
+      finalNotes = finalNotes
+        ? `${finalNotes} | [طلب توفير كمية - المخزون 0]`
+        : "[طلب توفير كمية - المخزون 0]";
     }
 
     // 5. Insert the order (service role). user_id is our verified value or null.
@@ -339,7 +358,9 @@ export const createOrder = createServerFn({ method: "POST" })
         from_status: null,
         to_status: "pending",
         changed_by: userId,
-        note: hasRestockNeededItem ? "Order created — يحتوي على طلب توفير كمية (المخزون 0)" : "Order created via checkout",
+        note: hasRestockNeededItem
+          ? "Order created — يحتوي على طلب توفير كمية (المخزون 0)"
+          : "Order created via checkout",
       });
       if (histErr) console.warn("[createOrder] status history notice:", histErr.message);
     } catch (histEx) {
@@ -381,7 +402,10 @@ export const getTrackedOrder = createServerFn({ method: "POST" })
     z
       .object({
         orderNumber: z.string().trim().min(8).max(45),
-        phoneLast4: z.string().trim().regex(/^\d{4}$/, "أدخل آخر 4 أرقام من هاتفك"),
+        phoneLast4: z
+          .string()
+          .trim()
+          .regex(/^\d{4}$/, "أدخل آخر 4 أرقام من هاتفك"),
       })
       .parse(raw),
   )

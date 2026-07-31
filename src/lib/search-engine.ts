@@ -1,10 +1,25 @@
 import { fetchProducts } from "@/lib/actions/product.actions";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 
+export const MIN_RELEVANCE_SCORE = 4;
+
+let inFlightProducts: Promise<LegacyProductShape[]> | null = null;
+
+async function loadProducts(signal?: AbortSignal): Promise<LegacyProductShape[]> {
+  if (signal?.aborted) throw new DOMException("Search aborted", "AbortError");
+  inFlightProducts ??= fetchProducts().finally(() => {
+    inFlightProducts = null;
+  });
+  const products = await inFlightProducts;
+  if (signal?.aborted) throw new DOMException("Search aborted", "AbortError");
+  return products;
+}
+
 /** Arabic Text Normalizer & Typo Tolerator */
 export function normalizeArabic(text: string): string {
   if (!text) return "";
-  return text
+  return (
+    text
     .toLowerCase()
     .trim()
     // Remove Tashkeel / Diacritics
@@ -17,7 +32,8 @@ export function normalizeArabic(text: string): string {
     .replace(/ة/g, "ه")
     // Replace non-alphanumeric except spaces
     .replace(/[^\w\s\u0600-\u06FF]/g, " ")
-    .replace(/\s+/g, " ");
+      .replace(/\s+/g, " ")
+  );
 }
 
 /** Arabic & English Synonym & Typo Dictionary */
@@ -69,12 +85,45 @@ export interface SearchFilterOptions {
   sortBy?: "bestselling" | "latest" | "price_asc" | "price_desc" | "rating";
 }
 
+export function rankSearchResults(
+  products: LegacyProductShape[],
+  query: string,
+): LegacyProductShape[] {
+  const tokens = getExpandedTokens(query);
+  return products
+    .map((product) => {
+      let score = 0;
+      const normName = normalizeArabic(product.name);
+      const normDesc = normalizeArabic(product.description || "");
+      const normBrand = normalizeArabic((product as any).brand || "");
+      const normCat = normalizeArabic((product as any).category_name || product.categoryId || "");
+      const normSku = normalizeArabic((product as any).sku || "");
+      const normBarcode = normalizeArabic((product as any).barcode || "");
+      const normTags = normalizeArabic(((product as any).tags || []).join(" "));
+
+      for (const token of tokens) {
+        if (!token) continue;
+        if (normName.includes(token)) score += 10;
+        if (normSku.includes(token) || normBarcode.includes(token)) score += 8;
+        if (normBrand.includes(token)) score += 6;
+        if (normCat.includes(token)) score += 5;
+        if (normTags.includes(token)) score += 4;
+        if (normDesc.includes(token)) score += 2;
+      }
+      return { product, score };
+    })
+    .filter(({ score }) => score >= MIN_RELEVANCE_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .map(({ product }) => product);
+}
+
 /** Advanced Search & Rank Engine */
 export async function searchProductsAdvanced(
   options: SearchFilterOptions = {},
+  signal?: AbortSignal,
 ): Promise<LegacyProductShape[]> {
   const { search, categoryId, minPrice, maxPrice, dealsOnly, inStockOnly, brand, sortBy } = options;
-  const allProducts = await fetchProducts();
+  const allProducts = await loadProducts(signal);
 
   let filtered = allProducts.filter((p) => {
     // Category Filter
@@ -115,36 +164,7 @@ export async function searchProductsAdvanced(
 
   // Text Search Matching & Scoring
   if (search && search.trim()) {
-    const tokens = getExpandedTokens(search);
-
-    const scored = filtered.map((p) => {
-      let score = 0;
-      const normName = normalizeArabic(p.name);
-      const normDesc = normalizeArabic(p.description || "");
-      const normBrand = normalizeArabic((p as any).brand || "");
-      const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
-      const normSku = normalizeArabic((p as any).sku || "");
-      const normBarcode = normalizeArabic((p as any).barcode || "");
-      const normTags = normalizeArabic(((p as any).tags || []).join(" "));
-      const normMeta = normalizeArabic(JSON.stringify((p as any).metadata || {}));
-
-      for (const token of tokens) {
-        if (!token) continue;
-
-        // Exact Title Match (highest priority)
-        if (normName.includes(token)) score += 10;
-        if (normSku.includes(token) || normBarcode.includes(token)) score += 8;
-        if (normBrand.includes(token)) score += 6;
-        if (normCat.includes(token)) score += 5;
-        if (normTags.includes(token)) score += 4;
-        if (normDesc.includes(token)) score += 2;
-        if (normMeta.includes(token)) score += 2;
-      }
-
-      return { product: p, score };
-    });
-
-    filtered = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).map((s) => s.product);
+    filtered = rankSearchResults(filtered, search);
   }
 
   // Sorting
@@ -157,7 +177,11 @@ export async function searchProductsAdvanced(
         filtered.sort((a, b) => b.price - a.price);
         break;
       case "latest":
-        filtered.sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
+        filtered.sort(
+          (a, b) =>
+            new Date((b as any).created_at || 0).getTime() -
+            new Date((a as any).created_at || 0).getTime(),
+        );
         break;
       case "rating":
         filtered.sort((a, b) => b.rating - a.rating);
@@ -184,11 +208,14 @@ export interface SearchSuggestionItem {
 }
 
 /** Get Live Search Suggestions */
-export async function getSearchSuggestions(query: string): Promise<SearchSuggestionItem[]> {
+export async function getSearchSuggestions(
+  query: string,
+  signal?: AbortSignal,
+): Promise<SearchSuggestionItem[]> {
   const q = query.trim();
   if (!q) return [];
 
-  const matched = await searchProductsAdvanced({ search: q });
+  const matched = await searchProductsAdvanced({ search: q }, signal);
   const suggestions: SearchSuggestionItem[] = [];
 
   // 1. Matching Product Items (up to 4)

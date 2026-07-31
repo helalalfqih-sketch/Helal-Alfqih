@@ -58,27 +58,10 @@ export function amountToFreeShipping(
  * Returns null if the input is not a recognizable Yemeni number.
  */
 export function normalizeYemeniPhone(raw: string): string | null {
-  // Strip all non-digit characters
-  let digits = raw.replace(/\D/g, "");
-
-  // Remove leading 00 (international prefix)
-  if (digits.startsWith("00")) digits = digits.slice(2);
-
-  // If starts with 967 and has 12 digits total → already normalized
-  if (digits.startsWith("967") && digits.length === 12) return digits;
-
-  // If starts with 0 (local format like 0771...) remove leading 0
-  if (digits.startsWith("0")) digits = digits.slice(1);
-
-  // Should now be 9 digits (7XXXXXXXX)
-  if (digits.length === 9 && /^[1-9]/.test(digits)) {
-    return `967${digits}`;
-  }
-
-  // If it's 12 digits starting with 967, accept
-  if (digits.length === 12 && digits.startsWith("967")) {
-    return digits;
-  }
-
-  return null;
+  const normalized = raw
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(/[\s()-]/g, "");
+  const match = normalized.match(/^(?:\+?967)?(7\d{8})$/);
+  return match ? `967${match[1]}` : null;
 }

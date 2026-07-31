@@ -12,7 +12,7 @@
  * - If no video exists, shows "Request Video" button
  * - Keeps SSR/hydration safe and preserves RTL design
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -68,7 +68,8 @@ function isVideoUrl(url?: string | null): boolean {
   const lower = url.trim().toLowerCase();
   if (/\.(mp4|webm|ogg|mov|avi|mkv|m3u8)(\?.*)?$/i.test(lower)) return true;
   if (lower.includes("stream.mux.com") || lower.includes("player.mux.com")) return true;
-  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com")) return true;
+  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com"))
+    return true;
   if (lower.startsWith("data:video/")) return true;
   return false;
 }
@@ -79,7 +80,11 @@ function extractMuxId(url?: string | null): string | null {
   const trimmed = url.trim();
   const m = trimmed.match(/(?:stream\.mux\.com\/|player\.mux\.com\/|mux\.com\/)([A-Za-z0-9]+)/);
   if (m) return m[1];
-  if (!trimmed.includes("http") && !trimmed.includes("/") && /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)) {
+  if (
+    !trimmed.includes("http") &&
+    !trimmed.includes("/") &&
+    /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)
+  ) {
     if (
       trimmed.startsWith("demo-") ||
       trimmed.startsWith("mux-playback-") ||
@@ -172,7 +177,10 @@ function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] 
   if (product.videoPlaybackId) {
     const muxId = extractMuxId(product.videoPlaybackId) || product.videoPlaybackId;
     const vUrl = `https://stream.mux.com/${muxId}.m3u8`;
-    if (!seenUrls.has(vUrl) && !items.some((m) => m.kind === "video-mux" && m.playbackId === muxId)) {
+    if (
+      !seenUrls.has(vUrl) &&
+      !items.some((m) => m.kind === "video-mux" && m.playbackId === muxId)
+    ) {
       seenUrls.add(vUrl);
       const poster = `https://image.mux.com/${muxId}/thumbnail.webp`;
       items.push({ kind: "video-mux", playbackId: muxId, poster });
@@ -205,15 +213,34 @@ function VideoModal({
   muxId,
   title,
   onClose,
+  triggerRef,
 }: {
   src?: string;
   muxId?: string;
   title: string;
   onClose: () => void;
+  triggerRef: MutableRefObject<HTMLButtonElement | null>;
 }) {
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const embedUrl = src ? toEmbedUrl(src) : null;
   const isDirectVideo = src && !embedUrl;
   const muxPlayerUrl = muxId ? `https://player.mux.com/${muxId}` : null;
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const trigger = triggerRef.current;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [onClose, triggerRef]);
 
   return (
     <motion.div
@@ -222,6 +249,9 @@ function VideoModal({
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`فيديو ${title}`}
     >
       <motion.div
         initial={{ scale: 0.92, opacity: 0 }}
@@ -232,8 +262,10 @@ function VideoModal({
         onClick={(e) => e.stopPropagation()}
       >
         <button
+          ref={closeButtonRef}
+          type="button"
           onClick={onClose}
-          className="absolute end-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
+          className="absolute end-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           aria-label="إغلاق الفيديو"
         >
           <X className="h-4 w-4" />
@@ -286,13 +318,26 @@ export function ProductMediaGallery({ product }: Props) {
   const has3D = mounted && !!modelFor(product.id);
 
   const mediaList = buildMediaList(product, has3D);
-  const imageItems = mediaList.filter((m) => m.kind === "image") as Extract<MediaItem, { kind: "image" }>[];
+  const imageItems = mediaList.filter((m) => m.kind === "image") as Extract<
+    MediaItem,
+    { kind: "image" }
+  >[];
   const hasAnyVideo = mediaList.some((m) => m.kind === "video-url" || m.kind === "video-mux");
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [videoModal, setVideoModal] = useState<{ src?: string; muxId?: string } | null>(null);
   const [requestSent, setRequestSent] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const videoTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const openVideoModal = useCallback(
+    (trigger: HTMLButtonElement, media: { src?: string; muxId?: string }) => {
+      videoTriggerRef.current = trigger;
+      setVideoModal(media);
+    },
+    [],
+  );
+  const closeVideoModal = useCallback(() => setVideoModal(null), []);
 
   const requestVideoFn = useServerFn(requestProductVideo);
 
@@ -359,9 +404,11 @@ export function ProductMediaGallery({ product }: Props) {
                   className="h-full w-full object-contain"
                 />
               ) : (
-                <div
+                <button
+                  type="button"
                   className="relative h-full w-full flex items-center justify-center cursor-pointer group"
-                  onClick={() => setVideoModal({ src: activeItem.url })}
+                  onClick={(event) => openVideoModal(event.currentTarget, { src: activeItem.url })}
+                  aria-label={`تشغيل فيديو ${product.name}`}
                 >
                   <OptimizedImage
                     src={activeItem.poster || product.image}
@@ -377,28 +424,36 @@ export function ProductMediaGallery({ product }: Props) {
                       انقر لتشغيل الفيديو
                     </span>
                   </div>
-                </div>
+                </button>
               )}
               {/* Fullscreen Expand Button */}
               <button
-                onClick={() => setVideoModal({ src: activeItem.url })}
-                className="absolute top-3 end-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
+                type="button"
+                onClick={(event) => openVideoModal(event.currentTarget, { src: activeItem.url })}
+                className="absolute top-3 end-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
                 aria-label="توسيع الفيديو"
               >
                 <Maximize2 className="h-4 w-4" />
               </button>
             </motion.div>
           ) : activeItem?.kind === "video-mux" ? (
-            <motion.div
+            <motion.button
+              type="button"
               key={`video-mux-${activeItem.playbackId}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="relative h-full w-full flex items-center justify-center bg-black cursor-pointer group"
-              onClick={() => setVideoModal({ muxId: activeItem.playbackId })}
+              onClick={(event) =>
+                openVideoModal(event.currentTarget, { muxId: activeItem.playbackId })
+              }
+              aria-label={`تشغيل فيديو ${product.name}`}
             >
               <OptimizedImage
-                src={activeItem.poster || `https://image.mux.com/${activeItem.playbackId}/thumbnail.webp`}
+                src={
+                  activeItem.poster ||
+                  `https://image.mux.com/${activeItem.playbackId}/thumbnail.webp`
+                }
                 alt={product.name}
                 size="large"
                 className="h-full w-full object-cover opacity-50 group-hover:opacity-40 transition"
@@ -411,7 +466,7 @@ export function ProductMediaGallery({ product }: Props) {
                   انقر لتشغيل الفيديو
                 </span>
               </div>
-            </motion.div>
+            </motion.button>
           ) : (
             <motion.div
               key={(activeItem as Extract<MediaItem, { kind: "image" }>)?.url ?? "img"}
@@ -469,7 +524,8 @@ export function ProductMediaGallery({ product }: Props) {
           {activeItem?.kind === "image" && imageItems.length > 1 && (
             <span className="flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-bold text-white/70 backdrop-blur-md">
               <ImageIcon className="h-3 w-3" />
-              {(activeItem as Extract<MediaItem, { kind: "image" }>).index + 1} / {imageItems.length}
+              {(activeItem as Extract<MediaItem, { kind: "image" }>).index + 1} /{" "}
+              {imageItems.length}
             </span>
           )}
         </div>
@@ -566,7 +622,9 @@ export function ProductMediaGallery({ product }: Props) {
             <Video className="h-4 w-4 text-primary" />
           )}
           <span>
-            {requestSent ? "✅ تم إرسال طلب الفيديو — سنضيفه فور تجهيزه" : "اطلب توفير فيديو لهذا المنتج"}
+            {requestSent
+              ? "✅ تم إرسال طلب الفيديو — سنضيفه فور تجهيزه"
+              : "اطلب توفير فيديو لهذا المنتج"}
           </span>
         </button>
       )}
@@ -578,7 +636,8 @@ export function ProductMediaGallery({ product }: Props) {
             src={videoModal.src}
             muxId={videoModal.muxId}
             title={product.name}
-            onClose={() => setVideoModal(null)}
+            onClose={closeVideoModal}
+            triggerRef={videoTriggerRef}
           />
         )}
       </AnimatePresence>
