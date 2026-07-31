@@ -113,6 +113,7 @@ export const CartConfigSchema = z.object({
   couponFieldEnabled: z.boolean().catch(true),
   deliveryFormEnabled: z.boolean().catch(true),
   defaultShippingText: z.string().catch("يتم الاتفاق عليه"),
+  shippingFee: z.number().min(0).catch(3000),
   freeShippingThreshold: z.number().min(0).catch(0),
   defaultShippingFee: z.number().min(0).catch(3000),
 });

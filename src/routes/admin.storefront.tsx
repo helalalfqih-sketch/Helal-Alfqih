@@ -1553,7 +1553,7 @@ function CheckoutTab({ cart, checkout, onCartChange, onCheckoutChange }: Checkou
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <div className="grid grid-cols-1 gap-3 mt-2 sm:grid-cols-3">
           <Field label="رقم واتساب استقبال الطلبات">
             <input
               value={cart.whatsappPhone}
@@ -1583,6 +1583,9 @@ function CheckoutTab({ cart, checkout, onCartChange, onCheckoutChange }: Checkou
               dir="ltr"
               placeholder="مثال: 3000"
             />
+          </Field>
+          <Field label="رسوم الشحن الأساسية">
+            <input type="number" min={0} value={cart.shippingFee} onChange={(e) => setCart("shippingFee", Number(e.target.value))} className={fieldCls} dir="ltr" placeholder="مثال: 3000" />
           </Field>
         </div>
 
