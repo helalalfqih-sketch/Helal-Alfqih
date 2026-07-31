@@ -400,4 +400,103 @@ function ProductPage() {
                     href={shareUrls.facebook}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 font-bold hover:bg-blue-600/30 transitio
+                    className="rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 font-bold hover:bg-blue-600/30 transition"
+                  >
+                    فيسبوك
+                  </a>
+                  <a
+                    href={shareUrls.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-white/10 text-white border border-white/20 px-2.5 py-1 font-bold hover:bg-white/20 transition"
+                  >
+                    إكس
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Highlights Grid (Compact Spacing) */}
+        <div className="mt-16 border-t border-showcase-border/60 pt-12">
+          <h3 className="text-xl font-black mb-6 text-showcase-foreground">
+            مميزات ومواصفات المنتج
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                tag: "الأداء",
+                title: "أداء يفوق التوقعات",
+                body: "تقنية متطورة وتصميم دقيق يضمن لك سرعة، سلاسة، وموثوقية عالية في كل استخدام.",
+                icon: Zap,
+              },
+              {
+                tag: "التصميم",
+                title: "جماليات فاخرة",
+                body: "خطوط أنيقة وخامات متينة مختارة بعناية لمنحك تجربة استخدام راقية تستحق الاقتناء.",
+                icon: Sparkles,
+              },
+              {
+                tag: "الجودة والضمان",
+                title: "مضمون مع خدمة ممتازة",
+                body: "فحوصات دقيقة وضمان شامل مع دعم متواصل لراحة بالك الكاملة.",
+                icon: Shield,
+              },
+            ].map((f) => (
+              <div
+                key={f.tag}
+                className="flex flex-col gap-3 rounded-2xl border border-showcase-border bg-showcase-foreground/5 p-5 shadow-card"
+              >
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary border border-primary/20">
+                  <f.icon className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-bold tracking-[0.3em] text-primary">{f.tag}</span>
+                <h4 className="text-lg font-bold text-showcase-foreground">{f.title}</h4>
+                <p className="text-xs leading-relaxed text-showcase-foreground/75">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Product Recommendations ("قد يعجبك أيضاً") */}
+        <ProductRecommendations
+          currentProductId={product.id}
+          categoryId={product.categoryId}
+          productName={product.name}
+        />
+      </div>
+
+      {/* Sticky Conversion Bar when scrolling */}
+      {pageCfg.showWaBtn !== false && (
+        <motion.div
+          initial={false}
+          animate={{
+            y: showStickyBar ? 0 : 120,
+            opacity: showStickyBar ? 1 : 0,
+          }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-x-0 bottom-16 z-40 mx-auto w-full max-w-md px-3"
+          style={{ pointerEvents: showStickyBar ? "auto" : "none" }}
+        >
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-showcase-border bg-showcase/90 p-3 shadow-2xl backdrop-blur-2xl">
+            <div className="min-w-0 flex-1 ps-2">
+              <p className="truncate text-xs font-bold text-showcase-foreground">{product.name}</p>
+              <p className="text-xs font-black text-primary">{formatPrice(product.price)}</p>
+            </div>
+            <a
+              href={orderHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-xl bg-success px-4 py-2 text-xs font-black text-success-foreground transition hover:bg-success/90"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              اطلب عبر واتساب
+            </a>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
