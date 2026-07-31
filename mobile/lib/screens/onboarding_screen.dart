@@ -66,8 +66,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _buildRoleCard(
                 role: UserRole.seller,
                 emoji: '🏪',
-                title: 'أنا بائع (Seller)',
-                subtitle: 'إنشاء متجر، إضافة المنتجات من الكاميرا، وإدارة المبيعات والطلبات.',
+                title: 'إنشاء متجري',
+                subtitle: 'إنشاء متجر خاص بك، إضافة المنتجات بسهولة، وإدارة المبيعات والطلبات.',
                 color: const Color(0xFF10B981),
               ),
 
@@ -105,7 +105,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Text(
                         _selectedRole == UserRole.shopper
                             ? 'الانتقال لمتجر التسوق ➔'
-                            : 'الانتقال للوحة البائع ➔',
+                            : 'إنشاء متجري والبدء ➔',
                         style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ],
