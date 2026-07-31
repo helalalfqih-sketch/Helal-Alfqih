@@ -5,7 +5,6 @@ import {
   MapPin,
   HelpCircle,
   ShieldCheck,
-  LogIn,
   LogOut,
   User as UserIcon,
   Plus,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import { performSecureLogout } from "@/lib/auth/logout";
 import { useAppearance } from "@/components/appearance-provider";
 import { whatsappLink } from "@/lib/whatsapp";
@@ -59,14 +59,10 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
-    meta: [
-      { title: "حسابي — اندكس ستور" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "حسابي — اندكس ستور" }, { name: "robots", content: "noindex, nofollow" }],
   }),
   component: AccountPage,
 });
-
 
 type TabType = "overview" | "orders" | "addresses" | "security" | "support";
 
@@ -74,7 +70,7 @@ function AccountPage() {
   const navigate = useNavigate();
   const { settings } = useAppearance();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
   // Profile card state (own row only — RLS enforces auth.uid() = id)
@@ -95,7 +91,13 @@ function AccountPage() {
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
-  const [newAddr, setNewAddr] = useState({ title: "المنزل", city: "صنعاء", address_line: "", phone: "", is_default: false });
+  const [newAddr, setNewAddr] = useState({
+    title: "المنزل",
+    city: "صنعاء",
+    address_line: "",
+    phone: "",
+    is_default: false,
+  });
 
   // Security state
   const [newPassword, setNewPassword] = useState("");
@@ -166,7 +168,13 @@ function AccountPage() {
     if (ok) {
       toast.success("تم حفظ العنوان بنجاح");
       setAddingAddress(false);
-      setNewAddr({ title: "المنزل", city: "صنعاء", address_line: "", phone: "", is_default: false });
+      setNewAddr({
+        title: "المنزل",
+        city: "صنعاء",
+        address_line: "",
+        phone: "",
+        is_default: false,
+      });
       const updated = await getUserAddresses();
       setAddresses(updated);
     } else {
@@ -213,8 +221,8 @@ function AccountPage() {
       if (error) throw error;
       toast.success("تم تحديث كلمة المرور بنجاح! 🔑");
       setNewPassword("");
-    } catch (err: any) {
-      toast.error(err.message || "حدث خطأ أثناء التحديث");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء التحديث");
     } finally {
       setUpdatingPassword(false);
     }
@@ -228,7 +236,11 @@ function AccountPage() {
   // Loading / unauthenticated → skeleton (redirect effect handles navigation).
   if (loadingUser || !user) {
     return (
-      <div className="flex flex-col gap-5 px-4 pt-4 max-w-2xl mx-auto pb-12" dir="rtl" aria-busy="true">
+      <div
+        className="flex flex-col gap-5 px-4 pt-4 max-w-2xl mx-auto pb-12"
+        dir="rtl"
+        aria-busy="true"
+      >
         <div className="h-24 animate-pulse rounded-3xl bg-showcase-foreground/10" />
         <div className="h-10 animate-pulse rounded-xl bg-showcase-foreground/10" />
         <div className="h-40 animate-pulse rounded-2xl bg-showcase-foreground/10" />
@@ -242,87 +254,49 @@ function AccountPage() {
 
   return (
     <div className="flex flex-col gap-5 px-4 pt-4 max-w-2xl mx-auto pb-12" dir="rtl">
-      {/* Profile Header Card */}
-      <section className="flex items-center gap-3.5 rounded-3xl bg-primary p-5 text-primary-foreground shadow-brand">
+      {/* Compact account identity — the global storefront shell already owns primary navigation. */}
+      <section className="flex items-center gap-3 rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-3 shadow-card backdrop-blur-md">
         {profile?.avatar_url ? (
           <img
             src={profile.avatar_url}
             alt={displayName}
-            className="h-14 w-14 rounded-2xl object-cover shrink-0 border border-primary-foreground/20"
+            className="h-11 w-11 rounded-xl object-cover shrink-0 border border-showcase-border/50"
           />
         ) : (
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-foreground/20 text-xl font-black shrink-0">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/15 text-base font-black text-primary shrink-0">
             {avatarInitial || <UserIcon className="h-6 w-6" />}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-base font-black truncate">{displayName}</p>
-          <p className="text-xs text-primary-foreground/80 truncate">{user.email}</p>
+          <p className="text-sm font-black text-showcase-foreground truncate">{displayName}</p>
+          <p className="text-[11px] text-showcase-muted truncate">{user.email}</p>
           {profile?.phone && (
-            <p className="text-xs text-primary-foreground/70 truncate" dir="ltr">
+            <p className="text-[11px] text-showcase-muted truncate" dir="ltr">
               {profile.phone}
             </p>
           )}
         </div>
-        {loadingUser ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : user ? (
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1 rounded-xl bg-primary-foreground/20 px-3 py-2 text-xs font-bold transition hover:bg-primary-foreground/30 shrink-0"
-            title="تسجيل الخروج"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">خروج</span>
-          </button>
-        ) : (
-          <Link
-            to="/auth"
-            className="flex items-center gap-1.5 rounded-xl bg-primary-foreground text-primary px-4 py-2 text-xs font-bold shadow-card hover:bg-primary-foreground/90 transition shrink-0"
-          >
-            <LogIn className="h-4 w-4" />
-            تسجيل الدخول
-          </Link>
-        )}
+        <button
+          onClick={handleLogout}
+          className="flex h-9 items-center gap-1 rounded-xl border border-showcase-border/60 px-2.5 text-[11px] font-bold text-showcase-muted transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive shrink-0"
+          aria-label="تسجيل الخروج من الحساب"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">خروج</span>
+        </button>
       </section>
 
-      {/* Role Selection System (Shopper vs Seller) */}
-      <div className="rounded-3xl border border-showcase-border/60 bg-showcase-foreground/5 p-4 shadow-card backdrop-blur-md space-y-3">
-        <p className="text-xs font-bold text-showcase-muted">حدد نوع وسياق الحساب المفتاح:</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => {
-              localStorage.setItem("noqta:user_role", "shopper");
-              toast.success("تم التبديل إلى وضع المتسوق 🛒");
-            }}
-            className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-primary/40 bg-primary/10 text-primary font-bold text-xs hover:bg-primary/20 transition text-center"
-          >
-            <span className="text-xl">🛒</span>
-            <span className="font-black text-white">أنا متسوق (Shopper)</span>
-            <span className="text-[10px] text-showcase-muted">شراء المنتجات ومتابعة الطلبات</span>
-          </button>
-
-          <button
-            onClick={() => {
-              localStorage.setItem("noqta:user_role", "seller");
-              toast.success("تم التبديل إلى وضع البائع 🏪");
-              navigate({ to: "/admin" });
-            }}
-            className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold text-xs hover:bg-emerald-500/20 transition text-center"
-          >
-            <span className="text-xl">🏪</span>
-            <span className="font-black text-white">أنا بائع (Seller)</span>
-            <span className="text-[10px] text-emerald-300">إنشاء متجر وإدارة المنتجات ➔</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs Bar */}
-      <div className="flex w-full max-w-full border-b border-showcase-border/40 overflow-x-auto gap-2 pb-1 scrollbar-none">
+      {/* Account-local sections; this is not a second storefront navigation bar. */}
+      <nav
+        aria-label="أقسام الحساب"
+        className="flex w-full max-w-full overflow-x-auto gap-1 rounded-2xl border border-showcase-border/40 bg-showcase-foreground/5 p-1 scrollbar-none"
+      >
         <button
           onClick={() => setActiveTab("overview")}
           className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
-            activeTab === "overview" ? "border-primary text-primary" : "border-transparent text-showcase-muted hover:text-showcase-foreground"
+            activeTab === "overview"
+              ? "border-primary text-primary"
+              : "border-transparent text-showcase-muted hover:text-showcase-foreground"
           }`}
         >
           <UserIcon className="h-4 w-4" />
@@ -331,7 +305,9 @@ function AccountPage() {
         <button
           onClick={() => setActiveTab("orders")}
           className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
-            activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-showcase-muted hover:text-showcase-foreground"
+            activeTab === "orders"
+              ? "border-primary text-primary"
+              : "border-transparent text-showcase-muted hover:text-showcase-foreground"
           }`}
         >
           <Package className="h-4 w-4" />
@@ -340,7 +316,9 @@ function AccountPage() {
         <button
           onClick={() => setActiveTab("addresses")}
           className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
-            activeTab === "addresses" ? "border-primary text-primary" : "border-transparent text-showcase-muted hover:text-showcase-foreground"
+            activeTab === "addresses"
+              ? "border-primary text-primary"
+              : "border-transparent text-showcase-muted hover:text-showcase-foreground"
           }`}
         >
           <MapPin className="h-4 w-4" />
@@ -349,7 +327,9 @@ function AccountPage() {
         <button
           onClick={() => setActiveTab("security")}
           className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
-            activeTab === "security" ? "border-primary text-primary" : "border-transparent text-showcase-muted hover:text-showcase-foreground"
+            activeTab === "security"
+              ? "border-primary text-primary"
+              : "border-transparent text-showcase-muted hover:text-showcase-foreground"
           }`}
         >
           <ShieldCheck className="h-4 w-4" />
@@ -358,13 +338,15 @@ function AccountPage() {
         <button
           onClick={() => setActiveTab("support")}
           className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
-            activeTab === "support" ? "border-primary text-primary" : "border-transparent text-showcase-muted hover:text-showcase-foreground"
+            activeTab === "support"
+              ? "border-primary text-primary"
+              : "border-transparent text-showcase-muted hover:text-showcase-foreground"
           }`}
         >
           <HelpCircle className="h-4 w-4" />
           المساعدة والدعم
         </button>
-      </div>
+      </nav>
 
       {/* Tab 1: Overview */}
       {activeTab === "overview" && (
@@ -381,7 +363,9 @@ function AccountPage() {
                   </div>
                   <div className="text-right">
                     <span>متابعة وسجل الطلبات</span>
-                    <span className="block text-[10px] font-normal text-showcase-muted">عرض الطلبات السابقة وحالاتها الحالية</span>
+                    <span className="block text-[10px] font-normal text-showcase-muted">
+                      عرض الطلبات السابقة وحالاتها الحالية
+                    </span>
                   </div>
                 </div>
                 <span className="text-showcase-muted text-sm">‹</span>
@@ -398,7 +382,9 @@ function AccountPage() {
                   </div>
                   <div className="text-right">
                     <span>إدارة العناوين والتسليم</span>
-                    <span className="block text-[10px] font-normal text-muted-foreground">عناوين التوصيل المفضلة للطلبات</span>
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      عناوين التوصيل المفضلة للطلبات
+                    </span>
                   </div>
                 </div>
                 <span className="text-muted-foreground text-sm">‹</span>
@@ -415,7 +401,9 @@ function AccountPage() {
                   </div>
                   <div className="text-right">
                     <span>الخصوصية وتغيير كلمة المرور</span>
-                    <span className="block text-[10px] font-normal text-showcase-muted">حماية الحساب وإدارة الجلسات</span>
+                    <span className="block text-[10px] font-normal text-showcase-muted">
+                      حماية الحساب وإدارة الجلسات
+                    </span>
                   </div>
                 </div>
                 <span className="text-showcase-muted text-sm">‹</span>
@@ -433,10 +421,7 @@ function AccountPage() {
               <Package className="h-4 w-4 text-primary" />
               طلباتي
             </h2>
-            <Link
-              to="/track"
-              className="text-[11px] font-bold text-primary hover:underline"
-            >
+            <Link to="/track" className="text-[11px] font-bold text-primary hover:underline">
               تتبع طلب كضيف ›
             </Link>
           </div>
@@ -451,7 +436,9 @@ function AccountPage() {
                 <Package className="h-6 w-6" />
               </div>
               <p className="text-sm font-bold">لا توجد طلبات سابقة</p>
-              <p className="text-xs text-showcase-muted">عند قتومك بالشراء ستظهر جميع طلباتك وحالات التوصيل هنا.</p>
+              <p className="text-xs text-showcase-muted">
+                عند قيامك بالشراء ستظهر جميع طلباتك وحالات التوصيل هنا.
+              </p>
               <Link
                 to="/"
                 className="inline-block rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-brand"
@@ -465,16 +452,25 @@ function AccountPage() {
                 const open = openOrderId === ord.id;
                 const detail = orderDetails[ord.id];
                 return (
-                  <div key={ord.id} className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-4 shadow-card space-y-2 backdrop-blur-md">
+                  <div
+                    key={ord.id}
+                    className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-4 shadow-card space-y-2 backdrop-blur-md"
+                  >
                     <div className="flex items-center justify-between border-b border-showcase-border/50 pb-2 text-xs">
                       <span className="font-mono font-bold text-primary">{ord.order_number}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${orderStatusTone(ord.status)}`}>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${orderStatusTone(ord.status)}`}
+                      >
                         {orderStatusLabel(ord.status)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-showcase-muted">التاريخ: {new Date(ord.created_at).toLocaleDateString("ar-EG")}</span>
-                      <span className="font-black text-showcase-foreground">{formatPrice(ord.total || 0)}</span>
+                      <span className="text-showcase-muted">
+                        التاريخ: {new Date(ord.created_at).toLocaleDateString("ar-EG")}
+                      </span>
+                      <span className="font-black text-showcase-foreground">
+                        {formatPrice(ord.total || 0)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-showcase-muted">
                       <span>{ord.items_count} منتج</span>
@@ -501,16 +497,20 @@ function AccountPage() {
                             </div>
 
                             {/* Order status timeline */}
-                            {(detail.status === "cancelled" || detail.status === "refunded") ? (
+                            {detail.status === "cancelled" || detail.status === "refunded" ? (
                               <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                                {detail.status === "cancelled"
-                                  ? <XCircle className="h-4 w-4 shrink-0" />
-                                  : <RotateCcw className="h-4 w-4 shrink-0" />}
+                                {detail.status === "cancelled" ? (
+                                  <XCircle className="h-4 w-4 shrink-0" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4 shrink-0" />
+                                )}
                                 <div>
                                   <p className="font-bold">{orderStatusLabel(detail.status)}</p>
                                   {detail.history.length > 0 && (
                                     <p className="opacity-70">
-                                      {new Date(detail.history[detail.history.length - 1].created_at).toLocaleString("ar-EG")}
+                                      {new Date(
+                                        detail.history[detail.history.length - 1].created_at,
+                                      ).toLocaleString("ar-EG")}
                                     </p>
                                   )}
                                 </div>
@@ -533,7 +533,9 @@ function AccountPage() {
                                         {!isLast && (
                                           <span
                                             className={`absolute right-[7px] top-5 h-full w-0.5 ${
-                                              reachedIdx > i ? "bg-success/60" : "bg-showcase-border/40"
+                                              reachedIdx > i
+                                                ? "bg-success/60"
+                                                : "bg-showcase-border/40"
                                             }`}
                                           />
                                         )}
@@ -545,9 +547,13 @@ function AccountPage() {
                                           )}
                                         </span>
                                         <div>
-                                          <p className={`text-xs font-bold ${
-                                            reached ? "text-showcase-foreground" : "text-showcase-muted"
-                                          }`}>
+                                          <p
+                                            className={`text-xs font-bold ${
+                                              reached
+                                                ? "text-showcase-foreground"
+                                                : "text-showcase-muted"
+                                            }`}
+                                          >
                                             {orderStatusLabel(s)}
                                           </p>
                                           {date && (
@@ -579,18 +585,24 @@ function AccountPage() {
                                     </div>
                                   )}
                                   <div className="flex flex-1 flex-col">
-                                    <span className="line-clamp-1 text-xs font-bold text-showcase-foreground">{it.name}</span>
+                                    <span className="line-clamp-1 text-xs font-bold text-showcase-foreground">
+                                      {it.name}
+                                    </span>
                                     <span className="text-[11px] text-showcase-muted">
                                       {it.quantity} × {formatPrice(it.unit_price)}
                                     </span>
                                   </div>
-                                  <span className="text-xs font-black text-showcase-foreground">{formatPrice(it.total_price)}</span>
+                                  <span className="text-xs font-black text-showcase-foreground">
+                                    {formatPrice(it.total_price)}
+                                  </span>
                                 </li>
                               ))}
                             </ul>
                           </>
                         ) : (
-                          <p className="text-[11px] text-showcase-muted">تعذّر تحميل تفاصيل الطلب.</p>
+                          <p className="text-[11px] text-showcase-muted">
+                            تعذّر تحميل تفاصيل الطلب.
+                          </p>
                         )}
                       </div>
                     )}
@@ -686,12 +698,17 @@ function AccountPage() {
           ) : addresses.length === 0 ? (
             <div className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-8 text-center space-y-2 backdrop-blur-md">
               <p className="text-sm font-bold">لا توجد عناوين محجوزة</p>
-              <p className="text-xs text-showcase-muted">أضف عنوانك لتسريع عملية الشراء والتوصيل مستقبلاً.</p>
+              <p className="text-xs text-showcase-muted">
+                أضف عنوانك لتسريع عملية الشراء والتوصيل مستقبلاً.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               {addresses.map((a) => (
-                <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-4 shadow-card backdrop-blur-md">
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-4 shadow-card backdrop-blur-md"
+                >
                   <div className="space-y-1 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-showcase-foreground">{a.title}</span>
@@ -740,7 +757,11 @@ function AccountPage() {
                   disabled={updatingPassword}
                   className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-brand hover:bg-primary/90 disabled:opacity-60"
                 >
-                  {updatingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {updatingPassword ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
                   تحديث كلمة المرور
                 </button>
               </div>

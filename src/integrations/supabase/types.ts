@@ -733,7 +733,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "media_files";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       tenant_audit_logs: {
@@ -879,10 +879,13 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"];
           payment_status: Database["public"]["Enums"]["payment_status"];
           payment_provider: string | null;
+          subtotal: number;
+          shipping_fee: number;
           total: number;
           currency: string;
           coupon_code: string | null;
           discount_amount: number;
+          idempotency_key: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -898,10 +901,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"];
           payment_status?: Database["public"]["Enums"]["payment_status"];
           payment_provider?: string | null;
+          subtotal?: number;
+          shipping_fee?: number;
           total: number;
           currency?: string;
           coupon_code?: string | null;
           discount_amount?: number;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -917,10 +923,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"];
           payment_status?: Database["public"]["Enums"]["payment_status"];
           payment_provider?: string | null;
+          subtotal?: number;
+          shipping_fee?: number;
           total?: number;
           currency?: string;
           coupon_code?: string | null;
           discount_amount?: number;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };

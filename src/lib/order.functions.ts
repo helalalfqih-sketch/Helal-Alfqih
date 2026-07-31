@@ -13,6 +13,9 @@ import {
 } from "@/lib/services/order-history.service";
 import { normalizeOrderNumber } from "@/lib/order-status";
 import { yemeniPhoneSchema } from "@/lib/validation/phone";
+import type { SupabaseAdminClient } from "@/integrations/supabase/client.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 /**
  * Order server functions — the AUTH BOUNDARY for orders (spec Phase 5).
@@ -93,7 +96,7 @@ async function getOptionalUserId(admin: {
 
 async function loadShippingSettings(
   tenantId: string,
-  db: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
+  db: SupabaseAdminClient,
 ): Promise<{ freeShippingThreshold: number; defaultShippingFee: number }> {
   const selectSetting = async (scopedTenantId: string | null) => {
     let query = db.from("storefront_settings").select("value").eq("key", "cart_config");
@@ -122,12 +125,13 @@ async function loadShippingSettings(
 export const createOrder = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => createOrderInput.parse(raw))
   .handler(async ({ data }): Promise<CreateOrderResult> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = getSupabaseAdmin();
 
     // 0. Idempotency — if the client sent a key and an order with this key
     //    already exists, return the existing order instead of creating a duplicate.
     if (data.idempotencyKey) {
-      const { data: existing } = await (supabaseAdmin as any)
+      const { data: existing } = await supabaseAdmin
         .from("orders")
         .select("id, total, currency")
         .eq("idempotency_key", data.idempotencyKey)
@@ -147,10 +151,10 @@ export const createOrder = createServerFn({ method: "POST" })
     const customerPhone = normalizedPhone ?? data.customerPhone;
 
     // 1. Verified user id from the token (or null → guest). Never from the client.
-    const userId = await getOptionalUserId(supabaseAdmin as any);
+    const userId = await getOptionalUserId(supabaseAdmin);
 
     // 2. Resolve the storefront tenant server-side.
-    let tenantId = await resolveCurrentTenant(supabaseAdmin as any, { userId });
+    let tenantId = await resolveCurrentTenant(supabaseAdmin, { userId });
 
     const { data: tenant } = await supabaseAdmin
       .from("tenants")
@@ -174,11 +178,13 @@ export const createOrder = createServerFn({ method: "POST" })
     // 3. Load the requested products for THIS tenant, published only. Price is
     //    authoritative from the DB — the client never sets prices.
     const productIds = Array.from(new Set(data.items.map((i) => i.productId)));
-    let { data: products, error: prodErr } = await supabaseAdmin
+    const productResult = await supabaseAdmin
       .from("products")
       .select("id, name, price, currency, sku, is_published, tenant_id, vendor_id, stock")
       .in("id", productIds)
       .eq("tenant_id", tenantId);
+    let products = productResult.data;
+    const prodErr = productResult.error;
 
     if (prodErr || !products || products.length < productIds.length) {
       // Fallback: load products by ID regardless of tenant_id filter (backward compatibility)
@@ -276,7 +282,7 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     // 5. Insert the order (service role). user_id is our verified value or null.
-    const orderInsert: Record<string, unknown> = {
+    const orderInsert: Database["public"]["Tables"]["orders"]["Insert"] = {
       tenant_id: tenantId,
       user_id: userId,
       customer_name: data.customerName ?? null,
@@ -300,7 +306,7 @@ export const createOrder = createServerFn({ method: "POST" })
       orderInsert.idempotency_key = data.idempotencyKey;
     }
 
-    const { data: order, error: orderErr } = await (supabaseAdmin as any)
+    const { data: order, error: orderErr } = await supabaseAdmin
       .from("orders")
       .insert(orderInsert)
       .select("id")
@@ -322,7 +328,8 @@ export const createOrder = createServerFn({ method: "POST" })
         ...r,
         order_id: order.id,
       }));
-      const fallbackRes = await (supabaseAdmin.from("order_items") as any)
+      const fallbackRes = await supabaseAdmin
+        .from("order_items")
         .insert(fallbackRows)
         .select("id, order_id, product_id, quantity, unit_price, total_price");
 
@@ -348,7 +355,7 @@ export const createOrder = createServerFn({ method: "POST" })
         };
       });
 
-      await splitOrderIntoVendorOrders(supabaseAdmin as any, {
+      await splitOrderIntoVendorOrders(supabaseAdmin, {
         tenantId,
         orderId: order.id,
         items: orderItemsWithVendor,
@@ -383,7 +390,10 @@ export const createOrder = createServerFn({ method: "POST" })
 export const getMyOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyOrderSummary[]> => {
-    const { supabase, userId } = context as unknown as { supabase: any; userId: string };
+    const { supabase, userId } = context as unknown as {
+      supabase: SupabaseClient<Database>;
+      userId: string;
+    };
     return getMyOrdersFromDb(supabase, userId);
   });
 
@@ -394,7 +404,10 @@ export const getMyOrderDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) => z.object({ orderId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }): Promise<MyOrderDetails | null> => {
-    const { supabase, userId } = context as unknown as { supabase: any; userId: string };
+    const { supabase, userId } = context as unknown as {
+      supabase: SupabaseClient<Database>;
+      userId: string;
+    };
     return getMyOrderDetailsFromDb(supabase, userId, data.orderId);
   });
 
@@ -419,6 +432,7 @@ export const getTrackedOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<MyOrderDetails | null> => {
     const normalized = normalizeOrderNumber(data.orderNumber);
     if (!normalized) return null;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return trackOrderFromDb(supabaseAdmin as any, normalized, data.phoneLast4);
+    const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = getSupabaseAdmin();
+    return trackOrderFromDb(supabaseAdmin, normalized, data.phoneLast4);
   });
