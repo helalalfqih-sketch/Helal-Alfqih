@@ -308,11 +308,23 @@ export const createOrder = createServerFn({ method: "POST" })
       orderInsert.idempotency_key = data.idempotencyKey;
     }
 
-    const { data: order, error: orderErr } = await (supabaseAdmin as any)
+    let { data: order, error: orderErr } = await (supabaseAdmin as any)
       .from("orders")
       .insert(orderInsert)
       .select("id")
       .single();
+
+    if ((orderErr || !order) && orderInsert.idempotency_key) {
+      console.warn("[createOrder] Order Insert failed with idempotency_key, retrying without it:", orderErr?.message);
+      delete orderInsert.idempotency_key;
+      const fallbackRes = await (supabaseAdmin as any)
+        .from("orders")
+        .insert(orderInsert)
+        .select("id")
+        .single();
+      order = fallbackRes.data;
+      orderErr = fallbackRes.error;
+    }
 
     if (orderErr || !order) {
       console.error("[createOrder] Order Insert Failure:", orderErr);
