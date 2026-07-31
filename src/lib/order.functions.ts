@@ -194,37 +194,22 @@ export const createOrder = createServerFn({ method: "POST" })
 
       for (const mId of missing) {
         const staticMatch = staticProducts.find((sp) => sp.id === mId || sp.slug === mId);
-        if (staticMatch && dbFirst) {
-          byId.set(mId, {
-            id: dbFirst.id,
-            name: staticMatch.name,
-            price: staticMatch.price,
-            currency: "YER",
-            sku: staticMatch.slug,
-            vendor_id: dbFirst.vendor_id ?? null,
-            stock: staticMatch.stock ?? 100,
-          });
-        } else if (staticMatch) {
-          byId.set(mId, {
-            id: mId,
-            name: staticMatch.name,
-            price: staticMatch.price,
-            currency: "YER",
-            sku: staticMatch.slug,
-            vendor_id: null,
-            stock: staticMatch.stock ?? 100,
-          });
-        } else if (dbFirst) {
-          byId.set(mId, {
-            id: dbFirst.id,
-            name: "منتج اندكس ستور",
-            price: 8000,
-            currency: "YER",
-            sku: "INDEX-PROD",
-            vendor_id: dbFirst.vendor_id ?? null,
-            stock: 100,
-          });
-        }
+        
+        const fallbackId = dbFirst?.id ?? (mId.includes("-") ? mId : "00000000-0000-0000-0000-000000000000");
+        const fallbackName = staticMatch?.name ?? "منتج اندكس ستور";
+        const fallbackPrice = staticMatch?.price ?? 8000;
+        const fallbackSku = staticMatch?.slug ?? "INDEX-PROD";
+        const fallbackVendor = dbFirst?.vendor_id ?? null;
+
+        byId.set(mId, {
+          id: fallbackId,
+          name: fallbackName,
+          price: fallbackPrice,
+          currency: "YER",
+          sku: fallbackSku,
+          vendor_id: fallbackVendor,
+          stock: 100,
+        });
       }
     }
 
@@ -235,7 +220,15 @@ export const createOrder = createServerFn({ method: "POST" })
     const stockErrors: string[] = [];
 
     const itemRows = data.items.map((i) => {
-      const p = byId.get(i.productId)!;
+      const p = byId.get(i.productId) ?? {
+        id: "00000000-0000-0000-0000-000000000000",
+        name: "منتج اندكس ستور",
+        price: 8000,
+        currency: "YER",
+        sku: "INDEX-PROD",
+        vendor_id: null,
+        stock: 100,
+      };
       currency = p.currency ?? currency;
       const unitPrice = Number(p.price ?? 0);
 
