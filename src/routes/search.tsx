@@ -10,13 +10,14 @@ import {
   CheckCircle2,
   AlertCircle,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { ProductCard } from "@/components/product-card";
 import { ProductCardSkeleton } from "@/components/ui/skeleton";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product } from "@/lib/store-data";
-import { categories as defaultCategories } from "@/lib/store-data";
+import { categories as defaultCategories, products as defaultProducts } from "@/lib/store-data";
 import { z } from "zod";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -212,12 +213,15 @@ function SearchPage() {
 
         {/* Live Auto-Suggestions Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute inset-x-0 top-full mt-2 z-50 rounded-2xl border border-white/10 bg-[#0c1a29]/95 p-3 shadow-2xl backdrop-blur-xl space-y-2">
+          <div className="absolute inset-x-0 top-full mt-2 z-40 rounded-2xl border border-white/10 bg-[#0c1a29]/95 p-3 shadow-2xl backdrop-blur-xl space-y-2">
             <div className="text-[10px] font-bold text-muted-foreground px-2">اقتراحات البحث الذكي:</div>
             {suggestions.map((s) => (
               <div
                 key={s.id}
-                onClick={() => handleSelectSuggestion(s)}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleSelectSuggestion(s);
+                }}
                 className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/10 cursor-pointer transition"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -254,14 +258,17 @@ function SearchPage() {
         <div className="flex items-center gap-2">
           {/* Mobile Filter Button */}
           <button
+            type="button"
             data-testid="search-filter-drawer"
-            onClick={() => {
+            onPointerDown={(e) => {
+              e.preventDefault();
               setShowSuggestions(false);
               setShowFilterDrawer((prev) => !prev);
             }}
             aria-label="تصفية النتائج"
+            aria-controls="search-filter-drawer"
             aria-expanded={showFilterDrawer}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px]"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           >
             <SlidersHorizontal className="h-4 w-4 text-primary" />
             <span>الفلاتر</span>
@@ -445,7 +452,7 @@ function SearchPage() {
               <span>قد يناسبك أيضاً</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {products.slice(0, 6).map((p) => (
+              {defaultProducts.slice(0, 6).map((p: Product) => (
                 <ProductCard key={p.id} product={p as unknown as Product} />
               ))}
             </div>

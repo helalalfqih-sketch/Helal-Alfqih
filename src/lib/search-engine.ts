@@ -121,36 +121,39 @@ export async function searchProductsAdvanced(
       "من", "في", "على", "عن", "مع", "لا", "او", "ام", "ال", "ما", "هذا", "هذه"
     ]);
 
-    const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t));
-    const tokensToUse = contentTokens.length > 0 ? contentTokens : rawTokens;
+    // Content tokens: non-stop-word AND at least 3 characters (avoids single letters, "no", "on"…)
+    const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t) && t.length >= 3);
 
-    const scored = filtered.map((p) => {
-      let score = 0;
-      const normName = normalizeArabic(p.name);
-      const normDesc = normalizeArabic(p.description || "");
-      const normBrand = normalizeArabic((p as any).brand || "");
-      const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
-      const normSku = normalizeArabic((p as any).sku || "");
-      const normBarcode = normalizeArabic((p as any).barcode || "");
-      const normTags = normalizeArabic(((p as any).tags || []).join(" "));
+    // If no meaningful content tokens remain (pure noise query), return empty result set immediately
+    if (contentTokens.length === 0) {
+      filtered = [];
+    } else {
+      const scored = filtered.map((p) => {
+        let score = 0;
+        const normName = normalizeArabic(p.name);
+        const normDesc = normalizeArabic(p.description || "");
+        const normBrand = normalizeArabic((p as any).brand || "");
+        const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
+        const normSku = normalizeArabic((p as any).sku || "");
+        const normBarcode = normalizeArabic((p as any).barcode || "");
+        const normTags = normalizeArabic(((p as any).tags || []).join(" "));
 
-      for (const token of tokensToUse) {
-        if (!token || token.length < 2) continue;
+        for (const token of contentTokens) {
+          // Exact Name/SKU/Brand Match — high-confidence signals only
+          if (normName.includes(token)) score += 10;
+          if (normSku.includes(token) || normBarcode.includes(token)) score += 8;
+          if (normBrand.includes(token)) score += 6;
+          if (normCat.includes(token)) score += 5;
+          if (normTags.includes(token)) score += 4;
+          if (normDesc.includes(token)) score += 2;
+        }
 
-        // Exact Title Match (highest priority)
-        if (normName.includes(token)) score += 10;
-        if (normSku.includes(token) || normBarcode.includes(token)) score += 8;
-        if (normBrand.includes(token)) score += 6;
-        if (normCat.includes(token)) score += 5;
-        if (normTags.includes(token)) score += 4;
-        if (normDesc.includes(token)) score += 2;
-      }
+        return { product: p, score };
+      });
 
-      return { product: p, score };
-    });
-
-    // Require minimum score threshold (>= 4) for relevance
-    filtered = scored.filter((s) => s.score >= 4).sort((a, b) => b.score - a.score).map((s) => s.product);
+      // Require name/sku/brand-level match (>= 8) OR two lower-signal matches (>= 8 combined)
+      filtered = scored.filter((s) => s.score >= 8).sort((a, b) => b.score - a.score).map((s) => s.product);
+    }
   }
 
   // Sorting

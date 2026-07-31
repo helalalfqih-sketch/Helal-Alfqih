@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Star, Play, X, Heart, Eye, ShoppingCart, Video, Sparkles, Trophy, Clock, Flame, Check } from "lucide-react";
-import { useState, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import type { Product } from "@/lib/store-data";
@@ -330,16 +330,20 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${dialogId}-novideo-title`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          onClick={() => setShowNoVideoModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
         >
-          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4 cursor-default"
+          >
             <button
               type="button"
               onClick={() => setShowNoVideoModal(false)}
               aria-label="إغلاق النافذة"
-              className="absolute top-4 end-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+              className="absolute top-4 end-4 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
 
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -373,16 +377,20 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${dialogId}-quickview-title`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          onClick={() => setShowQuickViewModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
         >
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 shadow-2xl text-start space-y-4 max-h-[90vh] overflow-y-auto">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 shadow-2xl text-start space-y-4 max-h-[90vh] overflow-y-auto cursor-default"
+          >
             <button
               type="button"
               onClick={() => setShowQuickViewModal(false)}
               aria-label="إغلاق المعاينة السريعة"
-              className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+              className="absolute top-4 end-4 z-50 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
