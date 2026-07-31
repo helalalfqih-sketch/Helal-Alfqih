@@ -4,6 +4,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveCurrentTenant } from "@/lib/saas/tenant-resolver";
 import {
+  computeShippingFee,
+  normalizeYemeniPhone,
+  DEFAULT_FREE_SHIPPING_THRESHOLD,
+  DEFAULT_SHIPPING_FEE,
+} from "@/lib/shipping";
+import {
   getMyOrders as getMyOrdersFromDb,
   getMyOrderDetails as getMyOrderDetailsFromDb,
   trackOrder as trackOrderFromDb,
@@ -41,17 +47,19 @@ const createOrderInput = z.object({
     )
     .min(1)
     .max(100),
-  customerName: z.string().trim().max(200).optional(),
-  customerPhone: z.string().trim().min(3).max(40),
-  customerAddress: z.string().trim().max(500).optional(),
+  customerName: z.string().trim().min(2, "الاسم مطلوب (حرفان على الأقل)").max(200),
+  customerPhone: z.string().trim().min(5, "رقم الهاتف مطلوب").max(40),
+  customerAddress: z.string().trim().min(3, "العنوان مطلوب").max(500),
   customerEmail: z.preprocess(
     (v) => (v === "" || v == null ? undefined : v),
     z.string().trim().email().max(200).optional(),
   ),
   notes: z.string().trim().max(1000).optional(),
   couponCode: z.string().trim().max(60).optional(),
-  discountAmount: z.number().min(0).optional(),
+  // discountAmount is NEVER accepted from the client — computed server-side.
   paymentProvider: z.string().trim().max(60).optional(),
+  /** Client-generated UUID to prevent duplicate order creation. */
+  idempotencyKey: z.string().uuid().optional(),
 });
 export type CreateOrderPayload = z.infer<typeof createOrderInput>;
 
@@ -94,6 +102,28 @@ export const createOrder = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => createOrderInput.parse(raw))
   .handler(async ({ data }): Promise<CreateOrderResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 0. Idempotency — if the client sent a key and an order with this key
+    //    already exists, return the existing order instead of creating a duplicate.
+    if (data.idempotencyKey) {
+      const { data: existing } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, total, currency")
+        .eq("idempotency_key", data.idempotencyKey)
+        .maybeSingle();
+      if (existing) {
+        return {
+          orderId: existing.id,
+          total: existing.total ?? 0,
+          currency: existing.currency ?? "YER",
+          itemsCount: data.items.length,
+        };
+      }
+    }
+
+    // 0b. Normalize the Yemeni phone number to 967XXXXXXXXX.
+    const normalizedPhone = normalizeYemeniPhone(data.customerPhone);
+    const customerPhone = normalizedPhone ?? data.customerPhone;
 
     // 1. Verified user id from the token (or null → guest). Never from the client.
     const userId = await getOptionalUserId(supabaseAdmin as any);
@@ -161,16 +191,28 @@ export const createOrder = createServerFn({ method: "POST" })
     let currency = "YER";
     let subtotal = 0;
     let hasRestockNeededItem = false;
+    const stockErrors: string[] = [];
 
     const itemRows = data.items.map((i) => {
       const p = byId.get(i.productId)!;
       currency = p.currency ?? currency;
       const unitPrice = Number(p.price ?? 0);
+
+      // P0: reject price <= 0
+      if (unitPrice <= 0) {
+        throw new Error(`المنتج "${p.name}" سعره غير صالح. يرجى التواصل مع الإدارة.`);
+      }
+
       const lineTotal = unitPrice * i.quantity;
       subtotal += lineTotal;
-      if ((p.stock ?? 0) <= 0 || (p.stock ?? 0) < i.quantity) {
+
+      const availableStock = p.stock ?? 0;
+      if (availableStock <= 0) {
         hasRestockNeededItem = true;
+      } else if (i.quantity > availableStock) {
+        stockErrors.push(`الكمية المطلوبة من "${p.name}" (${i.quantity}) أكبر من المخزون المتاح (${availableStock}).`);
       }
+
       return {
         tenant_id: tenantId,
         product_id: p.id,
@@ -183,8 +225,23 @@ export const createOrder = createServerFn({ method: "POST" })
       };
     });
 
+    // P0: reject if any item exceeds available stock (unless stock is 0 → restock request)
+    if (stockErrors.length > 0) {
+      throw new Error(stockErrors.join("\n"));
+    }
+
+    // P0: Compute discount server-side (currently 0 — coupon validation TBD).
     const validatedDiscount = 0;
-    const total = Math.max(0, subtotal - validatedDiscount);
+
+    // P0: Compute shipping fee server-side from centralized config.
+    //     TODO: Load freeShippingThreshold from storefront_settings when available.
+    const shippingFee = computeShippingFee(
+      subtotal - validatedDiscount,
+      DEFAULT_FREE_SHIPPING_THRESHOLD,
+      DEFAULT_SHIPPING_FEE,
+    );
+
+    const total = Math.max(0, subtotal - validatedDiscount + shippingFee);
 
     // Build notes with restock request flag if stock is 0
     let finalNotes = data.notes ?? "";
@@ -193,24 +250,33 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     // 5. Insert the order (service role). user_id is our verified value or null.
-    const { data: order, error: orderErr } = await supabaseAdmin
+    const orderInsert: Record<string, unknown> = {
+      tenant_id: tenantId,
+      user_id: userId,
+      customer_name: data.customerName ?? null,
+      customer_phone: customerPhone,
+      customer_address: data.customerAddress ?? null,
+      customer_email: data.customerEmail ?? null,
+      notes: finalNotes || null,
+      status: "pending",
+      payment_status: "pending",
+      payment_provider: data.paymentProvider ?? null,
+      subtotal,
+      shipping_fee: shippingFee,
+      total,
+      currency,
+      coupon_code: data.couponCode ?? null,
+      discount_amount: validatedDiscount,
+    };
+
+    // Attach idempotency key if provided.
+    if (data.idempotencyKey) {
+      orderInsert.idempotency_key = data.idempotencyKey;
+    }
+
+    const { data: order, error: orderErr } = await (supabaseAdmin as any)
       .from("orders")
-      .insert({
-        tenant_id: tenantId,
-        user_id: userId,
-        customer_name: data.customerName ?? null,
-        customer_phone: data.customerPhone,
-        customer_address: data.customerAddress ?? null,
-        customer_email: data.customerEmail ?? null,
-        notes: finalNotes || null,
-        status: "pending",
-        payment_status: "pending",
-        payment_provider: data.paymentProvider ?? null,
-        total,
-        currency,
-        coupon_code: data.couponCode ?? null,
-        discount_amount: validatedDiscount,
-      })
+      .insert(orderInsert)
       .select("id")
       .single();
 

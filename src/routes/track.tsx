@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useId } from "react";
 import {
   PackageSearch,
   Loader2,
@@ -33,8 +33,6 @@ export const Route = createFileRoute("/track")({
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** The linear fulfillment path; cancelled/refunded render as a banner instead. */
 const FLOW: OrderStatus[] = ["pending", "confirmed", "processing", "shipped", "delivered"];
 
 function TrackPage() {
@@ -44,23 +42,56 @@ function TrackPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<MyOrderDetails | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ orderId?: string; phone?: string }>({});
+  const [lastAttemptTime, setLastAttemptTime] = useState<number>(0);
+
+  const formId = useId();
+
+  const validate = (): boolean => {
+    const errs: { orderId?: string; phone?: string } = {};
+    const input = orderId.trim();
+    const orderNumber = normalizeOrderNumber(input);
+
+    if (!input) {
+      errs.orderId = "الرجاء إدخال رقم الطلب (مثال: ORD-XXXXXXXX).";
+    } else if (!orderNumber) {
+      errs.orderId = "صيغة رقم الطلب غير صحيحة. مثال: ORD-XXXXXXXX";
+    }
+
+    const last4 = phone.trim();
+    if (!last4) {
+      errs.phone = "الرجاء إدخال آخر 4 أرقام من رقم الهاتف.";
+    } else if (!/^\d{4}$/.test(last4)) {
+      errs.phone = "يجب إدخال 4 أرقام فقط (مثال: 0740).";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setOrder(null);
 
-    const input = orderId.trim();
-    const orderNumber = normalizeOrderNumber(input);
-    if (!orderNumber) {
-      setError("رقم الطلب غير صالح — الصيغة: ORD-XXXXXXXX كما في رسالة تأكيد الطلب.");
+    // Rate limiting: allow max 1 attempt per 2 seconds
+    const now = Date.now();
+    if (now - lastAttemptTime < 2000) {
+      setError("الرجاء الانتظار لحظة قبل إعادة البحث.");
       return;
     }
+    setLastAttemptTime(now);
+
+    if (!validate()) return;
+
+    const input = orderId.trim();
+    const orderNumber = normalizeOrderNumber(input)!;
     const last4 = phone.trim();
 
     setBusy(true);
     try {
       let found: MyOrderDetails | null = null;
+
       // Signed-in customers who pasted a full order id: try their own orders
       // first (RLS-scoped, no phone needed).
       if (user && UUID_RE.test(input)) {
@@ -70,17 +101,15 @@ function TrackPage() {
           found = null;
         }
       }
+
       // Public path: order number + last-4 phone digits, verified server-side
       // (never an open read; response carries no personal data).
       if (!found) {
-        if (!/^\d{4}$/.test(last4)) {
-          setError("أدخل آخر 4 أرقام من رقم الهاتف المستخدم عند الطلب.");
-          return;
-        }
         found = await getTrackedOrder({ data: { orderNumber, phoneLast4: last4 } });
       }
+
       if (!found) {
-        setError("لم نعثر على الطلب — تأكد من رقم الطلب وآخر 4 أرقام من هاتفك.");
+        setError("لم نعثر على أي طلب بهاتف ورمز متطابقين. التأكد من البيانات وإعادة المحاولة.");
       } else {
         setOrder(found);
       }
@@ -117,44 +146,69 @@ function TrackPage() {
         </div>
       </section>
 
-      {/* Form */}
+      {/* Form with custom Arabic validation */}
       <form
         onSubmit={onSubmit}
+        noValidate
         className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-5 shadow-card backdrop-blur-md space-y-3"
       >
-        <label className="block text-xs font-bold space-y-1">
-          رقم الطلب
+        <label className="block text-xs font-bold space-y-1" htmlFor={`${formId}-order-id`}>
+          <span>رقم الطلب <span className="text-destructive">*</span></span>
           <input
+            id={`${formId}-order-id`}
             value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
+            onChange={(e) => {
+              setOrderId(e.target.value);
+              if (fieldErrors.orderId) setFieldErrors((p) => ({ ...p, orderId: "" }));
+            }}
             placeholder="ORD-XXXXXXXX"
             dir="ltr"
-            className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
-            required
+            aria-invalid={Boolean(fieldErrors.orderId)}
+            aria-describedby={fieldErrors.orderId ? `${formId}-order-error` : undefined}
+            className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm font-mono outline-none transition-colors ${
+              fieldErrors.orderId ? "border-destructive focus:border-destructive" : "border-input focus:border-primary"
+            }`}
           />
+          {fieldErrors.orderId && (
+            <p id={`${formId}-order-error`} role="alert" className="text-[11px] font-semibold text-destructive">{fieldErrors.orderId}</p>
+          )}
         </label>
-        <label className="block text-xs font-bold space-y-1">
-          آخر 4 أرقام من رقم الهاتف
+
+        <label className="block text-xs font-bold space-y-1" htmlFor={`${formId}-phone`}>
+          <span>آخر 4 أرقام من رقم الهاتف <span className="text-destructive">*</span></span>
           <input
+            id={`${formId}-phone`}
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              if (fieldErrors.phone) setFieldErrors((p) => ({ ...p, phone: "" }));
+            }}
             placeholder="مثال: 0740"
             dir="ltr"
             type="tel"
             inputMode="numeric"
             maxLength={4}
-            className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+            aria-invalid={Boolean(fieldErrors.phone)}
+            aria-describedby={fieldErrors.phone ? `${formId}-phone-error` : undefined}
+            className={`w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition-colors ${
+              fieldErrors.phone ? "border-destructive focus:border-destructive" : "border-input focus:border-primary"
+            }`}
           />
+          {fieldErrors.phone && (
+            <p id={`${formId}-phone-error`} role="alert" className="text-[11px] font-semibold text-destructive">{fieldErrors.phone}</p>
+          )}
         </label>
+
         {error && (
           <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </div>
         )}
+
         <button
           type="submit"
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-black text-primary-foreground shadow-brand disabled:opacity-60 hover:scale-[1.01] transition-transform"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-black text-primary-foreground shadow-brand disabled:opacity-60 hover:scale-[1.01] transition-transform min-h-[44px]"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageSearch className="h-4 w-4" />}
           {busy ? "جارٍ البحث..." : "تتبع الطلب"}
@@ -163,7 +217,7 @@ function TrackPage() {
 
       {/* Result */}
       {order && (
-        <section className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-5 shadow-card backdrop-blur-md space-y-4">
+        <section className="rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-5 shadow-card backdrop-blur-md space-y-4" aria-live="polite">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-showcase-border/50 pb-3">
             <span className="font-mono text-sm font-bold text-primary">{order.order_number}</span>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${orderStatusTone(order.status)}`}>
@@ -192,7 +246,7 @@ function TrackPage() {
             </div>
           ) : (
             /* Timeline stepper */
-            <ol className="space-y-0">
+            <ol className="space-y-0" aria-label="مراحل تنفيذ الطلب">
               {FLOW.map((s, i) => {
                 const reached = reachedIndex >= i;
                 const date = reached ? dateFor(s) : null;
@@ -230,7 +284,7 @@ function TrackPage() {
           )}
 
           {/* Items */}
-          <ul className="space-y-2 border-t border-showcase-border/50 pt-3">
+          <ul className="space-y-2 border-t border-showcase-border/50 pt-3" aria-label="منتجات الطلب">
             {order.items.map((it) => (
               <li key={it.id} className="flex items-center gap-3">
                 {it.image ? (

@@ -1,18 +1,6 @@
 import { ShoppingBag } from "lucide-react";
 import { useAppearance } from "@/components/appearance-provider";
-
-/**
- * StoreBrand — the official Indexes Store identity element.
- *
- * The single reusable brand component for any surface that needs the store
- * identity (footer, headers, empty states, future floating elements). Fully
- * white-label: name/tagline/logo come from the CMS (navigation settings), so
- * every tenant renders ITS OWN identity — never third-party branding.
- *
- * - Uses design tokens only (primary/foreground/muted) → dark & light safe.
- * - Responsive sizes: sm / md / lg.
- * - Falls back to the brand mark icon when no logo URL is configured.
- */
+import noqtaLogo from "@/assets/noqta-logo.png";
 
 type BrandSize = "sm" | "md" | "lg";
 
@@ -42,9 +30,12 @@ export function StoreBrand({
   taglineClassName = "text-muted-foreground",
 }: StoreBrandProps) {
   const { settings } = useAppearance();
-  const storeName = settings.navigation.storeName || "اندكس ستور";
-  const tagline = (settings.navigation as { tagline?: string }).tagline || "";
-  const logoUrl = (settings.navigation as { logoUrl?: string }).logoUrl || "";
+  const storeName = settings.brand_settings?.storeName || settings.navigation?.storeName || "اندكس ستور";
+  const tagline = (settings.navigation as { tagline?: string })?.tagline || "";
+  const logoUrl =
+    settings.store_identity?.logoUrl ||
+    (settings.navigation as { logoUrl?: string })?.logoUrl ||
+    noqtaLogo;
   const s = SIZES[size];
 
   return (
@@ -53,7 +44,7 @@ export function StoreBrand({
         <img
           src={logoUrl}
           alt={storeName}
-          className={`${s.box} shrink-0 object-cover shadow-brand`}
+          className={`${s.box} shrink-0 object-cover shadow-brand overflow-hidden`}
         />
       ) : (
         <div

@@ -22,7 +22,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { getStorefrontAppearance } from "@/lib/actions/appearance.actions";
 import type { StorefrontSettingsShape } from "@/lib/domain/appearance";
 import { NetworkManager } from "@/components/network-manager";
-import { PersistentShowcaseCanvas } from "@/components/persistent/PersistentShowcaseCanvas";
 import {
   generateOrganizationJsonLd,
   generateLocalBusinessJsonLd,
@@ -154,8 +153,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const ogTitle = seo?.ogTitle || title;
     const ogDescription = seo?.ogDescription || description;
     const themeColor = storeIdentity?.themeColor || seo?.themeColor || brandSettings?.primaryColor || "#1F5EFF";
-    const faviconUrl = storeIdentity?.faviconUrl || "/favicon.ico";
-    const appleTouchIconUrl = storeIdentity?.appleTouchIconUrl || "/apple-touch-icon.png";
+    const faviconUrl = storeIdentity?.faviconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/favicon.ico";
+    const appleTouchIconUrl = storeIdentity?.appleTouchIconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/apple-touch-icon.png";
     const twitterUsername = seo?.twitterUsername || "@indexes_store";
 
     const baseUrl =
@@ -337,7 +336,6 @@ function RootComponent() {
             <Outlet />
           ) : (
             <StoreThemeLayout>
-              <PersistentShowcaseCanvas />
               <Outlet />
             </StoreThemeLayout>
           )}

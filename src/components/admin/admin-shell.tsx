@@ -47,6 +47,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { performSecureLogout } from "@/lib/auth/logout";
 import { getSessionUser, logUnauthorizedAccess } from "@/lib/auth.functions";
 import { claimFirstAdmin } from "@/lib/admin-bootstrap.functions";
+import { useAppearance } from "@/components/appearance-provider";
 import noqtaLogo from "@/assets/noqta-logo.png";
 
 export function AdminShell() {
@@ -211,6 +212,7 @@ function NoRoleScreen({
 }
 
 function ShellInner() {
+  const { settings } = useAppearance();
   const { t, dir, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   // Desktop sidebar collapse (icons-only), persisted across sessions.
@@ -364,7 +366,11 @@ function ShellInner() {
         <div className="flex h-full flex-col p-5">
           <div className="flex items-center justify-between">
             <Link to="/admin" className="flex items-center gap-3">
-              <img src={noqtaLogo} alt="Indexes Store" className="h-11 w-11 rounded-xl neon-ring" />
+              <img
+                src={settings.store_identity?.logoUrl || settings.navigation?.logoUrl || noqtaLogo}
+                alt="Indexes Store"
+                className="h-11 w-11 rounded-xl neon-ring object-cover"
+              />
               <div className={`leading-tight ${collapsed ? "lg:hidden" : ""}`}>
                 <div className="text-lg font-black">
                   <span className="neon-text">NOQTA</span>

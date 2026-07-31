@@ -84,7 +84,7 @@ function TopBar({ isHome }: { isHome: boolean }) {
     { to: "/account", label: "حسابي", icon: User, badge: undefined, external: false, target: "_self" as const },
   ];
 
-  const storeLogo = settings.navigation.logoUrl || noqtaLogo;
+  const storeLogo = settings.store_identity?.logoUrl || settings.navigation?.logoUrl || noqtaLogo;
   const storeName = settings.navigation.storeName || "اندكس ستور";
   const tagline = settings.navigation.tagline || "اختيارك الأفضل";
   const searchPlaceholder = settings.navigation.searchPlaceholder || "ابحث عن منتج...";

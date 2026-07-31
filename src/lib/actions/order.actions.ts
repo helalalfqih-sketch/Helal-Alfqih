@@ -8,13 +8,14 @@ export const ORDERS_MODULE_STATUS = "active" as const;
 
 export interface CreateOrderInput {
   items: { productId: string; quantity: number }[];
-  customerName?: string;
+  customerName: string;
   customerPhone: string;
-  customerAddress?: string;
+  customerAddress: string;
   notes?: string;
   couponCode?: string;
-  discountAmount?: number;
   paymentProvider?: string;
+  /** Client-generated UUID to prevent duplicate order creation. */
+  idempotencyKey?: string;
 }
 
 export interface UserAddress {
@@ -30,7 +31,7 @@ export interface UserAddress {
 export async function submitOrder(input: CreateOrderInput): Promise<{ orderId: string }> {
   // Delegates to the secure `createOrder` server function. user_id is derived
   // server-side from the verified session (guests → null); prices and totals are
-  // recomputed from the database. The client never sets user_id or prices.
+  // recomputed from the database. The client never sets user_id, prices, or discountAmount.
   const payload: CreateOrderPayload = {
     items: input.items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
     customerName: input.customerName,
@@ -38,8 +39,9 @@ export async function submitOrder(input: CreateOrderInput): Promise<{ orderId: s
     customerAddress: input.customerAddress,
     notes: input.notes,
     couponCode: input.couponCode,
-    discountAmount: input.discountAmount,
+    // discountAmount is never sent from the client — computed server-side.
     paymentProvider: input.paymentProvider,
+    idempotencyKey: input.idempotencyKey,
   };
   const res = await createOrder({ data: payload });
   return { orderId: res.orderId };
@@ -99,4 +101,3 @@ export async function deleteUserAddress(id: string): Promise<boolean> {
     return false;
   }
 }
-

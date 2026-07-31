@@ -63,9 +63,20 @@ function OffersPending() {
 
 function OfferRow({ product }: { product: Product }) {
   const add = useCart((s) => s.add);
-  const discount = product.oldPrice
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+
+  // P0: Only show discount when oldPrice is valid, finite, and strictly greater than price > 0
+  const hasValidDiscount =
+    Number.isFinite(product.oldPrice) &&
+    product.oldPrice != null &&
+    product.oldPrice > product.price &&
+    product.price > 0;
+  const discount = hasValidDiscount
+    ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)
     : 0;
+
+  // P1: Hide zero reviews/rating — show "جديد" instead
+  const hasReviews = product.reviews > 0 && product.rating > 0;
+
 
   return (
     <Link
@@ -81,7 +92,7 @@ function OfferRow({ product }: { product: Product }) {
           size="thumbnail"
           className="h-28 w-28 rounded-2xl bg-white/5 object-cover transition group-hover:scale-105"
         />
-        {discount > 0 && (
+        {discount > 0 && hasValidDiscount && (
           <span className="absolute -top-1.5 -start-1.5 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-black text-destructive-foreground shadow-lg flex items-center gap-0.5">
             <Sparkles className="w-2.5 h-2.5 inline" /> -{discount}%
           </span>
@@ -92,17 +103,23 @@ function OfferRow({ product }: { product: Product }) {
         <div className="space-y-1">
           <h3 className="line-clamp-2 text-xs font-bold leading-tight group-hover:text-primary transition">{product.name}</h3>
           <div className="flex items-center gap-1 text-[10px] text-showcase-foreground/55">
-            <Star className="h-3 w-3 fill-warning stroke-warning" />
-            <span className="font-semibold text-showcase-foreground">{product.rating}</span>
-            <span>({product.reviews})</span>
+            {hasReviews ? (
+              <>
+                <Star className="h-3 w-3 fill-warning stroke-warning" />
+                <span className="font-semibold text-showcase-foreground">{product.rating}</span>
+                <span>({product.reviews})</span>
+              </>
+            ) : (
+              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">جديد</span>
+            )}
           </div>
         </div>
 
         <div className="flex items-end justify-between gap-2">
           <div className="flex flex-col">
-            {product.oldPrice && (
+            {hasValidDiscount && (
               <span className="text-[10px] text-showcase-foreground/50 line-through font-mono">
-                {formatPrice(product.oldPrice)}
+                {formatPrice(product.oldPrice!)}
               </span>
             )}
             <span className="text-sm font-black text-primary font-mono">{formatPrice(product.price)}</span>
@@ -135,7 +152,7 @@ function OffersPage() {
     if (activeFilter === "all") return deals;
     if (activeFilter === "big_discount") {
       return deals.filter((p) => {
-        if (!p.oldPrice) return false;
+        if (!p.oldPrice || !Number.isFinite(p.oldPrice) || p.oldPrice <= p.price || p.price <= 0) return false;
         const disc = Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100);
         return disc >= 20;
       });

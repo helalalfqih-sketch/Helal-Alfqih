@@ -6,15 +6,17 @@ import {
   SlidersHorizontal,
   ArrowUpDown,
   X,
-  Check,
   Tag,
   CheckCircle2,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { ProductCard } from "@/components/product-card";
 import { ProductCardSkeleton } from "@/components/ui/skeleton";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product } from "@/lib/store-data";
+import { categories as defaultCategories } from "@/lib/store-data";
 import { z } from "zod";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -62,6 +64,7 @@ function SearchPage() {
 
   const [results, setResults] = useState<LegacyProductShape[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState<SearchSuggestionItem[]>([]);
@@ -83,8 +86,11 @@ function SearchPage() {
     if (searchParams.sortBy) setSortBy(searchParams.sortBy);
   }, [searchParams]);
 
-  // Execute Search
+  // Execute Search with AbortController & error handling
   useEffect(() => {
+    const controller = new AbortController();
+    setErrorMsg(null);
+
     const t = setTimeout(async () => {
       setLoading(true);
       try {
@@ -101,16 +107,29 @@ function SearchPage() {
           inStockOnly,
           sortBy,
         });
-        setResults(data);
+
+        if (!controller.signal.aborted) {
+          setResults(data);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("Search failed:", err);
+          setErrorMsg("حدث خطأ أثناء تحميل نتائج البحث. الرجاء المحاولة مرة أخرى.");
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }, 200);
 
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [q, selectedCat, minPrice, maxPrice, dealsOnly, inStockOnly, sortBy]);
 
-  // Live Auto-Suggestions
+  // Live Auto-Suggestions with error handling
   useEffect(() => {
     if (!q.trim()) {
       setSuggestions([]);
@@ -118,9 +137,14 @@ function SearchPage() {
       return;
     }
     const t = setTimeout(async () => {
-      const items = await getSearchSuggestions(q);
-      setSuggestions(items);
-      setShowSuggestions(true);
+      try {
+        const items = await getSearchSuggestions(q);
+        setSuggestions(items);
+        setShowSuggestions(items.length > 0);
+      } catch {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
     }, 150);
     return () => clearTimeout(t);
   }, [q]);
@@ -132,6 +156,14 @@ function SearchPage() {
     } else {
       setQ(q);
     }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedCat("all");
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setDealsOnly(false);
+    setInStockOnly(false);
   };
 
   return (
@@ -149,6 +181,7 @@ function SearchPage() {
               if (suggestions.length > 0) setShowSuggestions(true);
             }}
             placeholder="ابحث باسم المنتج، التصنيف، الكود (SKU)، أو الوسوم..."
+            aria-label="مربع البحث عن المنتجات"
             className="flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-showcase-muted text-showcase-foreground"
           />
           {q && (
@@ -157,7 +190,8 @@ function SearchPage() {
                 setQ("");
                 setShowSuggestions(false);
               }}
-              className="text-showcase-muted hover:text-white"
+              aria-label="مسح نص البحث"
+              className="text-showcase-muted hover:text-white p-1"
             >
               <X className="h-4 w-4" />
             </button>
@@ -210,7 +244,9 @@ function SearchPage() {
           {/* Mobile Filter Button */}
           <button
             onClick={() => setShowFilterDrawer(!showFilterDrawer)}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent"
+            aria-label="تصفية النتائج"
+            aria-expanded={showFilterDrawer}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px]"
           >
             <SlidersHorizontal className="h-4 w-4 text-primary" />
             <span>الفلاتر</span>
@@ -220,11 +256,12 @@ function SearchPage() {
           </button>
 
           {/* Sort Dropdown */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold">
+          <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold min-h-[44px]">
             <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
+              aria-label="ترتيب النتائج حسب"
               className="bg-transparent text-foreground font-bold outline-none text-xs"
             >
               <option value="bestselling" className="bg-slate-900 text-white">الأكثر مبيعاً</option>
@@ -245,13 +282,7 @@ function SearchPage() {
               <SlidersHorizontal className="h-4 w-4 text-primary" /> فلاتر البحث المتقدم
             </h4>
             <button
-              onClick={() => {
-                setSelectedCat("all");
-                setMinPrice(undefined);
-                setMaxPrice(undefined);
-                setDealsOnly(false);
-                setInStockOnly(false);
-              }}
+              onClick={handleResetFilters}
               className="text-muted-foreground hover:text-primary underline text-[11px]"
             >
               إعادة ضبط الفلاتر
@@ -261,14 +292,15 @@ function SearchPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {/* Category Filter */}
             <div className="space-y-1.5">
-              <label className="font-bold text-muted-foreground">التصنيف:</label>
+              <label className="font-bold text-muted-foreground" htmlFor="search-cat-select">التصنيف:</label>
               <select
+                id="search-cat-select"
                 value={selectedCat}
                 onChange={(e) => setSelectedCat(e.target.value)}
                 className="w-full rounded-xl border border-border bg-background p-2 font-bold focus:outline-none"
               >
                 <option value="all">جميع التصنيفات</option>
-                {categoriesList.map((c) => (
+                {(categoriesList.length > 0 ? categoriesList : defaultCategories).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -278,9 +310,10 @@ function SearchPage() {
 
             {/* Price Range Filter */}
             <div className="space-y-1.5">
-              <label className="font-bold text-muted-foreground">نطاق السعر (ريال):</label>
+              <label className="font-bold text-muted-foreground" htmlFor="search-min-price">نطاق السعر (ريال):</label>
               <div className="flex items-center gap-2">
                 <input
+                  id="search-min-price"
                   type="number"
                   placeholder="الحد الأقل"
                   value={minPrice || ""}
@@ -289,6 +322,7 @@ function SearchPage() {
                 />
                 <span>-</span>
                 <input
+                  id="search-max-price"
                   type="number"
                   placeholder="الحد الأعلى"
                   value={maxPrice || ""}
@@ -326,22 +360,66 @@ function SearchPage() {
         </div>
       )}
 
-      {/* Results Grid / Empty State */}
-      {loading ? (
+      {/* Error State */}
+      {errorMsg ? (
+        <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-8 text-center space-y-3">
+          <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+          <p className="text-sm font-bold text-destructive">{errorMsg}</p>
+          <button
+            onClick={() => {
+              setErrorMsg(null);
+              setLoading(true);
+              searchProductsAdvanced({
+                search: q,
+                categoryId: selectedCat,
+                minPrice,
+                maxPrice,
+                dealsOnly,
+                inStockOnly,
+                sortBy,
+              })
+                .then(setResults)
+                .catch((e) => setErrorMsg(e.message))
+                .finally(() => setLoading(false));
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-destructive px-4 py-2 text-xs font-bold text-destructive-foreground shadow-sm"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> إعادة المحاولة
+          </button>
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <ProductCardSkeleton key={`skeleton-${i}`} />
           ))}
         </div>
       ) : results.length === 0 ? (
-        <div className="rounded-3xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md p-12 text-center space-y-3">
+        <div className="rounded-3xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md p-8 sm:p-12 text-center space-y-4">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-showcase-foreground/10 text-showcase-muted">
             <PackageX className="h-7 w-7" />
           </div>
-          <p className="text-base font-black text-showcase-foreground">لم يتم العثور على منتجات مطابقة</p>
-          <p className="text-xs text-showcase-muted">
-            تأكد من صحة كلمة البحث، أو جرب البحث بتصنيف آخر أو تغيير الفلاتر.
-          </p>
+          <div className="space-y-1">
+            <p className="text-base font-black text-showcase-foreground">لم يتم العثور على منتجات مطابقة</p>
+            <p className="text-xs text-showcase-muted">
+              تأكد من صحة كلمة البحث، أو اختَر أحد التصنيفات السريعة أدناه:
+            </p>
+          </div>
+
+          {/* Quick Category Suggestions in Empty State */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            {defaultCategories.slice(0, 6).map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setSelectedCat(cat.id);
+                  setQ("");
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-showcase-foreground hover:bg-primary/20 hover:border-primary/40 transition"
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

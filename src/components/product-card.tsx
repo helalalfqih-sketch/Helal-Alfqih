@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Star, Play, X, Heart, Eye, ShoppingCart, Video, Sparkles, Trophy, Clock, Flame, Check } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useId } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import type { Product } from "@/lib/store-data";
@@ -23,11 +23,11 @@ export interface ProductCardProps {
 
 export function ProductCard({ product, eager = false }: ProductCardProps) {
   const { settings } = useAppearance();
-  const lay = settings.products_layout;
   useModelViewer();
   const cart = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const requestVideoFn = useServerFn(requestProductVideo);
+  const dialogId = useId();
 
   const modelUrl = (product as LegacyProductShape).modelUrl ?? null;
   const rawPlaybackId = (product as any).videoPlaybackId || (product as any).video_playback_id || null;
@@ -42,6 +42,13 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
     /^[A-Za-z0-9_-]{10,40}$/.test(rawPlaybackId.trim());
 
   const videoPlaybackId = isMuxFormat ? rawPlaybackId.trim() : null;
+  const rawVideoUrl = (product as any).video_url || (product as any).videoUrl || null;
+  const directVideoUrl =
+    typeof rawVideoUrl === "string" && rawVideoUrl.trim().length > 0 && rawVideoUrl.includes("http")
+      ? rawVideoUrl.trim()
+      : null;
+
+  const hasValidVideo = Boolean(videoPlaybackId || directVideoUrl);
 
   const discount =
     product.oldPrice && product.oldPrice > product.price && product.price > 0
@@ -60,43 +67,6 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   const isBestSeller = (product as any).is_best_seller || rawBadge.includes("مبيع") || rawBadge.includes("أكثر");
   const isDeal = (product as any).is_deal || rawBadge.includes("صفقة") || discount > 15;
   const isNew = (product as any).is_new || rawBadge.includes("جديد");
-
-  let badgeLabel = "رائج";
-  let badgeIcon = <Sparkles className="h-3 w-3 text-purple-300" />;
-  let themeStyle = {
-    badgeBg: "bg-purple-950/80 border-purple-500/50 text-purple-200",
-    cardGlow: "hover:border-purple-500/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)]",
-  };
-
-  if (isBestSeller) {
-    badgeLabel = "الأكثر مبيعاً";
-    badgeIcon = <Trophy className="h-3 w-3 text-amber-400" />;
-    themeStyle = {
-      badgeBg: "bg-amber-950/80 border-amber-500/60 text-amber-300",
-      cardGlow: "hover:border-amber-500/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.25)]",
-    };
-  } else if (isDeal) {
-    badgeLabel = "صفقة اليوم";
-    badgeIcon = <Clock className="h-3 w-3 text-orange-400" />;
-    themeStyle = {
-      badgeBg: "bg-orange-950/80 border-orange-500/60 text-orange-300",
-      cardGlow: "hover:border-orange-500/60 hover:shadow-[0_0_20px_rgba(249,115,22,0.25)]",
-    };
-  } else if (isNew) {
-    badgeLabel = "جديد";
-    badgeIcon = <Flame className="h-3 w-3 text-emerald-400" />;
-    themeStyle = {
-      badgeBg: "bg-emerald-950/80 border-emerald-500/60 text-emerald-300",
-      cardGlow: "hover:border-emerald-500/60 hover:shadow-[0_0_20px_rgba(34,197,94,0.25)]",
-    };
-  } else if (product.badge) {
-    badgeLabel = product.badge;
-  }
-
-  const rawVideoUrl = (product as any).video_url || (product as any).videoUrl || null;
-  const hasValidVideo = Boolean(
-    videoPlaybackId || (typeof rawVideoUrl === "string" && rawVideoUrl.trim().length > 0)
-  );
 
   const categoryName = (product as any).category_name || (product as any).brand || (product as any).sku || null;
   const realViews =
@@ -156,8 +126,8 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
     >
       <div className="flex flex-col h-full justify-between gap-2">
         
-        {/* ================= 1. TOP PURPLE FLOATING STATUS CAPSULE ================= */}
-        <div className="flex items-center justify-between gap-1 rounded-full border border-purple-500/40 bg-purple-950/70 px-2 py-1 backdrop-blur-md text-[10px] text-purple-200">
+        {/* ================= 1. TOP FLOATING STATUS CAPSULE ================= */}
+        <div className="flex items-center justify-between gap-1 rounded-full border border-purple-500/40 bg-purple-950/70 px-2.5 py-1 backdrop-blur-md text-[10px] text-purple-200">
           <button
             type="button"
             onClick={(e) => {
@@ -165,10 +135,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               e.stopPropagation();
               toggleFavorite(product.id);
             }}
-            className="flex items-center justify-center h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 transition active:scale-95"
+            aria-pressed={isFav}
+            aria-label={isFav ? `إزالة ${product.name} من المفضلة` : `إضافة ${product.name} إلى المفضلة`}
+            className="flex items-center justify-center h-6 w-6 min-h-[44px] min-w-[44px] rounded-full bg-white/10 hover:bg-white/20 transition active:scale-95"
             title={isFav ? "إزالة من المفضلة" : "إضافة للمفضلة"}
           >
-            <Heart className={`h-3 w-3 ${isFav ? "fill-purple-400 text-purple-400" : "text-purple-300"}`} />
+            <Heart className={`h-3.5 w-3.5 ${isFav ? "fill-red-500 text-red-500" : "text-purple-300"}`} />
           </button>
 
           <div className="flex items-center gap-1.5">
@@ -184,19 +156,6 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               </div>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleFavorite(product.id);
-            }}
-            className="flex items-center justify-center h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 transition active:scale-95"
-            title={isFav ? "إزالة من المفضلة" : "إضافة للمفضلة"}
-          >
-            <Heart className={`h-3 w-3 ${isFav ? "fill-red-500 text-red-500" : "text-purple-300"}`} />
-          </button>
         </div>
 
         {/* ================= 2. MEDIA & OVERLAY BADGES ================= */}
@@ -206,6 +165,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             <button
               type="button"
               onClick={handleVideoClick}
+              aria-label={`تشغيل فيديو ${product.name}`}
               className="absolute start-2 top-2 z-20 flex items-center gap-1 rounded-full border border-cyan-400/40 bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white backdrop-blur-md transition hover:bg-cyan-500 hover:text-slate-950 active:scale-95 shadow-md"
               title="مشاهدة الفيديو"
             >
@@ -247,14 +207,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
 
         {/* ================= 3. PRODUCT INFORMATION ================= */}
         <div className="flex flex-col gap-0.5 text-start px-0.5">
-          {/* Uppercase Brand/Code Label */}
           {categoryName && (
             <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
               {categoryName}
             </span>
           )}
 
-          {/* Product Title (2-line clamp) */}
           <Link to="/product/$slug" params={{ slug: product.slug }}>
             <h3
               title={product.name}
@@ -264,7 +222,6 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             </h3>
           </Link>
 
-          {/* Price Tag */}
           <div className="mt-0.5 flex items-baseline gap-1.5">
             <span className="text-xs sm:text-sm font-black text-cyan-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
               {formatPrice(product.price)}
@@ -277,12 +234,13 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           </div>
         </div>
 
-        {/* ================= 4. CARD ACTIONS (2 EQUAL BUTTONS) ================= */}
+        {/* ================= 4. CARD ACTIONS ================= */}
         <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-white/10">
           <button
             type="button"
             onClick={handleAddToCart}
-            className={`flex items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold transition shadow-md ${
+            aria-label={`أضف ${product.name} إلى السلة`}
+            className={`flex items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold transition shadow-md min-h-[44px] ${
               addedToCartToast
                 ? "bg-emerald-500 text-white"
                 : "bg-[#112233] hover:bg-cyan-500 hover:text-slate-950 border border-white/15 text-white"
@@ -299,7 +257,8 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               e.stopPropagation();
               setShowQuickViewModal(true);
             }}
-            className="flex items-center justify-center gap-1 rounded-xl border border-white/15 bg-[#112233] px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-white/15 hover:border-cyan-400/50"
+            aria-label={`معاينة سريعة لـ ${product.name}`}
+            className="flex items-center justify-center gap-1 rounded-xl border border-white/15 bg-[#112233] px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-white/15 hover:border-cyan-400/50 min-h-[44px]"
           >
             <Eye className="h-3 w-3 text-cyan-400" />
             <span className="truncate">معاينة </span>
@@ -308,21 +267,31 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
       </div>
 
       {/* ================= MODAL 1: VIDEO PLAYER MODAL ================= */}
-      {typeof document !== "undefined" && showVideoModal && videoPlaybackId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+      {typeof document !== "undefined" && showVideoModal && hasValidVideo && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`${dialogId}-video-title`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+        >
           <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3">
             <button
               type="button"
               onClick={() => setShowVideoModal(false)}
+              aria-label="إغلاق فيديو المنتج"
               className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition"
             >
               <X className="h-4 w-4" />
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-              <MuxPlayer playbackId={videoPlaybackId} autoPlay={true} style={{ width: "100%", height: "100%" }} />
+              {videoPlaybackId ? (
+                <MuxPlayer playbackId={videoPlaybackId} autoPlay={true} style={{ width: "100%", height: "100%" }} />
+              ) : directVideoUrl ? (
+                <video src={directVideoUrl} controls autoPlay playsInline className="h-full w-full object-contain" />
+              ) : null}
             </div>
             <div className="p-3 text-start">
-              <h4 className="text-sm font-black text-white">{product.name}</h4>
+              <h4 id={`${dialogId}-video-title`} className="text-sm font-black text-white">{product.name}</h4>
               <p className="text-xs text-slate-400 mt-0.5">فيديو عرض المنتج التوضيحي</p>
             </div>
           </div>
@@ -332,11 +301,17 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
 
       {/* ================= MODAL 2: NO VIDEO AVAILABLE / REQUEST VIDEO MODAL ================= */}
       {typeof document !== "undefined" && showNoVideoModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`${dialogId}-novideo-title`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+        >
           <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 text-center shadow-2xl space-y-4">
             <button
               type="button"
               onClick={() => setShowNoVideoModal(false)}
+              aria-label="إغلاق النافذة"
               className="absolute top-4 end-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
             >
               <X className="h-4 w-4" />
@@ -346,7 +321,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               <Video className="h-7 w-7" />
             </div>
 
-            <h3 className="text-base font-black text-white">هذا المنتج لا يحتوي على فيديو حالياً</h3>
+            <h3 id={`${dialogId}-novideo-title`} className="text-base font-black text-white">هذا المنتج لا يحتوي على فيديو حالياً</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
               يمكنك طلب توفير فيديو توضيحي لمشاهدة تفاصيل وطريقة عمل هذا المنتج عن قرب. سنقوم بإنتاجه فوراً!
             </p>
@@ -356,7 +331,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                 type="button"
                 onClick={handleSendVideoRequest}
                 disabled={isSubmittingVideoReq}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-400 shadow-lg disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-400 shadow-lg disabled:opacity-50 min-h-[44px]"
               >
                 <Video className="h-4 w-4" />
                 {isSubmittingVideoReq ? "جارٍ إرسال الطلب..." : "🎥 اطلب توفير فيديو للمنتج"}
@@ -369,18 +344,23 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
 
       {/* ================= MODAL 3: QUICK VIEW MODAL ================= */}
       {typeof document !== "undefined" && showQuickViewModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`${dialogId}-quickview-title`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+        >
           <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-[#0c1a29] p-6 shadow-2xl text-start space-y-4 max-h-[90vh] overflow-y-auto">
             <button
               type="button"
               onClick={() => setShowQuickViewModal(false)}
+              aria-label="إغلاق المعاينة السريعة"
               className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
             >
               <X className="h-4 w-4" />
             </button>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Product Gallery / Video */}
               <div className="space-y-3">
                 <div className="aspect-square w-full overflow-hidden rounded-2xl bg-black/40 border border-white/10">
                   <OptimizedImage
@@ -390,14 +370,14 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                     className="h-full w-full object-cover"
                   />
                 </div>
-                {videoPlaybackId && (
+                {hasValidVideo && (
                   <button
                     type="button"
                     onClick={() => {
                       setShowQuickViewModal(false);
                       setShowVideoModal(true);
                     }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 py-2.5 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 min-h-[44px]"
                   >
                     <Play className="h-4 w-4 fill-cyan-300" />
                     تشغيل الفيديو التوضيحي للمنتج
@@ -405,11 +385,10 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                 )}
               </div>
 
-              {/* Product Details & Actions */}
               <div className="flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
                   {categoryName && <span className="text-xs font-bold text-cyan-400">{categoryName}</span>}
-                  <h3 className="text-lg font-black text-white leading-tight">{product.name}</h3>
+                  <h3 id={`${dialogId}-quickview-title`} className="text-lg font-black text-white leading-tight">{product.name}</h3>
 
                   {(product.rating > 0 || (product as any).reviews > 0) && (
                     <div className="flex items-center gap-1.5 text-xs text-amber-400">
@@ -447,7 +426,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                       handleAddToCart(e);
                       setShowQuickViewModal(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-400 shadow-lg"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-cyan-400 shadow-lg min-h-[44px]"
                   >
                     <ShoppingCart className="h-4 w-4" />
                     أضف إلى السلة الآن
@@ -457,7 +436,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                     to="/product/$slug"
                     params={{ slug: product.slug }}
                     onClick={() => setShowQuickViewModal(false)}
-                    className="w-full flex items-center justify-center gap-1 rounded-xl border border-white/20 py-2.5 text-xs font-bold text-white hover:bg-white/5 text-center"
+                    className="w-full flex items-center justify-center gap-1 rounded-xl border border-white/20 py-2.5 text-xs font-bold text-white hover:bg-white/5 text-center min-h-[44px]"
                   >
                     عرض صفحة المنتج الكاملة ➔
                   </Link>
