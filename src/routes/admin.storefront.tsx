@@ -42,7 +42,9 @@ import {
   Laptop,
   Tablet as TabletIcon,
   Smartphone,
+  RefreshCw,
 } from "lucide-react";
+import { listAdminProducts } from "@/lib/actions/admin.actions";
 import {
   getStorefrontAppearance,
   getStorefrontDraftPreview,
@@ -239,9 +241,13 @@ function ImageUploader({
 function LivePreviewDevice({
   local,
   viewport,
+  mode = "real_site",
+  previewKey = 0,
 }: {
   local: StorefrontSettingsShape;
   viewport: "desktop" | "tablet" | "mobile";
+  mode?: "real_site" | "draft_preview";
+  previewKey?: number;
 }) {
   const t = local.theme;
   const nav = local.navigation;
@@ -249,6 +255,14 @@ function LivePreviewDevice({
   const layout = local.products_layout;
   const notif = local.notifications;
   const trans = local.translation;
+
+  // Real Database Products Query for draft preview
+  const productsQ = useQuery({
+    queryKey: ["admin-products-preview"],
+    queryFn: () => listAdminProducts({ limit: 12 }),
+  });
+
+  const realProducts = productsQ.data ?? [];
 
   // Visual simulation values based on settings colors
   const previewStyles = {
@@ -260,13 +274,6 @@ function LivePreviewDevice({
     "--border": t.borderColor,
     fontFamily: t.fontFamily === "Tajawal" ? "'Tajawal', sans-serif" : t.fontFamily === "Cairo" ? "'Cairo', sans-serif" : "Inter, sans-serif",
   } as React.CSSProperties;
-
-  const mockProducts = [
-    { id: "1", name: "منتج تجريبي فاخر A", price: "24,000", discount: "20%", rating: 4.8, isNew: true },
-    { id: "2", name: "سماعة ذكية عصرية", price: "18,000", discount: null, rating: 4.5, isNew: false },
-    { id: "3", name: "كاميرا عاكسة احترافية", price: "120,000", discount: "15%", rating: 4.9, isNew: true },
-    { id: "4", name: "ساعة ذكية رياضية 3D", price: "35,000", discount: null, rating: 4.2, isNew: false },
-  ];
 
   const content = (
     <div
@@ -380,26 +387,36 @@ function LivePreviewDevice({
                     style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                     className="grid gap-2"
                   >
-                    {mockProducts.slice(0, columns * 2).map((prod) => (
+                    {(realProducts.length > 0
+                      ? realProducts.slice(0, columns * 2)
+                      : [
+                          { id: "1", name: "سماعة فاخرة 3D", price: 24000, images: [] },
+                          { id: "2", name: "ساعة ذكية عصرية", price: 18000, images: [] },
+                          { id: "3", name: "كاميرا احترافية", price: 120000, images: [] },
+                          { id: "4", name: "مظلة حماية ذكية", price: 35000, images: [] },
+                        ]
+                    ).map((prod: any) => (
                       <div
                         key={prod.id}
                         className={`border border-[var(--border)] bg-[var(--surface)] p-2 flex flex-col justify-between transition relative overflow-hidden ${
                           t.cardStyle === "glass" ? "backdrop-blur bg-opacity-70" : ""
                         } ${
                           t.borderRadius === "large" ? "rounded-xl" : t.borderRadius === "rounded" ? "rounded-md" : "rounded-none"
-                        } ${
-                          layout.hoverEffect === "glow" ? "hover:shadow-[0_0_8px_rgba(79,140,255,0.4)]" : "hover:scale-[1.02]"
                         }`}
                       >
                         {layout.showImage && (
-                          <div className="h-16 w-full rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary/40 mb-1.5">
-                            صورة المنتج
+                          <div className="h-16 w-full rounded bg-primary/10 overflow-hidden flex items-center justify-center text-[10px] font-bold text-primary/40 mb-1.5">
+                            {prod.images?.[0] ? (
+                              <img src={prod.images[0]} alt={prod.name} className="h-full w-full object-cover" />
+                            ) : (
+                              "صورة المنتج"
+                            )}
                           </div>
                         )}
                         <div>
                           <h4 className="text-[10px] font-bold truncate">{prod.name}</h4>
                           {layout.showRating && (
-                            <span className="text-[8px] text-yellow-400">★ {prod.rating}</span>
+                            <span className="text-[8px] text-yellow-400">★ 4.8</span>
                           )}
                         </div>
                         <div className="flex items-center justify-between mt-1">
@@ -450,30 +467,44 @@ function LivePreviewDevice({
     </div>
   );
 
-  // Render viewport devices mockup
+  // Render Real Live Store Site iframe or simulated device mockup
+  const renderFrameContent = () => {
+    if (mode === "real_site") {
+      return (
+        <iframe
+          key={previewKey}
+          src="/"
+          title="المتجر المباشر الفعلي"
+          className="w-full h-full border-0 bg-background transition-all"
+        />
+      );
+    }
+    return content;
+  };
+
   if (viewport === "mobile") {
     return (
-      <div className="relative mx-auto w-[280px] h-[520px] rounded-[32px] border-[8px] border-slate-800 shadow-2xl bg-[#06091f] overflow-hidden flex flex-col">
+      <div className="relative mx-auto w-[285px] h-[540px] rounded-[36px] border-[10px] border-slate-900 shadow-2xl bg-[#06091f] overflow-hidden flex flex-col">
         {/* Notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-4 bg-slate-800 rounded-b-xl z-50 flex items-center justify-center">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-4 bg-slate-900 rounded-b-xl z-50 flex items-center justify-center">
           <div className="h-1 w-8 bg-slate-700 rounded-full"></div>
         </div>
-        {content}
+        {renderFrameContent()}
       </div>
     );
   }
 
   if (viewport === "tablet") {
     return (
-      <div className="relative mx-auto w-full max-w-[420px] h-[520px] rounded-2xl border-[6px] border-slate-700 shadow-2xl bg-[#06091f] overflow-hidden flex flex-col">
-        {content}
+      <div className="relative mx-auto w-full max-w-[440px] h-[540px] rounded-2xl border-[8px] border-slate-800 shadow-2xl bg-[#06091f] overflow-hidden flex flex-col">
+        {renderFrameContent()}
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[520px] rounded-xl border border-border shadow-xl bg-[#06091f] overflow-hidden flex flex-col">
-      {content}
+    <div className="w-full h-[540px] rounded-xl border border-border shadow-xl bg-[#06091f] overflow-hidden flex flex-col">
+      {renderFrameContent()}
     </div>
   );
 }
@@ -1657,6 +1688,8 @@ function StorefrontCMSPage() {
   const [activeTab, setActiveTab] = useState<TabId>("homepage");
   const [local, setLocal] = useState<StorefrontSettingsShape>(DEFAULT_STOREFRONT_SETTINGS);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("mobile");
+  const [previewMode, setPreviewMode] = useState<"real_site" | "draft_preview">("real_site");
+  const [iframeKey, setIframeKey] = useState<number>(0);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const dirty = useRef(false);
 
@@ -1743,6 +1776,7 @@ function StorefrontCMSPage() {
       if (!firstError) {
         toast.success("🚀 تم نشر جميع الإعدادات وتطبيقها حياً على المتجر!");
         setSavedAt(new Date());
+        setIframeKey((k: number) => k + 1);
         dirty.current = false;
         queryClient.invalidateQueries({ queryKey: ["admin-seo-config"] });
         queryClient.invalidateQueries({ queryKey: ["storefront-settings"] });
@@ -1881,40 +1915,78 @@ function StorefrontCMSPage() {
         {/* Live Preview (Col width: 5/12 - STICKY) */}
         <div className="lg:col-span-5">
           <div className="sticky top-20 rounded-2xl border border-border bg-surface p-4 space-y-4 shadow-sm">
-            {/* Live Preview Header Viewport Switcher */}
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                <h3 className="text-xs font-bold text-foreground font-sans">المعاينة التفاعلية الفورية (مسودة)</h3>
+            {/* Live Preview Header Viewport Switcher & Real Site Mode Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
+              <div className="flex items-center gap-1.5 rounded-xl bg-background p-1 border border-border text-[11px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("real_site")}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 ${
+                    previewMode === "real_site"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Globe className="h-3 w-3" />
+                  <span>الموقع الفعلي</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("draft_preview")}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 ${
+                    previewMode === "draft_preview"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span>المعاينة الفورية</span>
+                </button>
               </div>
-              <div className="flex items-center gap-1 rounded-xl bg-background p-1 border border-border">
+
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setPreviewDevice("desktop")}
-                  className={`p-1.5 rounded-lg transition ${previewDevice === "desktop" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
+                  onClick={() => setIframeKey((k) => k + 1)}
+                  title="إعادة تحميل المعاينة الحية"
+                  className="p-1.5 rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent transition"
                 >
-                  <Laptop className="h-3.5 w-3.5" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice("tablet")}
-                  className={`p-1.5 rounded-lg transition ${previewDevice === "tablet" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
-                >
-                  <TabletIcon className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice("mobile")}
-                  className={`p-1.5 rounded-lg transition ${previewDevice === "mobile" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
-                >
-                  <Smartphone className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1 rounded-xl bg-background p-1 border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice("desktop")}
+                    className={`p-1.5 rounded-lg transition ${previewDevice === "desktop" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
+                  >
+                    <Laptop className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice("tablet")}
+                    className={`p-1.5 rounded-lg transition ${previewDevice === "tablet" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
+                  >
+                    <TabletIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice("mobile")}
+                    className={`p-1.5 rounded-lg transition ${previewDevice === "mobile" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent"}`}
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Simulated Live Viewport Frame */}
-            <div className="bg-background/20 p-2 rounded-2xl border border-border/40 overflow-hidden flex items-center justify-center min-h-[540px]">
-              <LivePreviewDevice local={local} viewport={previewDevice} />
+            <div className="bg-background/20 p-2 rounded-2xl border border-border/40 overflow-hidden flex items-center justify-center min-h-[550px]">
+              <LivePreviewDevice
+                local={local}
+                viewport={previewDevice}
+                mode={previewMode}
+                previewKey={iframeKey}
+              />
             </div>
           </div>
         </div>
