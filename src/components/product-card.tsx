@@ -62,6 +62,27 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   const [isSubmittingVideoReq, setIsSubmittingVideoReq] = useState(false);
   const [addedToCartToast, setAddedToCartToast] = useState(false);
 
+  useEffect(() => {
+    if (!showVideoModal && !showNoVideoModal && !showQuickViewModal) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowVideoModal(false);
+        setShowNoVideoModal(false);
+        setShowQuickViewModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showVideoModal, showNoVideoModal, showQuickViewModal]);
+
   // Badge & Theme determination
   const rawBadge = (product as any).badge || "";
   const isBestSeller = (product as any).is_best_seller || rawBadge.includes("مبيع") || rawBadge.includes("أكثر");
@@ -272,16 +293,20 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${dialogId}-video-title`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          onClick={() => setShowVideoModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
         >
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl p-3 cursor-default"
+          >
             <button
               type="button"
               onClick={() => setShowVideoModal(false)}
               aria-label="إغلاق فيديو المنتج"
-              className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+              className="absolute top-4 end-4 z-50 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/70 text-white hover:bg-black/90 transition shadow-lg"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
               {videoPlaybackId ? (

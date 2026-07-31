@@ -73,6 +73,17 @@ function SearchPage() {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   // Fetch Categories for Filter
   useEffect(() => {
@@ -169,7 +180,7 @@ function SearchPage() {
   return (
     <div className="flex flex-col gap-5 px-4 pt-4 pb-16 max-w-7xl mx-auto" dir="rtl">
       {/* Header Search Input with Auto Suggestions */}
-      <div className="relative z-30">
+      <div ref={searchContainerRef} className="relative z-30">
         <div className="flex items-center gap-3 rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md px-4 py-3 shadow-card focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition">
           <SearchIcon className="h-5 w-5 text-primary shrink-0" />
           <input
@@ -243,7 +254,11 @@ function SearchPage() {
         <div className="flex items-center gap-2">
           {/* Mobile Filter Button */}
           <button
-            onClick={() => setShowFilterDrawer(!showFilterDrawer)}
+            data-testid="search-filter-drawer"
+            onClick={() => {
+              setShowSuggestions(false);
+              setShowFilterDrawer((prev) => !prev);
+            }}
             aria-label="تصفية النتائج"
             aria-expanded={showFilterDrawer}
             className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px]"
@@ -394,31 +409,46 @@ function SearchPage() {
           ))}
         </div>
       ) : results.length === 0 ? (
-        <div className="rounded-3xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md p-8 sm:p-12 text-center space-y-4">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-showcase-foreground/10 text-showcase-muted">
-            <PackageX className="h-7 w-7" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-base font-black text-showcase-foreground">لم يتم العثور على منتجات مطابقة</p>
-            <p className="text-xs text-showcase-muted">
-              تأكد من صحة كلمة البحث، أو اختَر أحد التصنيفات السريعة أدناه:
-            </p>
+        <div className="space-y-8">
+          <div className="rounded-3xl border border-showcase-border/50 bg-showcase-foreground/5 backdrop-blur-md p-8 sm:p-12 text-center space-y-4">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-showcase-foreground/10 text-showcase-muted">
+              <PackageX className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-black text-showcase-foreground">لم نجد منتجًا مطابقًا</p>
+              <p className="text-xs text-showcase-muted">
+                {q ? `لم نجد نتائج مطابقة لـ "${q}". يمكنك تجربة كلمة بحث أخرى أو الاستفادة من التوصيات أدناه:` : "تأكد من صحة كلمة البحث، أو اختَر أحد التصنيفات السريعة أدناه:"}
+              </p>
+            </div>
+
+            {/* Quick Category Suggestions in Empty State */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              {defaultCategories.slice(0, 6).map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCat(cat.id);
+                    setQ("");
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-showcase-foreground hover:bg-primary/20 hover:border-primary/40 transition"
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Quick Category Suggestions in Empty State */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            {defaultCategories.slice(0, 6).map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setSelectedCat(cat.id);
-                  setQ("");
-                }}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-showcase-foreground hover:bg-primary/20 hover:border-primary/40 transition"
-              >
-                {cat.name}
-              </button>
-            ))}
+          {/* Separate "قد يناسبك أيضاً" Section */}
+          <div className="space-y-4 pt-4 border-t border-border/40">
+            <div className="flex items-center gap-2 font-black text-sm text-showcase-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span>قد يناسبك أيضاً</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {products.slice(0, 6).map((p) => (
+                <ProductCard key={p.id} product={p as unknown as Product} />
+              ))}
+            </div>
           </div>
         </div>
       ) : (

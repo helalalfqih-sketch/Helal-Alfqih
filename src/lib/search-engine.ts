@@ -115,7 +115,14 @@ export async function searchProductsAdvanced(
 
   // Text Search Matching & Scoring
   if (search && search.trim()) {
-    const tokens = getExpandedTokens(search);
+    const rawTokens = getExpandedTokens(search);
+    const STOP_WORDS = new Set([
+      "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of", "to", "for", "with", "and", "or", "is",
+      "من", "في", "على", "عن", "مع", "لا", "او", "ام", "ال", "ما", "هذا", "هذه"
+    ]);
+
+    const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t));
+    const tokensToUse = contentTokens.length > 0 ? contentTokens : rawTokens;
 
     const scored = filtered.map((p) => {
       let score = 0;
@@ -126,10 +133,9 @@ export async function searchProductsAdvanced(
       const normSku = normalizeArabic((p as any).sku || "");
       const normBarcode = normalizeArabic((p as any).barcode || "");
       const normTags = normalizeArabic(((p as any).tags || []).join(" "));
-      const normMeta = normalizeArabic(JSON.stringify((p as any).metadata || {}));
 
-      for (const token of tokens) {
-        if (!token) continue;
+      for (const token of tokensToUse) {
+        if (!token || token.length < 2) continue;
 
         // Exact Title Match (highest priority)
         if (normName.includes(token)) score += 10;
@@ -138,13 +144,13 @@ export async function searchProductsAdvanced(
         if (normCat.includes(token)) score += 5;
         if (normTags.includes(token)) score += 4;
         if (normDesc.includes(token)) score += 2;
-        if (normMeta.includes(token)) score += 2;
       }
 
       return { product: p, score };
     });
 
-    filtered = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).map((s) => s.product);
+    // Require minimum score threshold (>= 4) for relevance
+    filtered = scored.filter((s) => s.score >= 4).sort((a, b) => b.score - a.score).map((s) => s.product);
   }
 
   // Sorting
