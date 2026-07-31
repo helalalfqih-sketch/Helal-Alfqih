@@ -298,16 +298,86 @@ function HomePage() {
         </motion.div>
       </div>
 
-      {/* 1. SINGLE-HERO 3D STAGE — the minimal first-fold experience */}
-      {allProducts.length > 0 && (
-        <Suspense fallback={<Skeleton className="mx-2 h-[96svh] rounded-[28px] sm:mx-4" />}>
-          <ImmersiveProductExperience
-            products={[...bestSellers, ...allProducts].filter(
-              (product, index, list) =>
-                list.findIndex((candidate) => candidate.id === product.id) === index,
-            )}
-          />
-        </Suspense>
+      {/* 1. DYNAMIC STOREFRONT CMS HERO STAGE */}
+      {settings.hero.enabled !== false && (
+        <>
+          {settings.hero.type === "banner_image" ? (
+            <div className="relative overflow-hidden rounded-[32px] mx-2 sm:mx-4 my-2 border border-white/10 bg-surface shadow-2xl">
+              {settings.hero.bannerImageUrl ? (
+                <img
+                  src={settings.hero.bannerImageUrl}
+                  alt={settings.hero.title || "البنر الرئيسي"}
+                  className="w-full h-[50vh] min-h-[350px] object-cover"
+                />
+              ) : (
+                <div className="w-full h-[50vh] min-h-[350px] bg-gradient-to-r from-primary/30 to-secondary/30 flex items-center justify-center" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-6 sm:p-10 text-start space-y-3">
+                {settings.hero.badgeText && (
+                  <span className="inline-block self-start rounded-full bg-primary/30 border border-primary/40 px-3.5 py-1 text-xs font-bold text-primary">
+                    {settings.hero.badgeText}
+                  </span>
+                )}
+                <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight">
+                  {settings.hero.title}
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-200 max-w-xl">
+                  {settings.hero.subtitle}
+                </p>
+                {settings.hero.ctaText && (
+                  <a
+                    href={settings.hero.ctaLink || "/offers"}
+                    className="inline-flex self-start items-center gap-2 rounded-full bg-primary px-6 py-3 text-xs font-bold text-white shadow-brand hover:bg-primary/90 transition"
+                  >
+                    {settings.hero.ctaText}
+                  </a>
+                )}
+              </div>
+            </div>
+          ) : settings.hero.type === "video" ? (
+            <div className="relative overflow-hidden rounded-[32px] mx-2 sm:mx-4 my-2 border border-white/10 bg-black min-h-[400px] shadow-2xl">
+              {settings.hero.bannerVideoUrl ? (
+                <video
+                  src={settings.hero.bannerVideoUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover opacity-60"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/40 to-blue-900/40" />
+              )}
+              <div className="relative z-10 flex flex-col justify-center items-center text-center p-8 sm:p-14 min-h-[400px] space-y-4">
+                {settings.hero.badgeText && (
+                  <span className="rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-4 py-1 text-xs font-bold">
+                    {settings.hero.badgeText}
+                  </span>
+                )}
+                <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+                  {settings.hero.title}
+                </h1>
+                <p className="text-sm sm:text-base text-gray-300 max-w-lg">
+                  {settings.hero.subtitle}
+                </p>
+                {settings.hero.ctaText && (
+                  <a
+                    href={settings.hero.ctaLink || "/offers"}
+                    className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-7 py-3 text-xs font-black text-black hover:bg-cyan-300 transition shadow-lg"
+                  >
+                    {settings.hero.ctaText}
+                  </a>
+                )}
+              </div>
+            </div>
+          ) : (
+            allProducts.length > 0 && (
+              <Suspense fallback={<Skeleton className="mx-2 h-[96svh] rounded-[28px] sm:mx-4" />}>
+                <ImmersiveProductExperience products={sphereProducts} />
+              </Suspense>
+            )
+          )}
+        </>
       )}
 
       {/* 2. AI SEARCH */}
