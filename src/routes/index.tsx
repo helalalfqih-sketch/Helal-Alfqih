@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as Icons from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { formatPrice, type Product } from "@/lib/store-data";
 import type { LegacyProductShape, LegacyCategoryShape } from "@/lib/data-adapter";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -19,8 +19,11 @@ import { ProductCardSkeleton, Skeleton } from "@/components/ui/skeleton";
 // Chunk reload guard: after a Vercel redeploy the browser may still have
 // old HTML referencing old chunk hashes. On a dynamic import failure we do ONE
 // hard reload (guarded by sessionStorage to avoid infinite loops).
+// The helper preserves each lazy component's exact prop type; `any` is required
+// here because React.ComponentType is intentionally generic over arbitrary props.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lazyWithRetry<T extends React.ComponentType<any>>(
-  factory: () => Promise<{ default: T }>
+  factory: () => Promise<{ default: T }>,
 ): React.LazyExoticComponent<T> {
   return lazy(() =>
     factory().catch((err) => {
@@ -32,21 +35,30 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
         return new Promise(() => {}) as never;
       }
       throw err;
-    })
+    }),
   );
 }
 
-const ProductSphereHero = lazyWithRetry(() => import("@/components/product-sphere-hero").then(m => ({ default: m.ProductSphereHero })));
-const ProductStage = lazyWithRetry(() => import("@/components/showroom/ProductStage"));
-const CinematicStory = lazyWithRetry(() => import("@/components/cinematic-story").then(m => ({ default: m.CinematicStory })));
-import { OptimizedImage } from "@/components/optimized-image";
+const ImmersiveProductExperience = lazyWithRetry(() =>
+  import("@/components/immersive/ImmersiveProductExperience").then((module) => ({
+    default: module.ImmersiveProductExperience,
+  })),
+);
 import { quickOrderLink } from "@/lib/whatsapp";
 import { useAppearance } from "@/components/appearance-provider";
 import { type ProductsLayoutConfig } from "@/lib/domain/appearance";
 
 export const Route = createFileRoute("/")({
   head: ({ loaderData }) => {
-    const seo = (loaderData as any)?.settings?.seo;
+    const seo = (
+      loaderData as
+        | {
+            settings?: {
+              seo?: { metaTitle?: string; metaDescription?: string; ogImage?: string };
+            };
+          }
+        | undefined
+    )?.settings?.seo;
     const baseUrl =
       process.env.SITE_URL ||
       (typeof window !== "undefined" ? window.location.origin : null) ||
@@ -56,12 +68,17 @@ export const Route = createFileRoute("/")({
     const description =
       seo?.metaDescription ||
       "اكتشف أحدث المنتجات والعروض في اندكس ستور: إلكترونيات، أزياء، أدوات منزلية، والمزيد.";
-    const ogImage = seo?.ogImage || "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da426993-5f26-4733-b40c-c0f1f8e814c7/id-preview-7d22af97--80f7d5cf-5026-49dd-8137-91bdaa674a1a.lovable.app-1783204904911.png";
+    const ogImage =
+      seo?.ogImage ||
+      "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da426993-5f26-4733-b40c-c0f1f8e814c7/id-preview-7d22af97--80f7d5cf-5026-49dd-8137-91bdaa674a1a.lovable.app-1783204904911.png";
     return {
       meta: [
         { title },
         { name: "description", content: description },
-        { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+        {
+          name: "robots",
+          content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:url", content: baseUrl },
@@ -117,74 +134,6 @@ const revealProps = {
   transition: { duration: 0.5, ease: "easeOut" as const },
 };
 
-/**
- * 3D PRODUCT STAGE — cinematic showroom section (copper platform + reflection).
- * three.js is lazy-loaded ONLY when this section approaches the viewport, so
- * the main bundle and first paint are untouched (performance rule #7).
- */
-function ShowroomStageSection({ product }: { product: LegacyProductShape }) {
-  const gateRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(gateRef, { once: true, margin: "100px 0px" });
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const showCanvas = mounted && inView;
-
-  return (
-    <motion.section {...revealProps} className="relative z-10 px-4">
-      <div className="mb-4 text-center">
-        <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-teal-glow">
-          3D SHOWROOM
-        </span>
-        <h3 className="text-base font-black text-showcase-foreground">منصّة العرض ثلاثية الأبعاد</h3>
-      </div>
-      <div
-        ref={gateRef}
-        className="relative overflow-hidden rounded-[32px] glass-dark"
-        style={{ boxShadow: "inset 0 1px 0 rgba(184,126,82,0.35), 0 18px 50px -20px rgba(0,0,0,0.7)" }}
-      >
-        <div className="relative h-[340px] w-full">
-          {showCanvas ? (
-            <Suspense
-              fallback={
-                <div className="grid h-full w-full place-items-center">
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-teal-glow/60 border-t-transparent" />
-                </div>
-              }
-            >
-              <ProductStage imageUrl={product.image} />
-            </Suspense>
-          ) : (
-            <div className="grid h-full w-full place-items-center">
-              <OptimizedImage
-                src={product.image}
-                alt={product.name}
-                size="large"
-                className="max-h-56 object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.55)]"
-              />
-            </div>
-          )}
-        </div>
-        {/* Product info overlay */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/60 to-transparent p-4">
-          <div className="min-w-0 text-start">
-            <p className="truncate text-xs font-black text-white">{product.name}</p>
-            <p className="text-sm font-black text-neon drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]">
-              {formatPrice(product.price)}
-            </p>
-          </div>
-          <Link
-            to="/product/$slug"
-            params={{ slug: product.slug }}
-            className="pointer-events-auto shrink-0 rounded-full bg-neon px-4 py-2 text-[11px] font-black text-[#04121d] glow-neon transition hover:brightness-110"
-          >
-            اكتشف المنتج
-          </Link>
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
 function HomePage() {
   const { data: categoriesRaw } = useSuspenseQuery(categoriesQueryOptions());
   const { data: bestSellersRaw } = useSuspenseQuery(bestSellersQueryOptions(4));
@@ -198,9 +147,7 @@ function HomePage() {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const state = diagQueryClient.getQueryState(["allProducts"]);
-    const isStale =
-      !state?.dataUpdatedAt || Date.now() - state.dataUpdatedAt > 5 * 60 * 1000;
-    // eslint-disable-next-line no-console
+    const isStale = !state?.dataUpdatedAt || Date.now() - state.dataUpdatedAt > 5 * 60 * 1000;
     console.info("[PERF] PRODUCT_QUERY_MOUNT", {
       status: state?.status,
       fetchStatus: state?.fetchStatus,
@@ -208,7 +155,6 @@ function HomePage() {
       isStale,
     });
     if (state?.data && state.fetchStatus === "idle") {
-      // eslint-disable-next-line no-console
       console.info("[PERF] PRODUCT_QUERY_CACHE_HIT — rendered from memory, no fetch");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,7 +222,13 @@ function HomePage() {
         .sort((a, b) => idMap.get(a.id)! - idMap.get(b.id)!);
     }
     return list;
-  }, [allProducts, bestSellers, dailyDeals, settings.hero.sphereProductSource, settings.hero.sphereCustomProductIds]);
+  }, [
+    allProducts,
+    bestSellers,
+    dailyDeals,
+    settings.hero.sphereProductSource,
+    settings.hero.sphereCustomProductIds,
+  ]);
 
   const getGridClass = (layout: ProductsLayoutConfig) => {
     const m = layout.columnsMobile === 1 ? "grid-cols-1" : "grid-cols-2";
@@ -284,20 +236,20 @@ function HomePage() {
       layout.columnsTablet === 1
         ? "sm:grid-cols-1"
         : layout.columnsTablet === 2
-        ? "sm:grid-cols-2"
-        : layout.columnsTablet === 4
-        ? "sm:grid-cols-4"
-        : "sm:grid-cols-3";
+          ? "sm:grid-cols-2"
+          : layout.columnsTablet === 4
+            ? "sm:grid-cols-4"
+            : "sm:grid-cols-3";
     const d =
       layout.columnsDesktop === 2
         ? "md:grid-cols-2"
         : layout.columnsDesktop === 3
-        ? "md:grid-cols-3"
-        : layout.columnsDesktop === 5
-        ? "md:grid-cols-5"
-        : layout.columnsDesktop === 6
-        ? "md:grid-cols-6"
-        : "md:grid-cols-4";
+          ? "md:grid-cols-3"
+          : layout.columnsDesktop === 5
+            ? "md:grid-cols-5"
+            : layout.columnsDesktop === 6
+              ? "md:grid-cols-6"
+              : "md:grid-cols-4";
     return `grid ${m} ${t} ${d} gap-4`;
   };
 
@@ -346,64 +298,19 @@ function HomePage() {
         </motion.div>
       </div>
 
-      {/* 1. CINEMATIC HERO (3D + Video + AI) */}
-      {settings.hero.enabled && settings.hero.type === "cinematic" && (
-        <div className="relative z-10 px-4">
-          <Suspense fallback={<Skeleton className="h-[50vh] w-full rounded-3xl" />}>
-            <CinematicStory />
-          </Suspense>
-        </div>
+      {/* 1. SINGLE-HERO 3D STAGE — the minimal first-fold experience */}
+      {allProducts.length > 0 && (
+        <Suspense fallback={<Skeleton className="mx-2 h-[96svh] rounded-[28px] sm:mx-4" />}>
+          <ImmersiveProductExperience
+            products={[...bestSellers, ...allProducts].filter(
+              (product, index, list) =>
+                list.findIndex((candidate) => candidate.id === product.id) === index,
+            )}
+          />
+        </Suspense>
       )}
 
-      {/* 2. FEATURED PRODUCT */}
-      {(bestSellers[0] || allProducts[0]) && (() => {
-        const featuredProduct = bestSellers[0] || allProducts[0];
-        return (
-          <motion.section {...revealProps} className="relative z-10 px-4 mt-2">
-            <div className="group relative overflow-hidden rounded-[32px] glass-float p-4 min-h-[150px] flex items-center">
-              {/* Optimized Background Image with zoom transition */}
-              <OptimizedImage
-                src={featuredProduct.image}
-                alt={featuredProduct.name}
-                size="large"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none"
-              />
-              {/* Dark/Blur Gradients Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/30 sm:from-black/90 sm:via-black/70 sm:to-black/20 z-0 pointer-events-none" />
-              <div className="absolute inset-0 bg-radial-gradient(circle at 10% 10%, var(--primary) 15%, transparent 60%) opacity-30 z-0 pointer-events-none" />
-
-              {/* Content on top */}
-              <div className="relative flex-1 flex flex-col gap-1.5 text-start w-full min-w-0 z-10">
-                <span className="self-start rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-black text-primary border border-primary/25">المنتج المميز ⭐</span>
-                <h3 className="text-sm font-black text-white line-clamp-1">{featuredProduct.name}</h3>
-                <p className="text-[11px] text-white/80 line-clamp-1 leading-relaxed max-w-xl">{featuredProduct.description}</p>
-                <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
-                  <Icons.Star className="h-3 w-3 fill-amber-400" />
-                  <span className="font-bold">{featuredProduct.rating}</span>
-                  <span className="text-white/50">({featuredProduct.reviews} تقييم)</span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-base font-black text-neon drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]">{formatPrice(featuredProduct.price)}</span>
-                  {featuredProduct.oldPrice && (
-                    <span className="text-[10px] line-through text-white/40">{formatPrice(featuredProduct.oldPrice)}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-1">
-                  <Link to="/product/$slug" params={{ slug: featuredProduct.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-[10px] font-bold text-white transition backdrop-blur-sm border border-white/10">
-                    تفاصيل
-                  </Link>
-                  <a href={quickOrderLink(featuredProduct)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-1.5 text-[10px] font-black text-success-foreground hover:bg-success/90 transition shadow-md">
-                    <Icons.MessageCircle className="h-3.5 w-3.5" />
-                    اطلب الآن
-                  </a>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-        );
-      })()}
-
-      {/* 3. AI SEARCH */}
+      {/* 2. AI SEARCH */}
       <motion.section {...revealProps} className="relative z-10 px-4 mt-2">
         <div className="rounded-[32px] glass-dark glass-shimmer p-5 shadow-lg text-center space-y-3">
           <div className="text-center">
@@ -411,12 +318,15 @@ function HomePage() {
               <Icons.Sparkles className="h-3.5 w-3.5 text-neon animate-pulse" />
               البحث الذكي بالذكاء الاصطناعي
             </h3>
-            <p className="text-[10px] text-showcase-foreground/60 mt-0.5">اكتب مواصفات ما تبحث عنه، وسيقوم محرك البحث بإيجاده لك</p>
+            <p className="text-[10px] text-showcase-foreground/60 mt-0.5">
+              اكتب مواصفات ما تبحث عنه، وسيقوم محرك البحث بإيجاده لك
+            </p>
           </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const input = (e.currentTarget.elements.namedItem("search") as HTMLInputElement).value;
+              const input = (e.currentTarget.elements.namedItem("search") as HTMLInputElement)
+                .value;
               if (input.trim()) {
                 window.location.href = `/search?q=${encodeURIComponent(input)}`;
               }
@@ -427,12 +337,17 @@ function HomePage() {
               <input
                 name="search"
                 type="text"
-                placeholder={settings.navigation.searchPlaceholder || "ابحث بالاسم، اللون، المواصفات..."}
+                placeholder={
+                  settings.navigation.searchPlaceholder || "ابحث بالاسم، اللون، المواصفات..."
+                }
                 className="w-full rounded-full border border-white/10 bg-black/40 py-2.5 pr-9 pl-4 text-xs text-showcase-foreground placeholder-showcase-muted focus:border-neon/50 focus:outline-none transition-all"
               />
               <Icons.Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-showcase-muted" />
             </div>
-            <button type="submit" className="rounded-full bg-neon px-5 py-2.5 text-xs font-black text-[#04121d] glow-neon hover:brightness-110 transition">
+            <button
+              type="submit"
+              className="rounded-full bg-neon px-5 py-2.5 text-xs font-black text-[#04121d] glow-neon hover:brightness-110 transition"
+            >
               ابحث
             </button>
           </form>
@@ -464,10 +379,7 @@ function HomePage() {
                 {settings.sections.categories.title || "التصنيفات"}
               </h3>
             </div>
-            <Link
-              to="/search"
-              className="text-xs font-bold text-cyan-400 hover:underline"
-            >
+            <Link to="/search" className="text-xs font-bold text-cyan-400 hover:underline">
               استكشف الكل ➔
             </Link>
           </div>
@@ -483,7 +395,11 @@ function HomePage() {
                 key={c.id}
                 variants={{
                   hidden: { opacity: 0, y: 30 },
-                  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+                  },
                 }}
               >
                 <CategoryCard category={c} />
@@ -500,7 +416,9 @@ function HomePage() {
             <div>
               <span
                 className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em]"
-                style={{ color: "color-mix(in oklab, var(--showcase-foreground) 55%, transparent)" }}
+                style={{
+                  color: "color-mix(in oklab, var(--showcase-foreground) 55%, transparent)",
+                }}
               >
                 وصل حديثاً
               </span>
@@ -517,9 +435,14 @@ function HomePage() {
             </Link>
           </div>
           <div className={getGridClass(settings.products_layout)}>
-            {allProducts.slice(0, settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit).map((p, i) => (
-              <ProductCard key={p.id} product={p} eager={i < 2} />
-            ))}
+            {allProducts
+              .slice(
+                0,
+                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
+              )
+              .map((p, i) => (
+                <ProductCard key={p.id} product={p} eager={i < 2} />
+              ))}
           </div>
         </motion.section>
       )}
@@ -531,12 +454,23 @@ function HomePage() {
             <h3 className="text-base font-black" style={{ color: LIGHT }}>
               {settings.sections.recommended.title || "مقترحات الذكاء الاصطناعي"}
             </h3>
-            <Link to="/search" className="text-xs font-bold" style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}>الكل</Link>
+            <Link
+              to="/search"
+              className="text-xs font-bold"
+              style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}
+            >
+              الكل
+            </Link>
           </div>
           <div className={getGridClass(settings.products_layout)}>
-            {bestSellers.slice(0, settings.products_layout.bestSellersLimit ?? settings.sections.recommended.limit).map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+            {bestSellers
+              .slice(
+                0,
+                settings.products_layout.bestSellersLimit ?? settings.sections.recommended.limit,
+              )
+              .map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
           </div>
         </motion.section>
       )}
@@ -548,17 +482,22 @@ function HomePage() {
             <h3 className="text-base font-black" style={{ color: LIGHT }}>
               {settings.sections.deals.title || "أقوى العروض والخصومات 🔥"}
             </h3>
-            <Link to="/offers" className="text-xs font-bold" style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}>الكل</Link>
+            <Link
+              to="/offers"
+              className="text-xs font-bold"
+              style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}
+            >
+              الكل
+            </Link>
           </div>
           <div className={getGridClass(settings.products_layout)}>
-            {dailyDeals.slice(0, settings.products_layout.dailyDealsLimit ?? settings.sections.deals.limit).map((p) => <ProductCard key={p.id} product={p} />)}
+            {dailyDeals
+              .slice(0, settings.products_layout.dailyDealsLimit ?? settings.sections.deals.limit)
+              .map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
           </div>
         </motion.section>
-      )}
-
-      {/* 8. 3D PRODUCT STAGE — cinematic showroom platform */}
-      {(bestSellers[0] || allProducts[0]) && (
-        <ShowroomStageSection product={bestSellers[0] || allProducts[0]} />
       )}
 
       {/* 8b. VIRTUAL SHOWROOM */}
@@ -585,8 +524,12 @@ function HomePage() {
               <span className="inline-block rounded-full bg-showcase-foreground/20 px-2.5 py-0.5 text-[10px] font-bold">
                 {settings.sections.showroom.badge || "جديد · تجربة ثلاثية الأبعاد"}
               </span>
-              <h3 className="mt-1.5 text-lg font-black leading-tight">{settings.sections.showroom.title || "المعرض الافتراضي"}</h3>
-              <p className="text-[11px] text-showcase-foreground/85">{settings.sections.showroom.subtitle || "تجوّل داخل اندكس ستور الفاخر"}</p>
+              <h3 className="mt-1.5 text-lg font-black leading-tight">
+                {settings.sections.showroom.title || "المعرض الافتراضي"}
+              </h3>
+              <p className="text-[11px] text-showcase-foreground/85">
+                {settings.sections.showroom.subtitle || "تجوّل داخل اندكس ستور الفاخر"}
+              </p>
             </div>
             <div className="relative grid h-12 w-12 place-items-center rounded-2xl bg-showcase-foreground/15 ring-1 ring-showcase-foreground/30 backdrop-blur-md transition group-hover:scale-110">
               <Icons.Sparkles className="h-5 w-5" />
@@ -597,26 +540,54 @@ function HomePage() {
 
       {/* 9. SOCIAL PROOF & TESTIMONIALS */}
       {settings.sections.testimonials.enabled !== false && (
-        <motion.section {...revealProps} className="relative z-10 px-4 mt-4 pb-4 border-t border-showcase-border/40 pt-6">
+        <motion.section
+          {...revealProps}
+          className="relative z-10 px-4 mt-4 pb-4 border-t border-showcase-border/40 pt-6"
+        >
           <div className="mb-4 text-center">
-            <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-primary">تقييمات العملاء</span>
+            <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-primary">
+              تقييمات العملاء
+            </span>
             <h3 className="text-base font-black text-showcase-foreground">
               {settings.sections.testimonials.title || "ماذا يقول عملاؤنا؟ ❤️"}
             </h3>
             {settings.sections.testimonials.subtitle && (
-              <p className="text-[11px] text-showcase-foreground/60 mt-0.5">{settings.sections.testimonials.subtitle}</p>
+              <p className="text-[11px] text-showcase-foreground/60 mt-0.5">
+                {settings.sections.testimonials.subtitle}
+              </p>
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(settings.sections.testimonials.items?.length
               ? settings.sections.testimonials.items
               : [
-                  { name: "أحمد الحميري", city: "صنعاء", comment: "تجربة شراء رائعة جداً، المنتج وصل مغلف تماماً والمعاينة ثلاثية الأبعاد ساعدتني أقرر بسرعة.", rating: 5 },
-                  { name: "جميل الشرعبي", city: "تعز", comment: "أفضل خدمة توصيل وتعامل محترم من الدعم الفني، الجودة ممتازة والأسعار منافسة.", rating: 5 },
-                  { name: "سامي الذبحاني", city: "عدن", comment: "الطلب عبر الواتساب سهل وسريع، والكرة ثلاثية الأبعاد فكرة مبتكرة جداً في متجر يمني.", rating: 5 },
+                  {
+                    name: "أحمد الحميري",
+                    city: "صنعاء",
+                    comment:
+                      "تجربة شراء رائعة جداً، المنتج وصل مغلف تماماً والمعاينة ثلاثية الأبعاد ساعدتني أقرر بسرعة.",
+                    rating: 5,
+                  },
+                  {
+                    name: "جميل الشرعبي",
+                    city: "تعز",
+                    comment:
+                      "أفضل خدمة توصيل وتعامل محترم من الدعم الفني، الجودة ممتازة والأسعار منافسة.",
+                    rating: 5,
+                  },
+                  {
+                    name: "سامي الذبحاني",
+                    city: "عدن",
+                    comment:
+                      "الطلب عبر الواتساب سهل وسريع، والكرة ثلاثية الأبعاد فكرة مبتكرة جداً في متجر يمني.",
+                    rating: 5,
+                  },
                 ]
             ).map((item, idx) => (
-              <div key={idx} className="rounded-2xl border border-showcase-border bg-surface/50 p-4 space-y-2 text-start">
+              <div
+                key={idx}
+                className="rounded-2xl border border-showcase-border bg-surface/50 p-4 space-y-2 text-start"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-black text-showcase-foreground">{item.name}</h4>
@@ -628,7 +599,9 @@ function HomePage() {
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-showcase-foreground/80 leading-relaxed italic">"{item.comment}"</p>
+                <p className="text-xs text-showcase-foreground/80 leading-relaxed italic">
+                  "{item.comment}"
+                </p>
               </div>
             ))}
           </div>
@@ -646,7 +619,8 @@ function HomePage() {
               {settings.sections.whatsappCta?.title || "هل تحتاج مساعدة في الطلب؟"}
             </h3>
             <p className="text-xs text-showcase-foreground/70 max-w-md mx-auto">
-              {settings.sections.whatsappCta?.subtitle || "فريق خدمة العملاء متواجد على مدار الساعة على واتساب"}
+              {settings.sections.whatsappCta?.subtitle ||
+                "فريق خدمة العملاء متواجد على مدار الساعة على واتساب"}
             </p>
             <a
               href={`https://wa.me/${settings.sections.whatsappCta?.phone || settings.navigation.whatsappPhone || "967771370740"}`}
@@ -688,11 +662,19 @@ function HomePage() {
             >
               <div className="min-w-0 flex-1 ps-2 text-start">
                 <p className="truncate text-xs font-bold">{focusedProduct.name}</p>
-                <p className="text-[11px] font-black" style={{ color: "color-mix(in oklab, var(--showcase-foreground) 70%, transparent)" }}>
+                <p
+                  className="text-[11px] font-black"
+                  style={{
+                    color: "color-mix(in oklab, var(--showcase-foreground) 70%, transparent)",
+                  }}
+                >
                   {formatPrice(focusedProduct.price)}
                 </p>
               </div>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-black" style={{ background: LIGHT, color: DARK }}>
+              <span
+                className="flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-black"
+                style={{ background: LIGHT, color: DARK }}
+              >
                 <Icons.MessageCircle className="h-3.5 w-3.5" />
                 اطلب عبر واتساب
               </span>
