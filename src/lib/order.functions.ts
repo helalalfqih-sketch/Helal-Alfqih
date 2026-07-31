@@ -272,13 +272,14 @@ export const createOrder = createServerFn({ method: "POST" })
     let shippingFeeDefault = DEFAULT_SHIPPING_FEE;
 
     try {
-      const { data: sfData } = await supabaseAdmin
+      const { data: sfData } = await (supabaseAdmin as any)
         .from("storefront_settings")
-        .select("settings")
+        .select("*")
         .eq("tenant_id", tenantId)
         .maybeSingle();
 
-      const rawCart = (sfData?.settings as any)?.cart;
+      const settingsObj = (sfData as any)?.settings ?? (sfData as any)?.config ?? (sfData as any)?.data;
+      const rawCart = settingsObj?.cart;
       if (rawCart && typeof rawCart.freeShippingThreshold === "number" && rawCart.freeShippingThreshold >= 0) {
         freeShippingThreshold = rawCart.freeShippingThreshold;
       }
