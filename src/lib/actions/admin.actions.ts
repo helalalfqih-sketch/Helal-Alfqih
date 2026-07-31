@@ -39,6 +39,10 @@ export const listAdminProductsInput = z.object({
   publishedOnly: z.boolean().optional(),
   unpublishedOnly: z.boolean().optional(),
   outOfStock: z.boolean().optional(),
+  page: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(100).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  offset: z.number().int().min(0).optional(),
 });
 export type ListAdminProductsInput = z.infer<typeof listAdminProductsInput>;
 

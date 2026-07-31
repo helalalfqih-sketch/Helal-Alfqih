@@ -395,8 +395,8 @@ function ShellInner() {
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden"
-                aria-label="close"
+                className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="إغلاق القائمة الجانبية"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -524,8 +524,8 @@ function ShellInner() {
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-surface border-b border-border px-4 py-3 lg:px-8">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden"
-            aria-label="menu"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="فتح القائمة الجانبية"
           >
             <Menu className="h-5 w-5" />
           </button>

@@ -76,9 +76,14 @@ function AdminOrdersPage() {
   });
 
   const statusMut = useMutation({
-    mutationFn: (v: { orderId: string; toStatus: OrderStatus }) =>
+    mutationFn: (v: { orderId: string; expectedStatus?: OrderStatus; toStatus: OrderStatus }) =>
       updateOrderStatus({
-        data: { orderId: v.orderId, toStatus: v.toStatus, note: note.trim() || undefined },
+        data: {
+          orderId: v.orderId,
+          expectedStatus: v.expectedStatus,
+          toStatus: v.toStatus,
+          note: note.trim() || undefined,
+        },
       }),
     onSuccess: (res) => {
       toast.success(`تم تحديث الحالة: ${orderStatusLabel(res.from)} ← ${orderStatusLabel(res.to)}`);
@@ -166,7 +171,9 @@ function AdminOrdersPage() {
                 {/* Row header */}
                 <button
                   onClick={() => setOpenId(open ? null : ord.id)}
-                  className="w-full flex flex-wrap items-center gap-3 p-4 text-start hover:bg-foreground/5 transition"
+                  aria-expanded={open}
+                  aria-label={`تفاصيل الطلب ${formatOrderNumber(ord.id)}`}
+                  className="w-full flex flex-wrap items-center gap-3 p-4 text-start hover:bg-foreground/5 transition min-h-[44px]"
                 >
                   <span className="font-mono text-xs font-bold text-primary">
                     {formatOrderNumber(ord.id)}
@@ -309,9 +316,10 @@ function AdminOrdersPage() {
                                 onClick={() => {
                                   const sel = document.getElementById(`status-${d.id}`) as HTMLSelectElement | null;
                                   const toStatus = (sel?.value ?? allowed[0]) as OrderStatus;
-                                  statusMut.mutate({ orderId: d.id, toStatus });
+                                  statusMut.mutate({ orderId: d.id, expectedStatus: d.status, toStatus });
                                 }}
-                                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60 hover:bg-primary/90 transition"
+                                aria-label={`تحديث حالة الطلب ${formatOrderNumber(d.id)}`}
+                                className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60 hover:bg-primary/90 transition min-h-[44px]"
                               >
                                 {statusMut.isPending ? "جارٍ..." : "تحديث الحالة"}
                               </button>

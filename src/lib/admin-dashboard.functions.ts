@@ -36,10 +36,19 @@ export interface AdminDashboardStats {
 
 const DAY = 86400000;
 
+import { z } from "zod";
+
+const rangeSchema = z.enum(["today", "7d", "30d", "all"]).default("7d");
+export type DashboardTimeRange = z.infer<typeof rangeSchema>;
+
 export const getAdminDashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<AdminDashboardStats> => {
+  .inputValidator((raw: unknown) =>
+    z.object({ range: rangeSchema.optional() }).parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<AdminDashboardStats & { selectedRange: DashboardTimeRange }> => {
     const { supabase } = context as unknown as { supabase: any };
+    const selectedRange = data?.range ?? "7d";
 
     // Orders (RLS-scoped). Small store — computing aggregates in the fn is fine.
     const { data: orderRows } = await supabase
@@ -66,6 +75,11 @@ export const getAdminDashboardStats = createServerFn({ method: "GET" })
     const dailyRevenue = new Array(12).fill(0) as number[];
     let currency = "YER";
 
+    let rangeDays = 7;
+    if (selectedRange === "today") rangeDays = 1;
+    else if (selectedRange === "30d") rangeDays = 30;
+    else if (selectedRange === "all") rangeDays = 365;
+
     for (const o of orders) {
       const t = new Date(o.created_at).getTime();
       const age = now - t;
@@ -73,10 +87,11 @@ export const getAdminDashboardStats = createServerFn({ method: "GET" })
       if (o.status === "pending") pendingOrders++;
       if (!isActive(o)) continue;
       const total = Number(o.total ?? 0);
-      if (age <= 7 * DAY) {
+
+      if (age <= rangeDays * DAY) {
         revenue7d += total;
         orders7d++;
-      } else if (age <= 14 * DAY) {
+      } else if (age <= rangeDays * 2 * DAY) {
         revenuePrev7d += total;
         ordersPrev7d++;
       }
@@ -128,8 +143,9 @@ export const getAdminDashboardStats = createServerFn({ method: "GET" })
       publishedCount: publishedCount ?? 0,
       lowStock: (lowStockRows ?? []) as Array<{ id: string; name: string; stock: number }>,
       metaUnsyncedCount: metaUnsyncedCount ?? 0,
-      cmsDraftCount: cmsDraftCount ?? 0,
+      cmsDraftCount:      cmsDraftCount,
       dailyRevenue,
       currency,
+      selectedRange,
     };
   });

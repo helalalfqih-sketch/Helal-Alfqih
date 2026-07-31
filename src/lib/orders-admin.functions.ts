@@ -121,6 +121,7 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     z
       .object({
         orderId: z.string().uuid(),
+        expectedStatus: statusEnum.optional(),
         toStatus: statusEnum,
         note: z.string().trim().max(500).optional(),
       })
@@ -159,12 +160,21 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
         );
       }
 
-      const { error: updErr } = await supabase
-        .from("orders")
-        .update({ status: data.toStatus })
-        .eq("id", data.orderId);
-      if (updErr) throw new Error("تعذّر تحديث حالة الطلب.");
+      const expectedStatus = data.expectedStatus ?? fromStatus;
 
+      // Compare-and-swap update: ensures status has not changed concurrently
+      const { data: updatedRows, error: updErr } = await supabase
+        .from("orders")
+        .update({ status: data.toStatus, updated_at: new Date().toISOString() })
+        .eq("id", data.orderId)
+        .eq("status", expectedStatus)
+        .select("id");
+
+      if (updErr || !updatedRows || updatedRows.length === 0) {
+        throw new Error("تعذّر تحديث حالة الطلب. قد يكون قد تم تعديل الطلب بواسطة موظف آخر، يرجى تحديث الصفحة.");
+      }
+
+      // Atomic Audit Entry: append to order_status_history
       const { error: histErr } = await supabase.from("order_status_history").insert({
         order_id: data.orderId,
         tenant_id: order.tenant_id,
@@ -173,8 +183,15 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
         changed_by: userId,
         note: data.note ?? null,
       });
+
       if (histErr) {
-        console.warn("[updateOrderStatus] history notice:", histErr.message);
+        console.error("[updateOrderStatus] History Insert Error, rolling back status:", histErr.message);
+        // Rollback the status update to maintain audit integrity
+        await supabase
+          .from("orders")
+          .update({ status: fromStatus })
+          .eq("id", data.orderId);
+        throw new Error(`تعذر حفظ سجل التغيير: ${histErr.message}. تم إلغاء تعديل الحالة للحفاظ على سلامة البيانات.`);
       }
 
       // P4 — financial ledger hooks (best-effort, idempotent, service role;

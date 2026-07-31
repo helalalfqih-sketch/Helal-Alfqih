@@ -59,6 +59,8 @@ function ProductsPage() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 20;
   const [showInstructions, setShowInstructions] = useState(false);
 
   const query = useMemo(
@@ -68,8 +70,10 @@ function ProductsPage() {
       publishedOnly: filter === "published" || undefined,
       unpublishedOnly: filter === "unpublished" || undefined,
       outOfStock: filter === "out" || undefined,
+      page,
+      pageSize,
     }),
-    [search, categoryId, filter],
+    [search, categoryId, filter, page, pageSize],
   );
 
   const productsQ = useQuery({
@@ -250,8 +254,9 @@ function ProductsPage() {
     return result;
   }, [products, filter]);
 
-  // Stats calculation
-  const totalCount = products.length;
+  // Total counts from response metadata
+  const totalCount = (productsQ.data as any)?.total ?? (productsQ.data as any)?.totalCount ?? products.length;
+  const pageCount = Math.ceil(totalCount / pageSize) || 1;
   const syncedCount = products.filter((p) => p.meta_sync_status === "synced").length;
   const pendingCount = products.filter(
     (p) =>
@@ -581,7 +586,10 @@ function ProductsPage() {
                     {/* Action Dropdown Menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="h-7 w-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition">
+                        <button
+                          aria-label={`خيارات الإدارة للمنتج ${p.name}`}
+                          className="h-8 w-8 min-h-[44px] min-w-[44px] rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition"
+                        >
                           <MoreVertical className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
@@ -674,7 +682,8 @@ function ProductsPage() {
                         togglePublish.mutate({ id: p.id, is_published: !p.is_published })
                       }
                       disabled={togglePublish.isPending}
-                      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                      aria-label={p.is_published ? `إخفاء المنتج ${p.name}` : `نشر المنتج ${p.name}`}
+                      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition min-h-[44px] ${
                         p.is_published
                           ? "border-warning/30 bg-warning/10 text-warning hover:bg-warning/20"
                           : "border-success/30 bg-success/10 text-success hover:bg-success/20"
@@ -690,7 +699,8 @@ function ProductsPage() {
                     <button
                       onClick={() => syncProductMut.mutate(p.id)}
                       disabled={syncProductMut.isPending}
-                      className="inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/5 p-2 text-primary hover:bg-primary/10 transition"
+                      aria-label={`مزامنة المنتج ${p.name} مع Meta`}
+                      className="inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/5 p-2 text-primary hover:bg-primary/10 transition min-h-[44px] min-w-[44px]"
                       title="مزامنة فورية"
                     >
                       {syncProductMut.isPending ? (
@@ -704,6 +714,31 @@ function ProductsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between border-t border-border/50 pt-4 text-xs font-bold" dir="rtl">
+          <span className="text-muted-foreground">
+            الصفحة {page} من {pageCount} (إجمالي {totalCount} منتج)
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-border bg-surface px-4 py-2 hover:bg-accent disabled:opacity-40 transition min-h-[44px]"
+            >
+              السابق
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              disabled={page >= pageCount}
+              className="rounded-xl border border-border bg-surface px-4 py-2 hover:bg-accent disabled:opacity-40 transition min-h-[44px]"
+            >
+              التالي
+            </button>
+          </div>
         </div>
       )}
     </div>

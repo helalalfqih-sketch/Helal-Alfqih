@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   ArrowUpRight,
   DollarSign,
@@ -40,6 +41,7 @@ type AdminProduct = Awaited<ReturnType<typeof listAdminProducts>>[number];
 function DashboardPage() {
   const { t, lang } = useI18n();
   const sessions = useAdmin((s) => s.sessions);
+  const [timeRange, setTimeRange] = useState<"today" | "7d" | "30d" | "all">("7d");
 
   const productsQ = useQuery({
     queryKey: ["admin-products"],
@@ -50,11 +52,20 @@ function DashboardPage() {
   // REAL dashboard numbers from the database (orders, customers, products, CMS).
   const fetchStats = useServerFn(getAdminDashboardStats);
   const statsQ = useQuery({
-    queryKey: ["admin-dashboard-stats"],
-    queryFn: () => fetchStats(),
+    queryKey: ["admin-dashboard-stats", timeRange],
+    queryFn: () => fetchStats({ data: { range: timeRange } }),
     refetchInterval: 60_000,
   });
-  const s = statsQ.data as AdminDashboardStats | undefined;
+  const s = statsQ.data as (AdminDashboardStats & { selectedRange: string }) | undefined;
+
+  const rangeSubtext =
+    timeRange === "today"
+      ? "اليوم"
+      : timeRange === "30d"
+        ? "آخر 30 يوماً"
+        : timeRange === "all"
+          ? "جميع الأوقات"
+          : "آخر 7 أيام";
 
   const revenueDelta = deltaPct(s?.revenue7d ?? 0, s?.revenuePrev7d ?? 0);
   const ordersDelta = deltaPct(s?.orders7d ?? 0, s?.ordersPrev7d ?? 0);
@@ -63,7 +74,7 @@ function DashboardPage() {
     {
       k: "dash.revenue",
       value: s ? formatPrice(s.revenue7d) : "…",
-      sub: "آخر 7 أيام",
+      sub: rangeSubtext,
       delta: revenueDelta.text,
       up: revenueDelta.up,
       icon: DollarSign,
@@ -230,9 +241,29 @@ function DashboardPage() {
       {/* Grid */}
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-surface p-5 lg:col-span-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-black">{t("dash.performance")}</h2>
-            <span className="text-xs text-muted-foreground">الإيرادات اليومية · آخر 12 يوماً</span>
+            <div className="flex items-center gap-1 rounded-xl bg-accent/60 p-1 text-xs font-bold">
+              {[
+                { id: "today", label: "اليوم" },
+                { id: "7d", label: "7 أيام" },
+                { id: "30d", label: "30 يوماً" },
+                { id: "all", label: "الكل" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTimeRange(tab.id as any)}
+                  aria-pressed={timeRange === tab.id}
+                  className={`rounded-lg px-2.5 py-1 transition min-h-[36px] ${
+                    timeRange === tab.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
           <BigChart values={s?.dailyRevenue} loading={statsQ.isLoading} />
         </div>

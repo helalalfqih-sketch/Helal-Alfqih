@@ -136,8 +136,8 @@ function InventoryPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 overflow-x-auto rounded-2xl border border-border bg-surface">
-            <table className="min-w-[620px] w-full text-sm">
+          <div className="lg:col-span-2 w-full overflow-x-auto rounded-2xl border border-border bg-surface">
+            <table className="min-w-[760px] w-full text-sm">
               <thead className="text-xs text-muted-foreground border-b border-border">
                 <tr>
                   <th className="text-start p-3">المنتج</th>
@@ -187,9 +187,10 @@ function InventoryPage() {
                             recordMut.mutate({ productId: p.id, delta, reason: "restock" })
                           }
                           disabled={recordMut.isPending}
-                          className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2 py-1 text-xs font-bold text-success hover:bg-success/25"
+                          aria-label={`إضافة مخزون لـ ${p.name}`}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-success/15 px-3 py-2 text-xs font-bold text-success hover:bg-success/25 min-h-[44px]"
                         >
-                          <Plus className="h-3 w-3" /> {delta}
+                          <Plus className="h-3.5 w-3.5" /> {delta}
                         </button>
                         <button
                           onClick={() => {
@@ -204,17 +205,19 @@ function InventoryPage() {
                             });
                           }}
                           disabled={recordMut.isPending}
-                          className="inline-flex items-center gap-1 rounded-lg bg-destructive/10 px-2 py-1 text-xs font-bold text-destructive hover:bg-destructive/20"
+                          aria-label={`خصم مخزون من ${p.name}`}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/20 min-h-[44px]"
                         >
-                          <Minus className="h-3 w-3" /> {delta}
+                          <Minus className="h-3.5 w-3.5" /> {delta}
                         </button>
                         <Link
                           to="/admin/product/$id"
                           params={{ id: p.id }}
-                          className="grid h-6 w-6 place-items-center rounded-lg hover:bg-accent"
+                          aria-label={`فتح صفحة المنتج ${p.name}`}
+                          className="grid h-10 w-10 min-h-[44px] min-w-[44px] place-items-center rounded-lg hover:bg-accent"
                           title="فتح المنتج"
                         >
-                          <ArrowRight className="h-3 w-3 rotate-180" />
+                          <ArrowRight className="h-4 w-4 rotate-180" />
                         </Link>
                       </div>
                     </td>

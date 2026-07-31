@@ -20,6 +20,8 @@ import { createLovableGateway } from "@/lib/ai-gateway.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createVertex } from "@ai-sdk/google-vertex";
 import {
+  productInputBase,
+  productUpdateBase,
   productInputSchema,
   productUpdateSchema,
   categoryInputSchema,
@@ -547,6 +549,10 @@ export const adminListProducts = createServerFn({ method: "GET" })
         publishedOnly: z.boolean().optional(),
         unpublishedOnly: z.boolean().optional(),
         outOfStock: z.boolean().optional(),
+        page: z.number().int().min(1).optional(),
+        pageSize: z.number().int().min(1).max(100).optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+        offset: z.number().int().min(0).optional(),
       })
       .parse(raw ?? {}),
   )
@@ -617,7 +623,26 @@ export const adminListProducts = createServerFn({ method: "GET" })
     if (data.unpublishedOnly) filtered = filtered.filter((r) => r.is_published === false);
     if (data.outOfStock) filtered = filtered.filter((r) => (r.stock ?? 0) <= 0);
 
-    return filtered;
+    const total = filtered.length;
+    const isPaginated =
+      data.page !== undefined ||
+      data.pageSize !== undefined ||
+      data.limit !== undefined ||
+      data.offset !== undefined;
+
+    let resultList = filtered;
+    if (isPaginated) {
+      const page = data.page ?? 1;
+      const pageSize = data.pageSize ?? data.limit ?? 20;
+      const offset = data.offset ?? (page - 1) * pageSize;
+      resultList = filtered.slice(offset, offset + pageSize);
+    }
+
+    // Attach total count metadata to the array object for paginated callers
+    (resultList as any).total = total;
+    (resultList as any).totalCount = total;
+
+    return resultList;
   });
 
 
@@ -648,7 +673,7 @@ export const adminListCategories = createServerFn({ method: "GET" })
 export const adminCreateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) =>
-    productInputSchema.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
+    productInputBase.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
@@ -661,7 +686,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
 export const adminUpdateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) =>
-    productUpdateSchema.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
+    productUpdateBase.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
