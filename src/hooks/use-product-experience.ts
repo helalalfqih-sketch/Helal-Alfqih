@@ -1,9 +1,4 @@
-import {
-  useMotionValueEvent,
-  useScroll,
-  useSpring,
-  type MotionValue,
-} from "framer-motion";
+import { useMotionValueEvent, useScroll, useSpring, type MotionValue } from "framer-motion";
 import {
   useCallback,
   useEffect,
@@ -29,8 +24,7 @@ export type ProductExperienceController = {
   };
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export function useProductExperience(
   sectionRef: RefObject<HTMLElement | null>,
@@ -68,21 +62,24 @@ export function useProductExperience(
     setActiveIndex((current) => clamp(current, 0, Math.max(0, productCount - 1)));
   }, [productCount]);
 
-  const finishDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    if (event.pointerId !== drag.current.pointerId) return;
-    const swipeX = event.clientX - drag.current.startX;
-    const swipeY = event.clientY - drag.current.startY;
-    if (Math.abs(swipeX) > 56 && Math.abs(swipeX) > Math.abs(swipeY) * 1.2) {
-      setActiveIndex((current) =>
-        clamp(current + (swipeX < 0 ? 1 : -1), 0, Math.max(0, productCount - 1)),
-      );
-    }
-    drag.current.active = false;
-    drag.current.pointerId = -1;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, [productCount]);
+  const finishDrag = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.pointerId !== drag.current.pointerId) return;
+      const swipeX = event.clientX - drag.current.startX;
+      const swipeY = event.clientY - drag.current.startY;
+      if (Math.abs(swipeX) > 56 && Math.abs(swipeX) > Math.abs(swipeY) * 1.2) {
+        setActiveIndex((current) =>
+          clamp(current + (swipeX < 0 ? 1 : -1), 0, Math.max(0, productCount - 1)),
+        );
+      }
+      drag.current.active = false;
+      drag.current.pointerId = -1;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [productCount],
+  );
 
   const cancelDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerId !== drag.current.pointerId) return;

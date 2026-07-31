@@ -15,11 +15,7 @@ const AMBIENT_PALETTES = [
   ["rgba(52,211,153,.2)", "rgba(14,165,233,.13)"],
 ];
 
-export function ImmersiveProductExperience({
-  products,
-}: {
-  products: LegacyProductShape[];
-}) {
+export function ImmersiveProductExperience({ products }: { products: LegacyProductShape[] }) {
   const featured = products.filter((product) => product.image).slice(0, 4);
   const sectionRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();

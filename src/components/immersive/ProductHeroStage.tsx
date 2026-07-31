@@ -51,9 +51,7 @@ function ProductImage({ url }: { url: string }) {
     texture.needsUpdate = true;
   }, [texture]);
   const image = texture.image as { width?: number; height?: number } | undefined;
-  const ratio = image?.width && image?.height
-    ? image.width / image.height
-    : 1;
+  const ratio = image?.width && image?.height ? image.width / image.height : 1;
   return (
     <mesh>
       <planeGeometry args={[Math.min(2.8, 2.4 * ratio), Math.min(2.8, 2.4 / ratio)]} />
@@ -110,7 +108,10 @@ function Loader() {
     <Html center>
       <div className="w-40 text-center text-[10px] font-bold tracking-[0.22em] text-white/70">
         <div className="mb-2 h-px overflow-hidden bg-white/15">
-          <div className="h-full bg-cyan-300 transition-[width]" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full bg-cyan-300 transition-[width]"
+            style={{ width: `${progress}%` }}
+          />
         </div>
         LOADING {Math.round(progress)}%
       </div>
@@ -157,13 +158,7 @@ function ProductLayer({
   );
 }
 
-function Scene({
-  products,
-  activeIndex,
-  progress,
-  rotation,
-  stepPhysics,
-}: ProductHeroStageProps) {
+function Scene({ products, activeIndex, progress, rotation, stepPhysics }: ProductHeroStageProps) {
   const rig = useRef<THREE.Group>(null);
   const light = useRef<THREE.PointLight>(null);
   const { camera } = useThree();
