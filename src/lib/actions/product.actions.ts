@@ -56,7 +56,9 @@ const enrichLegacy = (p: LegacyProductShape): LegacyProductShape => {
 };
 
 const dtoToLegacy = (rows: ProductDTO[]): LegacyProductShape[] =>
-  rows.map((r) => enrichLegacy(toLegacyProduct(r)));
+  rows
+    .filter((r) => typeof r.price === "number" && r.price > 0)
+    .map((r) => enrichLegacy(toLegacyProduct(r)));
 
 // ---------- Actions ----------
 

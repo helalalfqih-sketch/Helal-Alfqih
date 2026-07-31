@@ -220,6 +220,51 @@ export async function getRecommendations(limit = 8): Promise<LegacyProductShape[
     .slice(0, limit);
 }
 
+/**
+ * Synchronous ranking helper for unit tests.
+ * Applies the same stop-word filtering and scoring as `searchProductsAdvanced`,
+ * but operates on an explicit product list without async catalog loading.
+ */
+export function rankSearchResults(
+  products: LegacyProductShape[],
+  query: string,
+): LegacyProductShape[] {
+  if (!query || !query.trim()) return [...products];
+
+  const rawTokens = getExpandedTokens(query);
+  const STOP_WORDS = new Set([
+    "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of",
+    "to", "for", "with", "and", "or", "is",
+    "\u0645\u0646", "\u0641\u064a", "\u0639\u0644\u0649", "\u0639\u0646", "\u0645\u0639", "\u0644\u0627", "\u0627\u0648", "\u0627\u0645", "\u0627\u0644", "\u0645\u0627", "\u0647\u0630\u0627", "\u0647\u0630\u0647",
+  ]);
+  const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t) && t.length >= 3);
+  if (contentTokens.length === 0) return [];
+
+  const scored = products.map((p) => {
+    let score = 0;
+    const normName = normalizeArabic(p.name);
+    const normDesc = normalizeArabic(p.description || "");
+    const normBrand = normalizeArabic((p as any).brand || "");
+    const normCat = normalizeArabic((p as any).category_name || p.categoryId || "");
+    const normSku = normalizeArabic((p as any).sku || "");
+    const normTags = normalizeArabic(((p as any).tags || []).join(" "));
+    for (const token of contentTokens) {
+      if (normName.includes(token)) score += 10;
+      if (normSku.includes(token)) score += 8;
+      if (normBrand.includes(token)) score += 6;
+      if (normCat.includes(token)) score += 5;
+      if (normTags.includes(token)) score += 4;
+      if (normDesc.includes(token)) score += 2;
+    }
+    return { product: p, score };
+  });
+
+  return scored
+    .filter((s) => s.score >= MIN_RELEVANCE_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .map((s) => s.product);
+}
+
 export interface SearchSuggestionItem {
   id: string;
   type: "product" | "category" | "keyword";

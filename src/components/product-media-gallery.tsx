@@ -288,7 +288,7 @@ function VideoModal({
           ref={closeButtonRef}
           type="button"
           onClick={onClose}
-          className="absolute end-3 top-3 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/70 text-white backdrop-blur-md hover:bg-black/90 transition focus-visible:ring-2 focus-visible:ring-white"
+          className="absolute end-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
           aria-label="إغلاق الفيديو"
         >
           <X className="h-4 w-4" />
@@ -412,28 +412,17 @@ export function ProductMediaGallery({ product }: Props) {
               exit={{ opacity: 0 }}
               className="relative h-full w-full flex items-center justify-center bg-black"
             >
-          {!toEmbedUrl(activeItem.url) ? (
-            // Show a poster+play overlay instead of an inline video when modal is open,
-            // to ensure exactly ONE video player is mounted at any time.
-            videoModal ? (
-              <div className="relative h-full w-full flex items-center justify-center cursor-pointer group" onClick={(event) => openVideoModal({ src: activeItem.url }, event.currentTarget)}>
-                <OptimizedImage src={activeItem.poster || product.image} alt={product.name} size="large" className="h-full w-full object-cover opacity-50" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/90 shadow-2xl"><Play className="h-8 w-8 fill-white text-white ms-1" /></div>
-                </div>
-              </div>
-            ) : (
-              <video
-                src={activeItem.url}
-                poster={activeItem.poster || product.image}
-                controls
-                autoPlay={false}
-                playsInline
-                preload="metadata"
-                className="h-full w-full object-contain"
-              />
-            )
-          ) : (
+              {!toEmbedUrl(activeItem.url) ? (
+                <video
+                  src={activeItem.url}
+                  poster={activeItem.poster || product.image}
+                  controls
+                  autoPlay={false}
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-contain"
+                />
+              ) : (
                 <div
                   className="relative h-full w-full flex items-center justify-center cursor-pointer group"
                   onClick={(event) => openVideoModal({ src: activeItem.url }, event.currentTarget)}

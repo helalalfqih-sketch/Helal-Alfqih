@@ -180,7 +180,7 @@ function ProductPage() {
           <span>العودة للمتجر</span>
         </Link>
         <span className="rounded-full border border-showcase-border bg-showcase-foreground/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em]">
-          INDEXES · {product.categoryId || "PREMIUM"}
+          INDEXES · {product.categoryName || product.category_name || "PREMIUM"}
         </span>
       </nav>
 
@@ -198,14 +198,14 @@ function ProductPage() {
           <span>الرئيسية</span>
         </Link>
         <ChevronLeft className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-        {product.categoryId && (
+        {(product.categoryName || product.category_name || product.categoryId) && (
           <>
             <Link
-              to="/category/$id"
-              params={{ id: product.categoryId }}
+              to="/search"
+              search={{ category: product.categoryId }}
               className="hover:text-showcase-foreground transition truncate max-w-[120px]"
             >
-              {product.categoryId}
+              {product.categoryName || product.category_name || "تصفح التصنيف"}
             </Link>
             <ChevronLeft className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
           </>
@@ -242,7 +242,7 @@ function ProductPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="rounded-md bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
-                  {product.categoryId || "عام"}
+                  {product.categoryName || product.category_name || (product.categoryId ? undefined : null) || "عام"}
                 </span>
                 <span className="flex items-center gap-1 text-xs font-bold text-success">
                   <CheckCircle2 className="h-3.5 w-3.5" />
@@ -259,7 +259,7 @@ function ProductPage() {
               )}
 
               {/* Rating */}
-              {Number(product.reviews) > 0 && (
+              {Number(product.reviews) > 0 ? (
                 <div
                   className="mt-3 flex items-center gap-3 text-xs"
                   aria-label={`تقييم ${product.rating} من 5`}
@@ -273,6 +273,8 @@ function ProductPage() {
                     {product.reviews} تقييم للمنتج
                   </span>
                 </div>
+              ) : (
+                <p className="mt-3 text-xs text-showcase-foreground/40">لا توجد تقييمات بعد</p>
               )}
             </div>
 
