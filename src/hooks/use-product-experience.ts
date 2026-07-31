@@ -51,6 +51,8 @@ export function useProductExperience(
   const drag = useRef({
     pointerId: -1,
     active: false,
+    startX: 0,
+    startY: 0,
     x: 0,
     y: 0,
     time: 0,
@@ -68,6 +70,22 @@ export function useProductExperience(
 
   const finishDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerId !== drag.current.pointerId) return;
+    const swipeX = event.clientX - drag.current.startX;
+    const swipeY = event.clientY - drag.current.startY;
+    if (Math.abs(swipeX) > 56 && Math.abs(swipeX) > Math.abs(swipeY) * 1.2) {
+      setActiveIndex((current) =>
+        clamp(current + (swipeX < 0 ? 1 : -1), 0, Math.max(0, productCount - 1)),
+      );
+    }
+    drag.current.active = false;
+    drag.current.pointerId = -1;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, [productCount]);
+
+  const cancelDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerId !== drag.current.pointerId) return;
     drag.current.active = false;
     drag.current.pointerId = -1;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -81,6 +99,8 @@ export function useProductExperience(
       drag.current = {
         pointerId: event.pointerId,
         active: true,
+        startX: event.clientX,
+        startY: event.clientY,
         x: event.clientX,
         y: event.clientY,
         time: performance.now(),
@@ -105,7 +125,7 @@ export function useProductExperience(
       drag.current.time = now;
     },
     onPointerUp: finishDrag,
-    onPointerCancel: finishDrag,
+    onPointerCancel: cancelDrag,
   };
 
   const stepPhysics = useCallback((delta: number) => {

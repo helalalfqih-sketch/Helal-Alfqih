@@ -4,9 +4,16 @@ import type { LegacyProductShape } from "@/lib/data-adapter";
 import { ProductOverlay } from "./ProductOverlay";
 import { useProductExperience } from "@/hooks/use-product-experience";
 
-const ProductStage3D = lazy(() =>
-  import("./ProductStage3D").then((module) => ({ default: module.ProductStage3D })),
+const ProductHeroStage = lazy(() =>
+  import("./ProductHeroStage").then((module) => ({ default: module.ProductHeroStage })),
 );
+
+const AMBIENT_PALETTES = [
+  ["rgba(34,211,238,.22)", "rgba(37,99,235,.15)"],
+  ["rgba(168,85,247,.22)", "rgba(236,72,153,.13)"],
+  ["rgba(251,146,60,.22)", "rgba(239,68,68,.12)"],
+  ["rgba(52,211,153,.2)", "rgba(14,165,233,.13)"],
+];
 
 export function ImmersiveProductExperience({
   products,
@@ -18,6 +25,7 @@ export function ImmersiveProductExperience({
   const reduceMotion = useReducedMotion();
   const controller = useProductExperience(sectionRef, featured.length);
   const active = featured[controller.activeIndex] ?? featured[0];
+  const palette = AMBIENT_PALETTES[controller.activeIndex % AMBIENT_PALETTES.length];
 
   if (!active) return null;
 
@@ -25,15 +33,24 @@ export function ImmersiveProductExperience({
     <section
       ref={sectionRef}
       aria-label="تجربة المنتجات التفاعلية"
-      className="relative z-10 h-[320vh] px-3 sm:px-4"
+      className="relative z-10 h-[340vh] px-2 sm:px-4"
     >
-      <div className="sticky top-0 h-[100svh] py-3 sm:py-5">
+      <div className="sticky top-0 h-[100svh] py-2 sm:py-4">
         <div
           {...controller.pointerHandlers}
-          className="relative h-full min-h-[560px] cursor-grab overflow-hidden rounded-[2rem] border border-white/10 bg-[#030711] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9)] active:cursor-grabbing sm:rounded-[2.75rem]"
+          className="relative h-full min-h-[560px] cursor-grab overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#030711] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9)] active:cursor-grabbing sm:rounded-[2.75rem]"
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,0.16),transparent_35%),radial-gradient(circle_at_25%_80%,rgba(168,85,247,0.17),transparent_40%)]" />
+          <motion.div
+            key={`ambient-${controller.activeIndex}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage: `radial-gradient(circle at 72% 24%, ${palette[0]}, transparent 38%), radial-gradient(circle at 20% 82%, ${palette[1]}, transparent 42%)`,
+            }}
+          />
           <div className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:linear-gradient(rgba(255,255,255,.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.2)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(circle_at_center,black,transparent_78%)]" />
 
           {reduceMotion ? (
@@ -53,7 +70,7 @@ export function ImmersiveProductExperience({
                 </div>
               }
             >
-              <ProductStage3D
+              <ProductHeroStage
                 products={featured}
                 activeIndex={controller.activeIndex}
                 progress={controller.progress}

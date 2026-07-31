@@ -36,13 +36,11 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
   );
 }
 
-const CinematicStory = lazyWithRetry(() => import("@/components/cinematic-story").then(m => ({ default: m.CinematicStory })));
 const ImmersiveProductExperience = lazyWithRetry(() =>
   import("@/components/immersive/ImmersiveProductExperience").then((module) => ({
     default: module.ImmersiveProductExperience,
   })),
 );
-import { OptimizedImage } from "@/components/optimized-image";
 import { quickOrderLink } from "@/lib/whatsapp";
 import { useAppearance } from "@/components/appearance-provider";
 import { type ProductsLayoutConfig } from "@/lib/domain/appearance";
@@ -281,64 +279,19 @@ function HomePage() {
         </motion.div>
       </div>
 
-      {/* 1. CINEMATIC HERO (3D + Video + AI) */}
-      {settings.hero.enabled && settings.hero.type === "cinematic" && (
-        <div className="relative z-10 px-4">
-          <Suspense fallback={<Skeleton className="h-[50vh] w-full rounded-3xl" />}>
-            <CinematicStory />
-          </Suspense>
-        </div>
+      {/* 1. SINGLE-HERO 3D STAGE — the minimal first-fold experience */}
+      {allProducts.length > 0 && (
+        <Suspense fallback={<Skeleton className="mx-2 h-[96svh] rounded-[28px] sm:mx-4" />}>
+          <ImmersiveProductExperience
+            products={[...bestSellers, ...allProducts].filter(
+              (product, index, list) =>
+                list.findIndex((candidate) => candidate.id === product.id) === index,
+            )}
+          />
+        </Suspense>
       )}
 
-      {/* 2. FEATURED PRODUCT */}
-      {(bestSellers[0] || allProducts[0]) && (() => {
-        const featuredProduct = bestSellers[0] || allProducts[0];
-        return (
-          <motion.section {...revealProps} className="relative z-10 px-4 mt-2">
-            <div className="group relative overflow-hidden rounded-[32px] glass-float p-4 min-h-[150px] flex items-center">
-              {/* Optimized Background Image with zoom transition */}
-              <OptimizedImage
-                src={featuredProduct.image}
-                alt={featuredProduct.name}
-                size="large"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none"
-              />
-              {/* Dark/Blur Gradients Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/30 sm:from-black/90 sm:via-black/70 sm:to-black/20 z-0 pointer-events-none" />
-              <div className="absolute inset-0 bg-radial-gradient(circle at 10% 10%, var(--primary) 15%, transparent 60%) opacity-30 z-0 pointer-events-none" />
-
-              {/* Content on top */}
-              <div className="relative flex-1 flex flex-col gap-1.5 text-start w-full min-w-0 z-10">
-                <span className="self-start rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-black text-primary border border-primary/25">المنتج المميز ⭐</span>
-                <h3 className="text-sm font-black text-white line-clamp-1">{featuredProduct.name}</h3>
-                <p className="text-[11px] text-white/80 line-clamp-1 leading-relaxed max-w-xl">{featuredProduct.description}</p>
-                <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
-                  <Icons.Star className="h-3 w-3 fill-amber-400" />
-                  <span className="font-bold">{featuredProduct.rating}</span>
-                  <span className="text-white/50">({featuredProduct.reviews} تقييم)</span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-base font-black text-neon drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]">{formatPrice(featuredProduct.price)}</span>
-                  {featuredProduct.oldPrice && (
-                    <span className="text-[10px] line-through text-white/40">{formatPrice(featuredProduct.oldPrice)}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-1">
-                  <Link to="/product/$slug" params={{ slug: featuredProduct.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-[10px] font-bold text-white transition backdrop-blur-sm border border-white/10">
-                    تفاصيل
-                  </Link>
-                  <a href={quickOrderLink(featuredProduct)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-1.5 text-[10px] font-black text-success-foreground hover:bg-success/90 transition shadow-md">
-                    <Icons.MessageCircle className="h-3.5 w-3.5" />
-                    اطلب الآن
-                  </a>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-        );
-      })()}
-
-      {/* 3. AI SEARCH */}
+      {/* 2. AI SEARCH */}
       <motion.section {...revealProps} className="relative z-10 px-4 mt-2">
         <div className="rounded-[32px] glass-dark glass-shimmer p-5 shadow-lg text-center space-y-3">
           <div className="text-center">
@@ -489,18 +442,6 @@ function HomePage() {
             {dailyDeals.slice(0, settings.products_layout.dailyDealsLimit ?? settings.sections.deals.limit).map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         </motion.section>
-      )}
-
-      {/* 8. IMMERSIVE 3D PRODUCT STORY — scroll + inertial drag */}
-      {allProducts.length > 0 && (
-        <Suspense fallback={<Skeleton className="mx-4 h-[82svh] rounded-[32px]" />}>
-          <ImmersiveProductExperience
-            products={[...bestSellers, ...allProducts].filter(
-              (product, index, list) =>
-                list.findIndex((candidate) => candidate.id === product.id) === index,
-            )}
-          />
-        </Suspense>
       )}
 
       {/* 8b. VIRTUAL SHOWROOM */}

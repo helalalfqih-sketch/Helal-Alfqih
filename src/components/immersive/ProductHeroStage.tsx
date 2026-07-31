@@ -8,14 +8,23 @@ import {
   useProgress,
   useTexture,
 } from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import * as THREE from "three";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MotionValue } from "framer-motion";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 
 type RotationState = { x: number; y: number };
 
-type ProductStage3DProps = {
+type ProductHeroStageProps = {
   products: LegacyProductShape[];
   activeIndex: number;
   progress: MotionValue<number>;
@@ -55,7 +64,7 @@ function ProductImage({ url }: { url: string }) {
 
 function ProductModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  const clone = useMemo(() => scene.clone(true), [scene]);
+  const clone = useMemo(() => cloneSkeleton(scene), [scene]);
   useEffect(() => {
     clone.traverse((node) => {
       if (!(node instanceof THREE.Mesh)) return;
@@ -66,12 +75,27 @@ function ProductModel({ url }: { url: string }) {
   return <primitive object={clone} />;
 }
 
+class ModelErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 function ProductObject({ product }: { product: LegacyProductShape }) {
   return (
     <Center top>
       <group scale={product.modelUrl ? 1.25 : 1}>
         {product.modelUrl ? (
-          <ProductModel url={product.modelUrl} />
+          <ModelErrorBoundary fallback={<ProductImage url={product.image} />}>
+            <ProductModel url={product.modelUrl} />
+          </ModelErrorBoundary>
         ) : (
           <ProductImage url={product.image} />
         )}
@@ -94,18 +118,55 @@ function Loader() {
   );
 }
 
+function ProductLayer({
+  product,
+  index,
+  activeIndex,
+}: {
+  product: LegacyProductShape;
+  index: number;
+  activeIndex: number;
+}) {
+  const layer = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (!layer.current) return;
+    const active = index === activeIndex;
+    const direction = index < activeIndex ? -1 : 1;
+    const targetScale = active ? 1 : 0.001;
+    layer.current.scale.setScalar(
+      THREE.MathUtils.damp(layer.current.scale.x, targetScale, 10, delta),
+    );
+    layer.current.position.x = THREE.MathUtils.damp(
+      layer.current.position.x,
+      active ? 0 : direction * 2.6,
+      9,
+      delta,
+    );
+    layer.current.rotation.y = THREE.MathUtils.damp(
+      layer.current.rotation.y,
+      active ? 0 : direction * Math.PI * 0.42,
+      9,
+      delta,
+    );
+    layer.current.visible = active || layer.current.scale.x > 0.018;
+  });
+  return (
+    <group ref={layer} scale={index === activeIndex ? 1 : 0.001}>
+      <ProductObject product={product} />
+    </group>
+  );
+}
+
 function Scene({
   products,
   activeIndex,
   progress,
   rotation,
   stepPhysics,
-}: ProductStage3DProps) {
+}: ProductHeroStageProps) {
   const rig = useRef<THREE.Group>(null);
   const light = useRef<THREE.PointLight>(null);
   const { camera } = useThree();
-  const activeProduct = products[activeIndex] ?? products[0];
-
   useFrame((state, delta) => {
     if (!rig.current) return;
     stepPhysics(delta);
@@ -151,7 +212,7 @@ function Scene({
     }
   });
 
-  if (!activeProduct) return null;
+  if (!products.length) return null;
 
   return (
     <>
@@ -160,8 +221,15 @@ function Scene({
       <pointLight ref={light} position={[-3, 1.5, 2]} intensity={18} color="#67e8f9" />
       <pointLight position={[3, -0.5, -2]} intensity={11} color="#a855f7" />
       <Suspense fallback={<Loader />}>
-        <group ref={rig} key={activeProduct.id}>
-          <ProductObject product={activeProduct} />
+        <group ref={rig}>
+          {products.map((product, index) => (
+            <ProductLayer
+              key={product.id}
+              product={product}
+              index={index}
+              activeIndex={activeIndex}
+            />
+          ))}
         </group>
         <Environment preset="city" environmentIntensity={0.35} />
       </Suspense>
@@ -180,7 +248,7 @@ function Scene({
   );
 }
 
-export function ProductStage3D(props: ProductStage3DProps) {
+export function ProductHeroStage(props: ProductHeroStageProps) {
   return (
     <Canvas
       shadows
