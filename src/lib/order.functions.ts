@@ -267,12 +267,29 @@ export const createOrder = createServerFn({ method: "POST" })
     // P0: Compute discount server-side (currently 0 — coupon validation TBD).
     const validatedDiscount = 0;
 
-    // P0: Compute shipping fee server-side from centralized config.
-    //     TODO: Load freeShippingThreshold from storefront_settings when available.
+    // P0: Compute shipping fee server-side using CMS storefront settings with fallback.
+    let freeShippingThreshold = DEFAULT_FREE_SHIPPING_THRESHOLD;
+    let shippingFeeDefault = DEFAULT_SHIPPING_FEE;
+
+    try {
+      const { data: sfData } = await supabaseAdmin
+        .from("storefront_settings")
+        .select("settings")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      const rawCart = (sfData?.settings as any)?.cart;
+      if (rawCart && typeof rawCart.freeShippingThreshold === "number" && rawCart.freeShippingThreshold >= 0) {
+        freeShippingThreshold = rawCart.freeShippingThreshold;
+      }
+    } catch (sfEx) {
+      console.warn("[createOrder] storefront settings shipping config skipped:", sfEx);
+    }
+
     const shippingFee = computeShippingFee(
       subtotal - validatedDiscount,
-      DEFAULT_FREE_SHIPPING_THRESHOLD,
-      DEFAULT_SHIPPING_FEE,
+      freeShippingThreshold,
+      shippingFeeDefault,
     );
 
     const total = Math.max(0, subtotal - validatedDiscount + shippingFee);
