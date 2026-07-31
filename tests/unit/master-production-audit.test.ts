@@ -14,6 +14,7 @@ const watchProduct = {
   image: "https://example.com/watch.webp",
   slug: "smart-watch-samsung",
   price: 25_000,
+  stock: 10,
   rating: 5,
   reviews: 2,
 } as LegacyProductShape;
@@ -27,6 +28,7 @@ const carProduct = {
   image: "https://example.com/car-led.webp",
   slug: "car-led-light",
   price: 8_500,
+  stock: 10,
   rating: 4,
   reviews: 12,
 } as LegacyProductShape;
