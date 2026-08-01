@@ -363,6 +363,28 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
+    // Fallback: if live DB table does not have idempotency_key column yet, retry without it
+    if ((orderErr || !order) && orderInsert.idempotency_key) {
+      if (
+        orderErr?.message?.includes("idempotency_key") ||
+        orderErr?.message?.includes("schema cache") ||
+        orderErr?.code === "PGRST204"
+      ) {
+        console.warn(
+          "[createOrder] Live DB orders table missing idempotency_key column, retrying without it:",
+          orderErr.message,
+        );
+        const { idempotency_key, ...safeInsert } = orderInsert as any;
+        const retryRes = await (supabaseAdmin as any)
+          .from("orders")
+          .insert(safeInsert)
+          .select("id")
+          .single();
+        order = retryRes.data;
+        orderErr = retryRes.error;
+      }
+    }
+
     if (orderErr || !order) {
       console.error("[createOrder] Order Insert Failure:", orderErr);
       if (
