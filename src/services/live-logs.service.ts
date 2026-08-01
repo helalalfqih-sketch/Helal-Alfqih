@@ -125,12 +125,15 @@ export function generateSuggestedFix(
 // This starts empty; real errors are pushed via logLiveErrorFn()
 const inMemoryLiveLogs: SystemLiveLogEntry[] = [];
 
-// Helper to get service-role client on server or fallback to client
+// Helper to get service-role client on server or fallback safely to anon client
 async function getDbClient() {
   try {
-    const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = getSupabaseAdmin();
-    if (admin) return admin;
+    const hasServiceKey = typeof process !== "undefined" && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    if (hasServiceKey) {
+      const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const admin = getSupabaseAdmin();
+      if (admin) return admin;
+    }
   } catch {
     // fallback
   }

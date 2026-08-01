@@ -26,11 +26,16 @@ function verifyMetaSignature(rawBody: string, signatureHeader: string | null): b
 // ── Service Role DB (Narrow Gateway — only after HMAC + integration verified) ──
 
 async function getWebhookServiceDb() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  if (!supabaseAdmin) {
-    throw new Error("503: Service Role client unavailable for webhook processing");
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) return supabaseAdmin;
+    } catch {
+      // fallback to anon client
+    }
   }
-  return supabaseAdmin;
+  const { supabase } = await import("@/integrations/supabase/client");
+  return supabase;
 }
 
 // ── Tenant Resolution (Strict — No Fallback) ──────────────────────────────
