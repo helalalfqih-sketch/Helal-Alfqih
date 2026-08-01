@@ -17,6 +17,7 @@ import {
   detectVideoProvider,
   parsePrice,
   deduplicateUrls,
+  mergeImportedImages,
   slugify,
 } from "@/lib/catalog/catalog-csv";
 
@@ -215,6 +216,28 @@ describe("deduplicateUrls", () => {
   it("preserves source order", () => {
     const urls = ["https://a.com/1.jpg", "https://b.com/2.jpg", "https://a.com/1.jpg"];
     expect(deduplicateUrls(urls)).toEqual(["https://a.com/1.jpg", "https://b.com/2.jpg"]);
+  });
+});
+
+describe("mergeImportedImages", () => {
+  it("keeps the imported primary image first and retains existing media", () => {
+    expect(
+      mergeImportedImages(
+        ["https://new.example/main.jpg", "https://new.example/extra.jpg"],
+        ["https://old.example/existing.jpg"],
+      ),
+    ).toEqual([
+      "https://new.example/main.jpg",
+      "https://new.example/extra.jpg",
+      "https://old.example/existing.jpg",
+    ]);
+  });
+
+  it("is idempotent and creates no duplicate media on a second import", () => {
+    const imported = ["https://new.example/main.jpg", "https://new.example/extra.jpg"];
+    const firstImport = mergeImportedImages(imported, ["https://old.example/existing.jpg"]);
+    const secondImport = mergeImportedImages(imported, firstImport);
+    expect(secondImport).toEqual(firstImport);
   });
 });
 

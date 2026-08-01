@@ -17,7 +17,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { getRequest } from "@tanstack/react-start/server";
-import { parseCatalogCsv, slugify, type NormalizedCatalogRow } from "@/lib/catalog/catalog-csv";
+import { mergeImportedImages, parseCatalogCsv, slugify } from "@/lib/catalog/catalog-csv";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,9 +82,45 @@ function validateFetchUrl(rawUrl: string): URL {
 
 // ─── Batch upsert helper ──────────────────────────────────────────────────────
 
-const BATCH_SIZE = 50;
+export const CATALOG_IMPORT_BATCH_SIZE = 50;
 
 type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
+type ExistingProductMedia = Pick<
+  Database["public"]["Tables"]["products"]["Row"],
+  "external_id" | "slug" | "images" | "video_playback_id"
+>;
+
+type PreparedProduct = ProductInsert & {
+  _rowNumber: number;
+  _imageCount: number;
+  _hasVideo: boolean;
+  _importedImages: string[];
+  _importedVideoUrl: string | null;
+  _wasExisting: boolean;
+};
+
+async function loadExistingProductMedia(
+  supabase: SupabaseClient<Database>,
+  tenantId: string,
+  column: "external_id" | "slug",
+  values: string[],
+): Promise<ExistingProductMedia[]> {
+  const uniqueValues = [...new Set(values)];
+  const existing: ExistingProductMedia[] = [];
+
+  for (let start = 0; start < uniqueValues.length; start += CATALOG_IMPORT_BATCH_SIZE) {
+    const batch = uniqueValues.slice(start, start + CATALOG_IMPORT_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("products")
+      .select("external_id,slug,images,video_playback_id")
+      .eq("tenant_id", tenantId)
+      .in(column, batch);
+    if (error) throw error;
+    existing.push(...(data ?? []));
+  }
+
+  return existing;
+}
 
 async function upsertBatch(
   supabase: SupabaseClient<Database>,
@@ -128,10 +164,7 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<ImportResult> => {
-    const { supabase, userId } = context as unknown as {
-      supabase: SupabaseClient<Database>;
-      userId: string;
-    };
+    const { supabase, userId } = context;
 
     // ── Admin authorization ──────────────────────────────────────────────────
     const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
@@ -208,11 +241,7 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       });
     }
 
-    const records: (ProductInsert & {
-      _rowNumber: number;
-      _imageCount: number;
-      _hasVideo: boolean;
-    })[] = [];
+    const records: PreparedProduct[] = [];
 
     for (const row of validRows) {
       let slug = slugify(row.title, row.externalId ?? `product-${row.rowNumber}`);
@@ -225,12 +254,16 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       slug = uniq;
 
       const videoItems = row.media.filter((m) => m.type === "video");
-      const hasVideo = videoItems.length > 0;
+      const importedVideoUrl = videoItems[0]?.url ?? null;
+      const hasVideo = importedVideoUrl !== null;
 
       records.push({
         _rowNumber: row.rowNumber,
         _imageCount: row.images.length,
         _hasVideo: hasVideo,
+        _importedImages: row.images,
+        _importedVideoUrl: importedVideoUrl,
+        _wasExisting: false,
         tenant_id: tenantId,
         slug,
         name: row.title,
@@ -253,8 +286,41 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       });
     }
 
+    // Read existing media first so re-imports merge rather than erase it.
+    const existingByExternalId = new Map<string, ExistingProductMedia>();
+    const existingBySlug = new Map<string, ExistingProductMedia>();
+    const existingProducts = [
+      ...(await loadExistingProductMedia(
+        supabase,
+        tenantId,
+        "external_id",
+        records.flatMap((record) => (record.external_id ? [record.external_id] : [])),
+      )),
+      ...(await loadExistingProductMedia(
+        supabase,
+        tenantId,
+        "slug",
+        records.flatMap((record) => (record.external_id ? [] : [record.slug])),
+      )),
+    ];
+
+    for (const existing of existingProducts) {
+      if (existing.external_id) existingByExternalId.set(existing.external_id, existing);
+      existingBySlug.set(existing.slug, existing);
+    }
+
+    for (const record of records) {
+      const existing = record.external_id
+        ? existingByExternalId.get(record.external_id)
+        : existingBySlug.get(record.slug);
+      record._wasExisting = existing !== undefined;
+      record.images = mergeImportedImages(record._importedImages, existing?.images ?? []);
+      record.video_playback_id = record._importedVideoUrl ?? existing?.video_playback_id ?? null;
+    }
+
     // ── Batched upserts ───────────────────────────────────────────────────────
-    let totalUpserted = 0;
+    let inserted = 0;
+    let updated = 0;
     let primaryImagesImported = 0;
     let additionalImagesImported = 0;
     let videosDiscovered = 0;
@@ -266,9 +332,19 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     const withoutExt = records.filter((r) => !r.external_id);
 
     // Process withExt in batches
-    for (let start = 0; start < withExt.length; start += BATCH_SIZE) {
-      const batch = withExt.slice(start, start + BATCH_SIZE);
-      const cleanBatch = batch.map(({ _rowNumber, _imageCount, _hasVideo, ...rest }) => rest);
+    for (let start = 0; start < withExt.length; start += CATALOG_IMPORT_BATCH_SIZE) {
+      const batch = withExt.slice(start, start + CATALOG_IMPORT_BATCH_SIZE);
+      const cleanBatch = batch.map(
+        ({
+          _rowNumber,
+          _imageCount,
+          _hasVideo,
+          _importedImages,
+          _importedVideoUrl,
+          _wasExisting,
+          ...rest
+        }) => rest,
+      );
       const { upserted, error } = await upsertBatch(supabase, cleanBatch as ProductInsert[]);
       if (error) {
         // Mark all rows in this batch as failed
@@ -282,8 +358,12 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
           });
         }
       } else {
-        totalUpserted += upserted;
+        if (upserted !== batch.length) {
+          throw new Error("تعذر تأكيد عدد المنتجات المعالجة في دفعة الاستيراد");
+        }
         for (const r of batch) {
+          if (r._wasExisting) updated++;
+          else inserted++;
           if (r._imageCount > 0) primaryImagesImported++;
           if (r._imageCount > 1) additionalImagesImported += r._imageCount - 1;
           if (r._hasVideo) {
@@ -295,9 +375,19 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     }
 
     // Process withoutExt in batches (no external_id → conflict on slug)
-    for (let start = 0; start < withoutExt.length; start += BATCH_SIZE) {
-      const batch = withoutExt.slice(start, start + BATCH_SIZE);
-      const cleanBatch = batch.map(({ _rowNumber, _imageCount, _hasVideo, ...rest }) => rest);
+    for (let start = 0; start < withoutExt.length; start += CATALOG_IMPORT_BATCH_SIZE) {
+      const batch = withoutExt.slice(start, start + CATALOG_IMPORT_BATCH_SIZE);
+      const cleanBatch = batch.map(
+        ({
+          _rowNumber,
+          _imageCount,
+          _hasVideo,
+          _importedImages,
+          _importedVideoUrl,
+          _wasExisting,
+          ...rest
+        }) => rest,
+      );
       const { error, count } = await supabase
         .from("products")
         .upsert(cleanBatch as ProductInsert[], {
@@ -315,8 +405,12 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
           });
         }
       } else {
-        totalUpserted += count ?? 0;
+        if ((count ?? batch.length) !== batch.length) {
+          throw new Error("تعذر تأكيد عدد المنتجات المعالجة في دفعة الاستيراد");
+        }
         for (const r of batch) {
+          if (r._wasExisting) updated++;
+          else inserted++;
           if (r._imageCount > 0) primaryImagesImported++;
           if (r._imageCount > 1) additionalImagesImported += r._imageCount - 1;
           if (r._hasVideo) {
@@ -328,13 +422,13 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     }
 
     const failedCount = failures.filter((f) => f.code === "UPSERT_ERROR").length;
-    const productsProcessed = totalUpserted;
+    const productsProcessed = inserted + updated;
 
     return {
       csvRows,
       validRows: validRows.length,
-      inserted: productsProcessed,
-      updated: 0, // Supabase upsert doesn't distinguish insert vs update without extra queries
+      inserted,
+      updated,
       unchanged: 0,
       skipped: skippedRows.length,
       failed: failedCount,
