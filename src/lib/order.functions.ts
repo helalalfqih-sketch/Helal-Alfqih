@@ -98,23 +98,34 @@ async function loadShippingSettings(
   tenantId: string,
   db: SupabaseAdminClient,
 ): Promise<{ freeShippingThreshold: number; defaultShippingFee: number }> {
-  const selectSetting = async (scopedTenantId: string | null) => {
-    let query = db.from("storefront_settings").select("value").eq("key", "cart_config");
-    query = scopedTenantId ? query.eq("tenant_id", scopedTenantId) : query.is("tenant_id", null);
-    return query.maybeSingle();
-  };
+  try {
+    const selectSetting = async (scopedTenantId: string | null) => {
+      let query = db.from("storefront_settings").select("value").eq("key", "cart_config");
+      query = scopedTenantId ? query.eq("tenant_id", scopedTenantId) : query.is("tenant_id", null);
+      return query.maybeSingle();
+    };
 
-  let { data, error } = await selectSetting(tenantId);
-  if (!data && !error) ({ data, error } = await selectSetting(null));
-  if (error) throw new Error(`Shipping settings unavailable: ${error.message}`);
-  if (!data) throw new Error("Shipping settings not configured for tenant");
+    let { data } = await selectSetting(tenantId);
+    if (!data) ({ data } = await selectSetting(null));
 
-  return z
-    .object({
-      freeShippingThreshold: z.number().min(0),
-      defaultShippingFee: z.number().min(0),
-    })
-    .parse(data.value);
+    const val = (data?.value as Record<string, any>) || {};
+    const freeShippingThreshold = Number(
+      val.freeShippingThreshold ?? val.free_shipping_threshold ?? 30000,
+    );
+    const defaultShippingFee = Number(
+      val.defaultShippingFee ?? val.default_shipping_fee ?? 3000,
+    );
+
+    return {
+      freeShippingThreshold: isNaN(freeShippingThreshold) ? 30000 : freeShippingThreshold,
+      defaultShippingFee: isNaN(defaultShippingFee) ? 3000 : defaultShippingFee,
+    };
+  } catch {
+    return {
+      freeShippingThreshold: 30000,
+      defaultShippingFee: 3000,
+    };
+  }
 }
 
 // ---------- server functions ----------
