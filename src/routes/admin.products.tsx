@@ -43,6 +43,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentTenant } from "@/components/tenant-provider";
+import { publishProductToFacebook } from "@/lib/facebook.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/admin/products")({
   component: ProductsPage,
@@ -58,6 +60,7 @@ function ProductsPage() {
   const [categoryId, setCategoryId] = useState<string>("");
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState<number>(1);
+  const publishToFacebookFn = useServerFn(publishProductToFacebook);
   const pageSize = 20;
   const [showInstructions, setShowInstructions] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -298,27 +301,21 @@ function ProductsPage() {
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
+  const publishToFbMut = useMutation({
+    mutationFn: (productId: string) => publishToFacebookFn({ data: { productId } }),
+    onSuccess: (res) => {
+      toast.success(res.message || "تم النشر على فيسبوك بنجاح! 🎉");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "فشل النشر على فيسبوك.");
+      if (err.message?.includes("لم يتم ربط حساب فيسبوك")) {
+        navigate({ to: "/admin/integrations/facebook" });
+      }
+    },
+  });
+
   const shareFacebook = (p: (typeof products)[0]) => {
-    const url = `${window.location.origin}/product/${p.slug}`;
-    const cleanDescription = (p.description || "").replace(/https?:\/\/[^\s]+/g, "").slice(0, 300).trim();
-    const tags = `#اندكس_ستور #تسوق_اونلاين #اليمن #عروض_خاصة`;
-    const text = `🛍️ ${p.name}\n\n${cleanDescription}...\n\n💰 السعر: ${p.price} ${p.currency}\n\n${tags}`;
-    
-    // Copy to clipboard first
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("تم نسخ تفاصيل المنتج للحافظة! يمكنك الآن لصقها في منشورك على فيسبوك.");
-      
-      // Open the specific Facebook page
-      setTimeout(() => {
-        window.open(`https://www.facebook.com/profile.php?id=61568452704665`, "_blank");
-      }, 1500);
-    }).catch(() => {
-      // Fallback to standard sharer if clipboard fails
-      window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-        "_blank",
-      );
-    });
+    publishToFbMut.mutate(p.id);
   };
 
   return (
@@ -771,8 +768,12 @@ function ProductsPage() {
                           <span>واتساب</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => shareFacebook(p)}>
-                          <Share2 className="me-2 h-3.5 w-3.5 text-primary" />
-                          <span>فيسبوك</span>
+                          {publishToFbMut.isPending && publishToFbMut.variables === p.id ? (
+                            <Loader2 className="me-2 h-3.5 w-3.5 animate-spin text-primary" />
+                          ) : (
+                            <Share2 className="me-2 h-3.5 w-3.5 text-primary" />
+                          )}
+                          <span>نشر في فيسبوك</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => duplicateMut.mutate(p.id)}>
                           <Copy className="me-2 h-3.5 w-3.5 text-muted-foreground" />
