@@ -365,8 +365,24 @@ export const createOrder = createServerFn({ method: "POST" })
 
     if (orderErr || !order) {
       console.error("[createOrder] Order Insert Failure:", orderErr);
-      if (orderErr?.code === "23505" || orderErr?.message?.includes("idempotency")) {
-        throw new Error("تم تسجيل هذا الطلب بالفعل. يرجى مراجعة طلباتك.");
+      if (
+        (orderErr?.code === "23505" || orderErr?.message?.includes("idempotency")) &&
+        data.idempotencyKey
+      ) {
+        const { data: existing } = await supabaseAdmin
+          .from("orders")
+          .select("id, total, currency")
+          .eq("idempotency_key", data.idempotencyKey)
+          .maybeSingle();
+
+        if (existing) {
+          return {
+            orderId: existing.id,
+            total: existing.total ?? total,
+            currency: existing.currency ?? currency,
+            itemsCount: data.items.length,
+          };
+        }
       }
       throw new Error(`تعذّر إنشاء الطلب: ${orderErr?.message || "خطأ في قاعدة البيانات"}`);
     }
