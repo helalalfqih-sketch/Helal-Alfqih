@@ -278,9 +278,10 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
             try {
               db = await getWebhookServiceDb();
             } catch {
-              logLiveErrorFn({ data: {
+              logServerError({
                 errorName: "[WhatsApp] Service Role DB Unavailable",
-                errorType: "Supabase DB", level: "error",
+                errorType: "Supabase DB",
+                level: "error",
                 location: "/api/webhooks/whatsapp",
                 cause: "Supabase Service Role client is unavailable — WhatsApp media pipeline cannot proceed",
                 context: { method: "POST", status: 503, host: "indexes-store.vercel.app" },
