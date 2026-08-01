@@ -638,11 +638,8 @@ export const adminListProducts = createServerFn({ method: "GET" })
       resultList = filtered.slice(offset, offset + pageSize);
     }
 
-    // Attach total count metadata to the array object for paginated callers
-    (resultList as any).total = total;
-    (resultList as any).totalCount = total;
-
-    return resultList;
+    // Return an object instead of array with custom properties to survive JSON serialization
+    return { items: resultList, total };
   });
 
 

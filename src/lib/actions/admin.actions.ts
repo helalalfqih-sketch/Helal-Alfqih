@@ -46,8 +46,13 @@ export const listAdminProductsInput = z.object({
 });
 export type ListAdminProductsInput = z.infer<typeof listAdminProductsInput>;
 
-export const listAdminProducts = (input: ListAdminProductsInput = {}) =>
-  adminListProducts({ data: listAdminProductsInput.parse(input) });
+export const listAdminProducts = async (input: ListAdminProductsInput = {}) => {
+  const res = await adminListProducts({ data: listAdminProductsInput.parse(input) });
+  const arr = res.items as any;
+  arr.total = res.total;
+  arr.totalCount = res.total;
+  return arr as (typeof res.items & { total: number; totalCount: number });
+};
 
 export const getAdminProduct = (id: string) =>
   adminGetProduct({ data: { id: z.string().uuid().parse(id) } });

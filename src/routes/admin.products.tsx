@@ -252,7 +252,7 @@ function ProductsPage() {
     },
   });
 
-  const products = useMemo(() => productsQ.data ?? [], [productsQ.data]);
+  const products = useMemo(() => productsQ.data ?? ([] as any[]), [productsQ.data]);
   const categories = categoriesQ.data ?? [];
 
   // Generate dynamic Feed URL based on tenant ID
@@ -293,17 +293,32 @@ function ProductsPage() {
   const shareWhatsApp = (p: (typeof products)[0]) => {
     const url = `${window.location.origin}/product/${p.slug}`;
     const text = encodeURIComponent(
-      `🛍️ *${p.name}*\n\n${p.description.slice(0, 150)}...\n\n💰 السعر: ${p.price} ${p.currency}\n\n🔗 للطلب واستعراض المنتج: ${url}`,
+      `🛍️ *${p.name}*\n\n${(p.description || "").slice(0, 150)}...\n\n💰 السعر: ${p.price} ${p.currency}\n\n🔗 للطلب واستعراض المنتج: ${url}`,
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const shareFacebook = (p: (typeof products)[0]) => {
     const url = `${window.location.origin}/product/${p.slug}`;
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      "_blank",
-    );
+    const cleanDescription = (p.description || "").replace(/https?:\/\/[^\s]+/g, "").slice(0, 300).trim();
+    const tags = `#اندكس_ستور #تسوق_اونلاين #اليمن #عروض_خاصة`;
+    const text = `🛍️ ${p.name}\n\n${cleanDescription}...\n\n💰 السعر: ${p.price} ${p.currency}\n\n${tags}`;
+    
+    // Copy to clipboard first
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("تم نسخ تفاصيل المنتج للحافظة! يمكنك الآن لصقها في منشورك على فيسبوك.");
+      
+      // Open the specific Facebook page
+      setTimeout(() => {
+        window.open(`https://www.facebook.com/profile.php?id=61568452704665`, "_blank");
+      }, 1500);
+    }).catch(() => {
+      // Fallback to standard sharer if clipboard fails
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+        "_blank",
+      );
+    });
   };
 
   return (
