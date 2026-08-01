@@ -473,7 +473,7 @@ export const createOrder = createServerFn({ method: "POST" })
     // 6b. Multi-Vendor Sub-Orders splitting (best-effort)
     try {
       const { splitOrderIntoVendorOrders } = await import("@/lib/services/vendor-order.service");
-      const orderItemsWithVendor = insertedItems.map((item) => {
+      const orderItemsWithVendor = (insertedItems ?? []).map((item) => {
         const matchingRow = itemRows.find((r) => r.product_id === item.product_id);
         return {
           ...item,
