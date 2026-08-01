@@ -33,12 +33,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const SUPABASE_URL =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    "https://wtudcippyxbaobqzbmok.supabase.co";
   const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    "";
+    "sb_publishable_xAxjCnoAAUs5x1d7Njbsbw_HHpypzrz";
 
   if (!SUPABASE_URL || !key) {
     console.warn("[Supabase] SUPABASE_URL or API key is not configured.");
