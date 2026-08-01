@@ -288,7 +288,7 @@ function VideoModal({
           ref={closeButtonRef}
           type="button"
           onClick={onClose}
-          className="absolute end-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
+          className="absolute end-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition"
           aria-label="إغلاق الفيديو"
         >
           <X className="h-4 w-4" />

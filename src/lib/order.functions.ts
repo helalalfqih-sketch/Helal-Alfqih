@@ -320,20 +320,11 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
-    if ((orderErr || !order) && orderInsert.idempotency_key) {
-      console.warn("[createOrder] Order Insert failed with idempotency_key, retrying without it:", orderErr?.message);
-      delete orderInsert.idempotency_key;
-      const fallbackRes = await (supabaseAdmin as any)
-        .from("orders")
-        .insert(orderInsert)
-        .select("id")
-        .single();
-      order = fallbackRes.data;
-      orderErr = fallbackRes.error;
-    }
-
     if (orderErr || !order) {
       console.error("[createOrder] Order Insert Failure:", orderErr);
+      if (orderErr?.code === "23505" || orderErr?.message?.includes("idempotency")) {
+        throw new Error("تم تسجيل هذا الطلب بالفعل. يرجى مراجعة طلباتك.");
+      }
       throw new Error(`تعذّر إنشاء الطلب: ${orderErr?.message || "خطأ في قاعدة البيانات"}`);
     }
 

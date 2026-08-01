@@ -35,8 +35,11 @@ export function PersistentShowcaseCanvas() {
 
   const products = (allProductsRaw as LegacyProductShape[] | undefined) ?? [];
 
-  // Only run 3D canvas if hero is enabled and there are products
-  const shouldRender3D = settings?.hero?.enabled !== false && settings?.hero?.type !== "cinematic";
+  // Only run 3D canvas on non-home pages if hero is enabled and not cinematic
+  const shouldRender3D =
+    !isHome &&
+    settings?.hero?.enabled !== false &&
+    settings?.hero?.type !== "cinematic";
 
   if (!shouldRender3D) return null;
 

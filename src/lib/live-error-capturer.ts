@@ -14,6 +14,16 @@ interface CapturerOptions {
 // In-memory set for deduplicating identical errors within 5 seconds
 const recentlyLoggedErrors = new Set<string>();
 
+function sanitizePii(str: string): string {
+  if (!str || typeof str !== "string") return str;
+  return str
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED]")
+    .replace(/sb_secret_[A-Za-z0-9_-]+/g, "[SECRET_KEY_REDACTED]")
+    .replace(/sb_publishable_[A-Za-z0-9_-]+/g, "[PUB_KEY_REDACTED]")
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[EMAIL_REDACTED]")
+    .replace(/(?:\+?967|0)?\s*[7137][0-9]{8}/g, "[PHONE_REDACTED]");
+}
+
 /**
  * Report a live error from anywhere in the application (Client or Server).
  */
@@ -35,19 +45,22 @@ export async function reportLiveError(opts: CapturerOptions): Promise<void> {
     const defaultType = isStorefront ? "Storefront UI" : "Admin UI";
 
     const errorType = opts.errorType || defaultType;
+    const cleanCause = sanitizePii(opts.cause);
+    const cleanStack = sanitizePii(opts.stackTrace || (new Error().stack || ""));
+
     const suggestedFix =
       opts.suggestedFix ||
-      generateSuggestedFix(opts.errorName, opts.cause, loc, opts.stackTrace, errorType);
+      generateSuggestedFix(opts.errorName, cleanCause, loc, cleanStack, errorType);
 
     await logLiveErrorFn({
       data: {
-        errorName: opts.errorName,
+        errorName: sanitizePii(opts.errorName),
         errorType,
         level: opts.level || "error",
         location: loc,
-        cause: opts.cause,
+        cause: cleanCause,
         suggestedFix,
-        stackTrace: opts.stackTrace || (new Error().stack || ""),
+        stackTrace: cleanStack,
         context: {
           userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Server",
           url: typeof window !== "undefined" ? window.location.href : "Server",
