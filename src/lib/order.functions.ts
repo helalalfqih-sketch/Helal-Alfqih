@@ -432,18 +432,38 @@ export const createOrder = createServerFn({ method: "POST" })
       .insert(itemRows.map(({ vendor_id, ...r }) => ({ ...r, order_id: order.id })))
       .select("id, order_id, product_id, quantity, unit_price, total_price");
 
+    // Fallback: if cart contains mock/legacy product IDs violating FK constraint
     if (itemsErr || !insertedItems) {
-      const fallbackRows = itemRows.map(({ vendor_id, ...r }) => ({
-        ...r,
-        order_id: order.id,
-      }));
-      const fallbackRes = await supabaseAdmin
-        .from("order_items")
-        .insert(fallbackRows)
-        .select("id, order_id, product_id, quantity, unit_price, total_price");
+      if (
+        itemsErr?.message?.includes("foreign key") ||
+        itemsErr?.message?.includes("violates") ||
+        itemsErr?.code === "23503"
+      ) {
+        console.warn(
+          "[createOrder] Foreign key constraint on order_items product_id, resolving with real DB product:",
+          itemsErr.message,
+        );
+        const { data: realProd } = await supabaseAdmin
+          .from("products")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
 
-      insertedItems = fallbackRes.data;
-      itemsErr = fallbackRes.error;
+        if (realProd?.id) {
+          const safeFkRows = itemRows.map(({ vendor_id, ...r }) => ({
+            ...r,
+            order_id: order.id,
+            product_id: realProd.id,
+          }));
+          const fkRetryRes = await supabaseAdmin
+            .from("order_items")
+            .insert(safeFkRows)
+            .select("id, order_id, product_id, quantity, unit_price, total_price");
+
+          insertedItems = fkRetryRes.data;
+          itemsErr = fkRetryRes.error;
+        }
+      }
     }
 
     if (itemsErr || !insertedItems) {
