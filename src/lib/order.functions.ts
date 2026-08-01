@@ -363,38 +363,42 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
-    // Fallback 1: if live DB table does not have idempotency_key or new columns yet, retry progressively
+    // Fallback: if live DB table does not have new schema columns yet, retry with guaranteed legacy schema
     if (orderErr || !order) {
       if (
         orderErr?.message?.includes("schema cache") ||
         orderErr?.message?.includes("idempotency") ||
         orderErr?.message?.includes("column") ||
+        orderErr?.message?.includes("shipping_fee") ||
+        orderErr?.message?.includes("subtotal") ||
         orderErr?.code === "PGRST204"
       ) {
         console.warn(
-          "[createOrder] Live DB orders table schema discrepancy, retrying with safe fallback:",
+          "[createOrder] Live DB orders table schema discrepancy, retrying with guaranteed legacy columns:",
           orderErr.message,
         );
-        const { idempotency_key, ...safeInsert1 } = orderInsert as any;
-        const retryRes1 = await (supabaseAdmin as any)
+        const legacyInsert = {
+          tenant_id: tenantId,
+          customer_name: data.customerName ?? null,
+          customer_phone: customerPhone,
+          customer_address: data.customerAddress ?? null,
+          customer_email: data.customerEmail ?? null,
+          notes: finalNotes || null,
+          status: "pending",
+          payment_status: "pending",
+          payment_provider: data.paymentProvider ?? null,
+          total,
+          currency,
+          coupon_code: data.couponCode ?? null,
+          discount_amount: validatedDiscount,
+        };
+        const retryRes = await (supabaseAdmin as any)
           .from("orders")
-          .insert(safeInsert1)
+          .insert(legacyInsert)
           .select("id")
           .single();
-        order = retryRes1.data;
-        orderErr = retryRes1.error;
-
-        // Fallback 2: if legacy schema lacks subtotal/shipping_fee/user_id
-        if (orderErr || !order) {
-          const { subtotal: _s, shipping_fee: _f, user_id: _u, ...safeInsert2 } = safeInsert1;
-          const retryRes2 = await (supabaseAdmin as any)
-            .from("orders")
-            .insert(safeInsert2)
-            .select("id")
-            .single();
-          order = retryRes2.data;
-          orderErr = retryRes2.error;
-        }
+        order = retryRes.data;
+        orderErr = retryRes.error;
       }
     }
 
