@@ -128,7 +128,10 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<ImportResult> => {
-    const { supabase, userId } = context as unknown as { supabase: SupabaseClient<Database>; userId: string };
+    const { supabase, userId } = context as unknown as {
+      supabase: SupabaseClient<Database>;
+      userId: string;
+    };
 
     // ── Admin authorization ──────────────────────────────────────────────────
     const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
