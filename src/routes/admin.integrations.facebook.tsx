@@ -148,6 +148,7 @@ function FacebookIntegrationComponent() {
         </div>
 
         <button
+          type="button"
           onClick={() => saveMutation.mutate(formData)}
           disabled={saveMutation.isPending}
           className="flex items-center gap-2 rounded-xl bg-[#1877F2] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1877F2]/90 shadow-brand disabled:opacity-50"
@@ -200,6 +201,7 @@ function FacebookIntegrationComponent() {
               dir="ltr"
             />
             <button
+              type="button"
               onClick={handleFetchPages}
               disabled={isFetchingPages || !formData.userToken}
               className="flex items-center justify-center gap-2 rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 px-5 py-2.5 text-sm font-bold text-[#1877F2] hover:bg-[#1877F2]/20 disabled:opacity-50 transition shrink-0"
@@ -260,6 +262,7 @@ function FacebookIntegrationComponent() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleDisconnect}
                 className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/20 transition"
               >
