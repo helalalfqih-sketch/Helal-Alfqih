@@ -253,7 +253,7 @@ function AccountPage() {
   const avatarInitial = (profile?.full_name || user.email || "؟").slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col gap-5 px-4 pt-4 max-w-2xl w-full min-w-0 mx-auto pb-12" dir="rtl">
+    <div className="flex flex-col gap-5 px-4 pt-4 max-w-2xl mx-auto pb-12" dir="rtl">
       {/* Compact account identity — the global storefront shell already owns primary navigation. */}
       <section className="flex items-center gap-3 rounded-2xl border border-showcase-border/50 bg-showcase-foreground/5 p-3 shadow-card backdrop-blur-md">
         {profile?.avatar_url ? (
@@ -289,7 +289,7 @@ function AccountPage() {
       {/* Account-local sections; this is not a second storefront navigation bar. */}
       <nav
         aria-label="أقسام الحساب"
-        className="flex w-full max-w-full overflow-x-auto gap-1 rounded-2xl border border-showcase-border/40 bg-showcase-foreground/5 p-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="flex w-full max-w-full overflow-x-auto gap-1 rounded-2xl border border-showcase-border/40 bg-showcase-foreground/5 p-1 scrollbar-none"
       >
         <button
           onClick={() => setActiveTab("overview")}
@@ -361,9 +361,9 @@ function AccountPage() {
                   <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
                     <Package className="h-4.5 w-4.5" />
                   </div>
-                  <div className="text-right flex-1 min-w-0">
-                    <span className="block truncate">متابعة وسجل الطلبات</span>
-                    <span className="block text-[10px] font-normal text-showcase-muted truncate">
+                  <div className="text-right">
+                    <span>متابعة وسجل الطلبات</span>
+                    <span className="block text-[10px] font-normal text-showcase-muted">
                       عرض الطلبات السابقة وحالاتها الحالية
                     </span>
                   </div>
@@ -380,9 +380,9 @@ function AccountPage() {
                   <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
                     <MapPin className="h-4.5 w-4.5" />
                   </div>
-                  <div className="text-right flex-1 min-w-0">
-                    <span className="block truncate">إدارة العناوين والتسليم</span>
-                    <span className="block text-[10px] font-normal text-muted-foreground truncate">
+                  <div className="text-right">
+                    <span>إدارة العناوين والتسليم</span>
+                    <span className="block text-[10px] font-normal text-muted-foreground">
                       عناوين التوصيل المفضلة للطلبات
                     </span>
                   </div>
@@ -399,9 +399,9 @@ function AccountPage() {
                   <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
                     <ShieldCheck className="h-4.5 w-4.5" />
                   </div>
-                  <div className="text-right flex-1 min-w-0">
-                    <span className="block truncate">الخصوصية وتغيير كلمة المرور</span>
-                    <span className="block text-[10px] font-normal text-muted-foreground truncate">
+                  <div className="text-right">
+                    <span>الخصوصية وتغيير كلمة المرور</span>
+                    <span className="block text-[10px] font-normal text-showcase-muted">
                       حماية الحساب وإدارة الجلسات
                     </span>
                   </div>

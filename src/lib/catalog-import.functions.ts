@@ -141,8 +141,7 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     const tenantId = await resolveAdminTenant({ supabase, userId }, data.tenantId);
 
     // ── Fetch CSV ────────────────────────────────────────────────────────────
-    const importUrl =
-      data.url || process.env.CATALOG_IMPORT_URL || process.env.VITE_CATALOG_IMPORT_URL;
+    const importUrl = data.url || process.env.CATALOG_IMPORT_URL;
     if (!importUrl) {
       throw new Error("No catalog URL provided and CATALOG_IMPORT_URL is not set.");
     }
