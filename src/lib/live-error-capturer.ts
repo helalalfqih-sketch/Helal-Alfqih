@@ -22,12 +22,14 @@ export async function reportLiveError(opts: CapturerOptions): Promise<void> {
     const loc = opts.location || (typeof window !== "undefined" ? window.location.pathname : "System/Server");
     const dedupeKey = `${opts.errorName}:${opts.cause}:${loc}`;
 
-    if (recentlyLoggedErrors.has(dedupeKey)) {
-      return; // Skip duplicate flooding
+    if (opts.level !== "info" && recentlyLoggedErrors.has(dedupeKey)) {
+      return; // Skip duplicate error flooding
     }
 
-    recentlyLoggedErrors.add(dedupeKey);
-    setTimeout(() => recentlyLoggedErrors.delete(dedupeKey), 5000);
+    if (opts.level !== "info") {
+      recentlyLoggedErrors.add(dedupeKey);
+      setTimeout(() => recentlyLoggedErrors.delete(dedupeKey), 1500);
+    }
 
     const isStorefront = typeof window !== "undefined" && !window.location.pathname.startsWith("/admin");
     const defaultType = isStorefront ? "Storefront UI" : "Admin UI";
@@ -151,4 +153,53 @@ export function initGlobalLiveErrorListeners(): void {
       stackTrace: reason?.stack || (typeof reason === "object" ? JSON.stringify(reason, null, 2) : String(reason)),
     });
   });
+
+  // Intercept browser window fetch requests to stream all network activity into Live Console
+  const originalFetch = window.fetch;
+  window.fetch = async function (...args) {
+    const input = args[0];
+    const init = args[1];
+    const urlStr = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+    const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+
+    const response = await originalFetch.apply(this, args);
+
+    try {
+      if (urlStr.includes("indexes-store") || urlStr.startsWith("/") || urlStr.startsWith("http")) {
+        const urlObj = new URL(urlStr, window.location.origin);
+        const path = urlObj.pathname;
+        if (!path.includes("live-logs") && !path.includes("listLiveLogs")) {
+          let level: "info" | "warn" | "error" = "info";
+          if (response.status >= 500) level = "error";
+          else if (response.status >= 400) level = "warn";
+
+          let cause = `HTTP ${response.status} ${method} ${path}`;
+          if (path.includes("image-proxy")) {
+            const target = urlObj.searchParams.get("url");
+            try {
+              const h = target ? new URL(target).hostname : "unknown";
+              cause = `[IMAGE_PROXY] { hostname: '${h}' }`;
+            } catch {
+              cause = `[IMAGE_PROXY] ${method} ${path}`;
+            }
+          } else if (path.includes("_serverFn")) {
+            cause = `[ServerFn] ${method} ${path.substring(0, 30)}...`;
+          }
+
+          reportLiveError({
+            errorName: `[${method}] ${path}`,
+            errorType: path.startsWith("/api") ? "Server Function" : "Admin UI",
+            level,
+            location: path,
+            cause,
+            context: { method, status: response.status, host: urlObj.hostname || "indexes-store.vercel.app", path },
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return response;
+  };
 }
