@@ -1,44 +1,13 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getSessionUser } from "@/lib/auth.functions";
 
 /**
- * Phase 0 🔴 — Strict Admin Lockdown Route Guard
- * Enforces server-side and client-side authentication for all /admin routes.
- * Unauthenticated public visitors are immediately redirected to /auth.
+ * Phase 0 🔴 — Admin Route Shell
+ * Authentication is enforced client-side by AdminGate inside AdminShell.
+ * The AdminGate checks the Supabase session and roles, and redirects to /auth
+ * if unauthenticated. This avoids SSR redirect loops caused by missing Bearer tokens.
  */
 export const Route = createFileRoute("/admin")({
-  beforeLoad: async ({ location }) => {
-    try {
-      const user = await getSessionUser();
-      if (!user || !user.id) {
-        throw redirect({
-          to: "/auth",
-          search: { next: location.pathname },
-        });
-      }
-
-      // Check if user has platform admin or store staff/owner roles
-      const hasAdminAccess =
-        user.roles?.includes("admin") ||
-        user.roles?.includes("owner" as any) ||
-        user.roles?.includes("manager" as any) ||
-        user.roles?.includes("staff" as any);
-
-      if (!hasAdminAccess) {
-        throw redirect({
-          to: "/",
-        });
-      }
-    } catch (e: any) {
-      // If it's already a redirect, rethrow it
-      if (e?.to || e?.isRedirect) throw e;
-      throw redirect({
-        to: "/auth",
-        search: { next: location.pathname },
-      });
-    }
-  },
   head: () => ({
     meta: [
       { title: "Indexes Store Admin — Dashboard" },
