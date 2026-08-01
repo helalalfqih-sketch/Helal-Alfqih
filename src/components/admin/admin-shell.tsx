@@ -66,9 +66,22 @@ function AdminGate({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   const [status, setStatus] = useState<"checking" | "unauth" | "no-role" | "ok">("checking");
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const fetchSessionUser = useServerFn(getSessionUser);
 
+  // Step 1: Check Supabase session from localStorage first
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        // No session in localStorage → definitely unauthenticated
+        setStatus("unauth");
+      }
+      setSessionChecked(true);
+    });
+  }, []);
+
+  // Step 2: Only fetch server-side user info once we KNOW the session exists
   const {
     data: sessionUser,
     isLoading,
@@ -78,15 +91,11 @@ function AdminGate({ children }: { children: React.ReactNode }) {
     queryKey: ["session-user"],
     queryFn: () => fetchSessionUser(),
     retry: false,
-    enabled: status !== "unauth",
+    // Only run when the client session check is done AND we're not already unauth
+    enabled: sessionChecked && status !== "unauth",
   });
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) setStatus("unauth");
-    });
-  }, []);
-
+  // Step 3: Redirect only after session check confirms no session
   useEffect(() => {
     if (status === "unauth") {
       navigate({ to: "/auth", search: { next: "/admin" }, replace: true });
@@ -95,7 +104,9 @@ function AdminGate({ children }: { children: React.ReactNode }) {
 
   const logUnauthorizedFn = useServerFn(logUnauthorizedAccess);
 
+  // Step 4: Process server user data once loaded
   useEffect(() => {
+    if (!sessionChecked) return;
     if (isLoading) return;
     if (isError) {
       console.error("Admin user session error:", error);
@@ -114,7 +125,7 @@ function AdminGate({ children }: { children: React.ReactNode }) {
       setStatus("no-role");
       logUnauthorizedFn({ data: { path: typeof window !== "undefined" ? window.location.pathname : "/admin" } }).catch(() => {});
     }
-  }, [sessionUser, isLoading, isError, error, logUnauthorizedFn]);
+  }, [sessionUser, isLoading, isError, error, logUnauthorizedFn, sessionChecked]);
 
   if (status === "ok") return <>{children}</>;
 
