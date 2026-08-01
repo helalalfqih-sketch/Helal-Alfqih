@@ -71,6 +71,7 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
 import { Route as AdminBannersRouteImport } from './routes/admin.banners'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
+import { Route as AdminLiveLogsRouteImport } from './routes/admin.live-logs'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
 import { Route as AdminAiMemoryRouteImport } from './routes/admin.ai-memory'
@@ -396,6 +397,11 @@ const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
   path: '/audit-logs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLiveLogsRoute = AdminLiveLogsRouteImport.update({
+  id: '/live-logs',
+  path: '/live-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
@@ -500,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/admin/deals': typeof AdminDealsRoute
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/live-logs': typeof AdminLiveLogsRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -576,6 +583,7 @@ export interface FileRoutesByTo {
   '/admin/deals': typeof AdminDealsRoute
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/live-logs': typeof AdminLiveLogsRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -655,6 +663,7 @@ export interface FileRoutesById {
   '/admin/deals': typeof AdminDealsRoute
   '/admin/insights': typeof AdminInsightsRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/live-logs': typeof AdminLiveLogsRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -735,6 +744,7 @@ export interface FileRouteTypes {
     | '/admin/deals'
     | '/admin/insights'
     | '/admin/inventory'
+    | '/admin/live-logs'
     | '/admin/media'
     | '/admin/notifications'
     | '/admin/orders'
@@ -811,6 +821,7 @@ export interface FileRouteTypes {
     | '/admin/deals'
     | '/admin/insights'
     | '/admin/inventory'
+    | '/admin/live-logs'
     | '/admin/media'
     | '/admin/notifications'
     | '/admin/orders'
@@ -889,6 +900,7 @@ export interface FileRouteTypes {
     | '/admin/deals'
     | '/admin/insights'
     | '/admin/inventory'
+    | '/admin/live-logs'
     | '/admin/media'
     | '/admin/notifications'
     | '/admin/orders'
@@ -1405,6 +1417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditLogsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/live-logs': {
+      id: '/admin/live-logs'
+      path: '/live-logs'
+      fullPath: '/admin/live-logs'
+      preLoaderRoute: typeof AdminLiveLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/appearance': {
       id: '/admin/appearance'
       path: '/appearance'
@@ -1550,6 +1569,7 @@ interface AdminRouteChildren {
   AdminStoresRoute: typeof AdminStoresRouteWithChildren
   AdminStudioRoute: typeof AdminStudioRoute
   AdminSystemHealthRoute: typeof AdminSystemHealthRoute
+  AdminLiveLogsRoute: typeof AdminLiveLogsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminDiagnosticsWhatsappRoute: typeof AdminDiagnosticsWhatsappRoute
@@ -1589,6 +1609,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStoresRoute: AdminStoresRouteWithChildren,
   AdminStudioRoute: AdminStudioRoute,
   AdminSystemHealthRoute: AdminSystemHealthRoute,
+  AdminLiveLogsRoute: AdminLiveLogsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminDiagnosticsWhatsappRoute: AdminDiagnosticsWhatsappRoute,

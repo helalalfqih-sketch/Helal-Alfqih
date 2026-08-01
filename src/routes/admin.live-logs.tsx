@@ -41,7 +41,7 @@ import {
 } from "@/services/live-logs.service";
 import { reportLiveError } from "@/lib/live-error-capturer";
 
-export const Route = createFileRoute("/admin/live-logs" as any)({
+export const Route = createFileRoute("/admin/live-logs")({
   head: () => ({
     meta: [
       { title: "سجلات الأخطاء المباشرة (Live Logs) — لوحة الإدارة" },
