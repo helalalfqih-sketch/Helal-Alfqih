@@ -363,25 +363,38 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
-    // Fallback: if live DB table does not have idempotency_key column yet, retry without it
-    if ((orderErr || !order) && orderInsert.idempotency_key) {
+    // Fallback 1: if live DB table does not have idempotency_key or new columns yet, retry progressively
+    if (orderErr || !order) {
       if (
-        orderErr?.message?.includes("idempotency_key") ||
         orderErr?.message?.includes("schema cache") ||
+        orderErr?.message?.includes("idempotency") ||
+        orderErr?.message?.includes("column") ||
         orderErr?.code === "PGRST204"
       ) {
         console.warn(
-          "[createOrder] Live DB orders table missing idempotency_key column, retrying without it:",
+          "[createOrder] Live DB orders table schema discrepancy, retrying with safe fallback:",
           orderErr.message,
         );
-        const { idempotency_key, ...safeInsert } = orderInsert as any;
-        const retryRes = await (supabaseAdmin as any)
+        const { idempotency_key, ...safeInsert1 } = orderInsert as any;
+        const retryRes1 = await (supabaseAdmin as any)
           .from("orders")
-          .insert(safeInsert)
+          .insert(safeInsert1)
           .select("id")
           .single();
-        order = retryRes.data;
-        orderErr = retryRes.error;
+        order = retryRes1.data;
+        orderErr = retryRes1.error;
+
+        // Fallback 2: if legacy schema lacks subtotal/shipping_fee/user_id
+        if (orderErr || !order) {
+          const { subtotal: _s, shipping_fee: _f, user_id: _u, ...safeInsert2 } = safeInsert1;
+          const retryRes2 = await (supabaseAdmin as any)
+            .from("orders")
+            .insert(safeInsert2)
+            .select("id")
+            .single();
+          order = retryRes2.data;
+          orderErr = retryRes2.error;
+        }
       }
     }
 
