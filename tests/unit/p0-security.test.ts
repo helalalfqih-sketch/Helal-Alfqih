@@ -11,6 +11,14 @@ vi.mock("@/lib/saas/tenant-context", () => ({
   }),
 }));
 
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    auth: {
+      getUser: vi.fn(async () => ({ data: { user: null }, error: null })),
+    },
+  },
+}));
+
 import {
   checkTenantPermission,
   PermissionDeniedError,
@@ -278,5 +286,49 @@ describe("P0 Security Suite — UI State & Polling Constraints", () => {
     );
     expect(adminProductsFile).not.toContain("VITE_CATALOG_IMPORT_URL");
     expect(adminProductsFile).not.toContain("const CATALOG_IMPORT_URL");
+  });
+
+  it("keeps configured catalog URLs and storage tokens out of client-facing code", () => {
+    const clientFiles = [
+      "../../src/routes/admin.products.tsx",
+      "../../src/lib/actions/admin.actions.ts",
+    ];
+
+    for (const relativeFile of clientFiles) {
+      const source = fs.readFileSync(path.resolve(__dirname, relativeFile), "utf-8");
+      expect(source).not.toContain("VITE_CATALOG_IMPORT_URL");
+      expect(source).not.toContain("firebasestorage.googleapis.com/v0/b/smartcontentcreator");
+      expect(source).not.toMatch(/[?&]token=[A-Za-z0-9_-]+/);
+    }
+  });
+
+  it("contains no obsolete hardcoded catalog token fallback", () => {
+    const catalogFunctionsFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/catalog.functions.ts"),
+      "utf-8",
+    );
+    expect(catalogFunctionsFile).not.toContain("GLOBAL_CSV_URL");
+    expect(catalogFunctionsFile).not.toMatch(/[?&]token=[A-Za-z0-9_-]+/);
+    expect(catalogFunctionsFile).toContain("process.env.CATALOG_IMPORT_URL");
+  });
+
+  it("keeps catalog database reads and writes in bounded batches", () => {
+    const importerFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/catalog-import.functions.ts"),
+      "utf-8",
+    );
+    expect(importerFile).toContain("export const CATALOG_IMPORT_BATCH_SIZE = 50");
+    expect(importerFile).toContain("start += CATALOG_IMPORT_BATCH_SIZE");
+    expect(importerFile).toContain(".slice(start, start + CATALOG_IMPORT_BATCH_SIZE)");
+  });
+
+  it("queries only verified product media columns before merging existing media", () => {
+    const importerFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/catalog-import.functions.ts"),
+      "utf-8",
+    );
+    expect(importerFile).toContain('.select("external_id,slug,images,video_playback_id")');
+    expect(importerFile).toContain("mergeImportedImages");
+    expect(importerFile).toContain("video_playback_id");
   });
 });

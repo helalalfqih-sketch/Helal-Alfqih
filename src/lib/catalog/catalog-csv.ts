@@ -154,6 +154,11 @@ export function deduplicateUrls(urls: string[]): string[] {
   });
 }
 
+/** Keep the imported primary/additional ordering while retaining older media. */
+export function mergeImportedImages(imported: string[], existing: string[]): string[] {
+  return deduplicateUrls([...imported, ...existing]);
+}
+
 // ─── Video Provider Detection ─────────────────────────────────────────────────
 
 const YOUTUBE_PATTERN =
