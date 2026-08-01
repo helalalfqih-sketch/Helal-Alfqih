@@ -79,7 +79,7 @@ async function resolvePublicCmsTenant(db: any): Promise<string | null> {
   }
 }
 
-function parseSection<T>(schema: z.ZodType<T>, raw: unknown, fallback: T): T {
+function parseSection<T>(schema: z.ZodType<T, any, any>, raw: unknown, fallback: T): T {
   try {
     const res = schema.safeParse(raw ?? {});
     if (res.success) return res.data;
