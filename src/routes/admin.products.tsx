@@ -287,6 +287,11 @@ function ProductsPage() {
   ).length;
   const failedCount = products.filter((p) => p.meta_sync_status === "failed").length;
   const hiddenCount = products.filter((p) => !p.is_published).length;
+  const importedVideosCount = products.filter((p) => !!p.video_url).length;
+  const importedImagesCount = products.reduce(
+    (acc, p) => acc + (p.images && p.images.length > 0 ? p.images.length : p.image ? 1 : 0),
+    0,
+  );
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -561,10 +566,18 @@ function ProductsPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <div className="rounded-2xl border border-border bg-surface p-4">
           <p className="text-xs font-medium text-muted-foreground">إجمالي المنتجات</p>
           <p className="mt-1 text-2xl font-black text-foreground">{totalCount}</p>
+        </div>
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-xs font-medium text-primary">الصور المستوردة</p>
+          <p className="mt-1 text-2xl font-black text-primary">{importedImagesCount}</p>
+        </div>
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-xs font-medium text-primary">الفيديوهات المستوردة</p>
+          <p className="mt-1 text-2xl font-black text-primary">{importedVideosCount}</p>
         </div>
         <div className="rounded-2xl border border-success/30 bg-success/10 p-4">
           <p className="text-xs font-medium text-success">متزامنة مع Meta</p>
