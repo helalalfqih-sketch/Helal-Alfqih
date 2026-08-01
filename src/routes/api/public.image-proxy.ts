@@ -51,6 +51,12 @@ function isDomainAllowed(hostname: string): boolean {
     "vercel.app",
     "indexes-store.com",
     "indexes-store.vercel.app",
+    "firebasestorage.googleapis.com",
+    "googleapis.com",
+    "mux.com",
+    "image.mux.com",
+    "cloudinary.com",
+    "imgix.net",
   ];
 
   for (const domain of allowedSuffixes) {

@@ -125,6 +125,18 @@ export function generateSuggestedFix(
 // This starts empty; real errors are pushed via logLiveErrorFn()
 const inMemoryLiveLogs: SystemLiveLogEntry[] = [];
 
+// Helper to get service-role client on server or fallback to client
+async function getDbClient() {
+  try {
+    const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = getSupabaseAdmin();
+    if (admin) return admin;
+  } catch {
+    // fallback
+  }
+  return supabase;
+}
+
 /**
  * Server-side helper: log a real error from any Server Function or API route.
  * Fire-and-forget — never throws so it won't break the caller.
@@ -162,9 +174,10 @@ export async function logServerError(opts: {
   inMemoryLiveLogs.unshift(entry);
   if (inMemoryLiveLogs.length > 200) inMemoryLiveLogs.pop();
 
-  // Persist to DB (best-effort)
+  // Persist to DB using admin client (bypasses RLS across all serverless instances)
   try {
-    await (supabase as any).from("system_live_logs").insert({
+    const db = await getDbClient();
+    await (db as any).from("system_live_logs").insert({
       id: entry.id,
       error_name: entry.errorName,
       error_type: entry.errorType,
@@ -178,9 +191,10 @@ export async function logServerError(opts: {
       status: "open",
       created_at: entry.createdAt,
     });
-  } catch {
-    // Silently ignore — in-memory already captured
+  } catch (err) {
+    console.warn("Log DB insert notice:", err);
   }
+}
 }
 
 /**
@@ -224,7 +238,8 @@ export const listLiveLogsFn = createServerFn({ method: "GET" })
       let dbLogs: SystemLiveLogEntry[] = [];
 
       try {
-        let query = (supabase as any)
+        const db = await getDbClient();
+        let query = (db as any)
           .from("system_live_logs")
           .select("*")
           .order("created_at", { ascending: false })
@@ -354,6 +369,7 @@ export const logLiveErrorFn = createServerFn({ method: "POST" })
 
     // Try saving to Supabase DB table
     try {
+      const db = await getDbClient();
       const payload = {
         id: generatedId,
         error_name: data.errorName,
@@ -369,7 +385,7 @@ export const logLiveErrorFn = createServerFn({ method: "POST" })
         created_at: nowIso,
       };
 
-      await (supabase as any).from("system_live_logs").insert(payload);
+      await (db as any).from("system_live_logs").insert(payload);
     } catch (err) {
       console.warn("Database persistence for live log notice:", err);
     }
@@ -396,7 +412,8 @@ export const updateLiveLogStatusFn = createServerFn({ method: "POST" })
 
     // Try updating Supabase DB
     try {
-      await (supabase as any)
+      const db = await getDbClient();
+      await (db as any)
         .from("system_live_logs")
         .update({ status: data.status })
         .eq("id", data.id);
@@ -428,7 +445,8 @@ export const clearLiveLogsFn = createServerFn({ method: "POST" })
     }
 
     try {
-      let query = (supabase as any).from("system_live_logs").delete();
+      const db = await getDbClient();
+      let query = (db as any).from("system_live_logs").delete();
       if (data.clearMode === "resolved_only") {
         query = query.eq("status", "resolved");
       } else {
