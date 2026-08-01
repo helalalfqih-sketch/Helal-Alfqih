@@ -49,10 +49,7 @@ export const Route = createFileRoute("/checkout")({
   }),
 
   head: () => ({
-    meta: [
-      { title: "تأكيد الطلب — اندكس ستور" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "تأكيد الطلب — اندكس ستور" }, { name: "robots", content: "noindex, nofollow" }],
   }),
 
   /**
@@ -92,11 +89,13 @@ function CheckoutBridgePage() {
   // Build resolved items: pair each found product with the requested quantity.
   // Products not found in the DB are silently ignored (their id won't be in resolvedProducts).
   const resolvedItems: Array<{ product: LegacyProductShape; qty: number }> = resolvedProducts
-    .map((product) => {
-      const requested = parsedItems.find((p) => p.id === product.id || p.id === product.slug);
+    .map((product: LegacyProductShape) => {
+      const requested = parsedItems.find(
+        (p: { id: string; qty: number }) => p.id === product.id || p.id === product.slug,
+      );
       return { product, qty: requested?.qty ?? 1 };
     })
-    .filter((item) => item.product != null);
+    .filter((item: { product: LegacyProductShape; qty: number }) => item.product != null);
 
   // Auto-populate the cart once on mount.
   // If a product is already in the cart: add the requested quantity on top.
