@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -531,7 +531,7 @@ function AdminLiveLogsPage() {
                   const hostName = log.context?.host || "indexes-store.vercel.app";
 
                   return (
-                    <React.Fragment key={log.id}>
+                    <Fragment key={log.id}>
                       <tr
                         onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                         className={`group cursor-pointer transition hover:bg-zinc-900/70 ${
@@ -643,7 +643,7 @@ function AdminLiveLogsPage() {
                           </td>
                         </tr>
                       )}
-                    </React.Fragment>
+                    </Fragment>
                   );
                 })
               )}
