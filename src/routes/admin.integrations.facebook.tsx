@@ -18,7 +18,7 @@ import {
   type FacebookConfig,
 } from "@/lib/facebook.functions";
 
-export const Route = createFileRoute("/admin/integrations/facebook")({
+export const Route = createFileRoute("/admin/integrations/facebook" as any)({
   head: () => ({
     meta: [
       { title: "ربط فيسبوك — لوحة الإدارة" },

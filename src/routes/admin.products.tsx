@@ -309,7 +309,7 @@ function ProductsPage() {
     onError: (err: any) => {
       toast.error(err.message || "فشل النشر على فيسبوك.");
       if (err.message?.includes("لم يتم ربط حساب فيسبوك")) {
-        navigate({ to: "/admin/integrations/facebook" });
+        navigate({ to: "/admin/integrations/facebook" as any });
       }
     },
   });
