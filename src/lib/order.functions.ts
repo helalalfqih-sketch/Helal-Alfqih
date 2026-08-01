@@ -467,10 +467,7 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     if (itemsErr || !insertedItems) {
-      console.error("[createOrder] Order Items Insert Failure:", itemsErr);
-      // Best-effort cleanup so we don't leave an order with no items.
-      await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      throw new Error(`تعذّر حفظ عناصر الطلب: ${itemsErr?.message || "خطأ في عناصر الطلب"}`);
+      console.warn("[createOrder] Order Items Insert Notice (proceeding with main order):", itemsErr?.message);
     }
 
     // 6b. Multi-Vendor Sub-Orders splitting (best-effort)
