@@ -18,7 +18,13 @@ import {
   type FacebookConfig,
 } from "@/lib/facebook.functions";
 
-export const Route = createFileRoute("/admin/integrations/facebook" as any)({
+interface FacebookPage {
+  id: string;
+  name: string;
+  access_token: string;
+}
+
+export const Route = createFileRoute("/admin/integrations/facebook")({
   head: () => ({
     meta: [
       { title: "ربط فيسبوك — لوحة الإدارة" },
@@ -34,7 +40,7 @@ function FacebookIntegrationComponent() {
   const saveConfigFn = useServerFn(saveFacebookConfig);
 
   const [formData, setFormData] = useState<FacebookConfig | null>(null);
-  const [pages, setPages] = useState<any[]>([]);
+  const [pages, setPages] = useState<FacebookPage[]>([]);
   const [isFetchingPages, setIsFetchingPages] = useState(false);
 
   const { data: fbConfig, isLoading } = useQuery({
@@ -80,14 +86,14 @@ function FacebookIntegrationComponent() {
         toast.warning("لم يتم العثور على أي صفحات تجارية مرتبطة بهذا الحساب.");
         setPages([]);
       }
-    } catch (err: any) {
-      toast.error(err.message || "حدث خطأ أثناء جلب الصفحات.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء جلب الصفحات.");
     } finally {
       setIsFetchingPages(false);
     }
   };
 
-  const handleSelectPage = (page: any) => {
+  const handleSelectPage = (page: FacebookPage) => {
     setFormData((prev) => {
       if (!prev) return prev;
       return {
