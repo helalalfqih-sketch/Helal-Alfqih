@@ -9,147 +9,88 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TrackRouteImport } from './routes/track'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as StoreRouteImport } from './routes/store'
-import { Route as SearchRouteImport } from './routes/search'
-import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as OffersRouteImport } from './routes/offers'
-import { Route as ImmersiveStoreRouteImport } from './routes/immersive-store'
-import { Route as DataDeletionRouteImport } from './routes/data-deletion'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as CartRouteImport } from './routes/cart'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as DataDeletionRouteImport } from './routes/data-deletion'
+import { Route as ImmersiveStoreRouteImport } from './routes/immersive-store'
+import { Route as OffersRouteImport } from './routes/offers'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as StoreRouteImport } from './routes/store'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as VendorDashboardRouteImport } from './routes/vendor.dashboard'
-import { Route as VendorSlugRouteImport } from './routes/vendor.$slug'
-import { Route as StoreSettingsRouteImport } from './routes/store.settings'
-import { Route as StoreProductsRouteImport } from './routes/store.products'
-import { Route as StoreOrdersRouteImport } from './routes/store.orders'
-import { Route as StoreMarketingRouteImport } from './routes/store.marketing'
-import { Route as StoreInventoryRouteImport } from './routes/store.inventory'
-import { Route as StoreEarningsRouteImport } from './routes/store.earnings'
-import { Route as StoreDashboardRouteImport } from './routes/store.dashboard'
-import { Route as StoreCustomersRouteImport } from './routes/store.customers'
-import { Route as StoreAnalyticsRouteImport } from './routes/store.analytics'
-import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
-import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
-import { Route as ProductSlugRouteImport } from './routes/product.$slug'
-import { Route as PagesSlugRouteImport } from './routes/pages.$slug'
-import { Route as GoogleShoppingXmlRouteImport } from './routes/google-shopping.xml'
-import { Route as Demo3dViewerRouteImport } from './routes/demo.3d-viewer'
-import { Route as CategoryIdRouteImport } from './routes/category.$id'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as AdminSystemHealthRouteImport } from './routes/admin.system-health'
-import { Route as AdminStudioRouteImport } from './routes/admin.studio'
-import { Route as AdminStoresRouteImport } from './routes/admin.stores'
-import { Route as AdminStorefrontRouteImport } from './routes/admin.storefront'
-import { Route as AdminShippingRouteImport } from './routes/admin.shipping'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
-import { Route as AdminSeoRouteImport } from './routes/admin.seo'
-import { Route as AdminReviewsRouteImport } from './routes/admin.reviews'
-import { Route as AdminProductsRouteImport } from './routes/admin.products'
-import { Route as AdminPlatformRouteImport } from './routes/admin.platform'
-import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
-import { Route as AdminPagesRouteImport } from './routes/admin.pages'
-import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
-import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
-import { Route as AdminMediaRouteImport } from './routes/admin.media'
-import { Route as AdminLiveLogsRouteImport } from './routes/admin.live-logs'
-import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
-import { Route as AdminInsightsRouteImport } from './routes/admin.insights'
-import { Route as AdminDealsRouteImport } from './routes/admin.deals'
-import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
-import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
-import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
-import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
-import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
-import { Route as AdminBannersRouteImport } from './routes/admin.banners'
-import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
-import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
-import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
-import { Route as AdminAiMemoryRouteImport } from './routes/admin.ai-memory'
-import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
 import { Route as AdminAiAgentRouteImport } from './routes/admin.ai-agent'
-import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
-import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public.image-proxy'
-import { Route as ApiAiDebugRouteImport } from './routes/api/ai.debug'
-import { Route as ApiAiAnalyzeProductRouteImport } from './routes/api/ai.analyze-product'
-import { Route as ApiAiAgentRouteImport } from './routes/api/ai.agent'
-import { Route as AdminStoresTenantIdRouteImport } from './routes/admin.stores.$tenantId'
-import { Route as AdminProductIdRouteImport } from './routes/admin.product.$id'
-import { Route as AdminIntegrationsWhatsappRouteImport } from './routes/admin.integrations.whatsapp'
+import { Route as AdminAiDeveloperRouteImport } from './routes/admin.ai-developer'
+import { Route as AdminAiMemoryRouteImport } from './routes/admin.ai-memory'
+import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
+import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
+import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
+import { Route as AdminBannersRouteImport } from './routes/admin.banners'
+import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
+import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
+import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
+import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
+import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
+import { Route as AdminDealsRouteImport } from './routes/admin.deals'
+import { Route as AdminInsightsRouteImport } from './routes/admin.insights'
+import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
+import { Route as AdminLiveLogsRouteImport } from './routes/admin.live-logs'
+import { Route as AdminMediaRouteImport } from './routes/admin.media'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
+import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminPagesRouteImport } from './routes/admin.pages'
+import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminPlatformRouteImport } from './routes/admin.platform'
+import { Route as AdminProductsRouteImport } from './routes/admin.products'
+import { Route as AdminReviewsRouteImport } from './routes/admin.reviews'
+import { Route as AdminSeoRouteImport } from './routes/admin.seo'
+import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminShippingRouteImport } from './routes/admin.shipping'
+import { Route as AdminStorefrontRouteImport } from './routes/admin.storefront'
+import { Route as AdminStoresRouteImport } from './routes/admin.stores'
+import { Route as AdminStudioRouteImport } from './routes/admin.studio'
+import { Route as AdminSystemHealthRouteImport } from './routes/admin.system-health'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as CategoryIdRouteImport } from './routes/category.$id'
+import { Route as Demo3dViewerRouteImport } from './routes/demo.3d-viewer'
+import { Route as GoogleShoppingXmlRouteImport } from './routes/google-shopping.xml'
+import { Route as PagesSlugRouteImport } from './routes/pages.$slug'
+import { Route as ProductSlugRouteImport } from './routes/product.$slug'
+import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
+import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as StoreAnalyticsRouteImport } from './routes/store.analytics'
+import { Route as StoreCustomersRouteImport } from './routes/store.customers'
+import { Route as StoreDashboardRouteImport } from './routes/store.dashboard'
+import { Route as StoreEarningsRouteImport } from './routes/store.earnings'
+import { Route as StoreInventoryRouteImport } from './routes/store.inventory'
+import { Route as StoreMarketingRouteImport } from './routes/store.marketing'
+import { Route as StoreOrdersRouteImport } from './routes/store.orders'
+import { Route as StoreProductsRouteImport } from './routes/store.products'
+import { Route as StoreSettingsRouteImport } from './routes/store.settings'
+import { Route as VendorSlugRouteImport } from './routes/vendor.$slug'
+import { Route as VendorDashboardRouteImport } from './routes/vendor.dashboard'
 import { Route as AdminDiagnosticsWhatsappRouteImport } from './routes/admin.diagnostics.whatsapp'
+import { Route as AdminIntegrationsFacebookRouteImport } from './routes/admin.integrations.facebook'
+import { Route as AdminIntegrationsWhatsappRouteImport } from './routes/admin.integrations.whatsapp'
+import { Route as AdminProductIdRouteImport } from './routes/admin.product.$id'
+import { Route as AdminStoresTenantIdRouteImport } from './routes/admin.stores.$tenantId'
+import { Route as ApiAiAgentRouteImport } from './routes/api/ai.agent'
+import { Route as ApiAiAnalyzeProductRouteImport } from './routes/api/ai.analyze-product'
+import { Route as ApiAiDebugRouteImport } from './routes/api/ai.debug'
+import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public.image-proxy'
+import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks.whatsapp'
 
-const TrackRoute = TrackRouteImport.update({
-  id: '/track',
-  path: '/track',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StoreRoute = StoreRouteImport.update({
-  id: '/store',
-  path: '/store',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchRoute = SearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
-  id: '/privacy-policy',
-  path: '/privacy-policy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OffersRoute = OffersRouteImport.update({
-  id: '/offers',
-  path: '/offers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImmersiveStoreRoute = ImmersiveStoreRouteImport.update({
-  id: '/immersive-store',
-  path: '/immersive-store',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DataDeletionRoute = DataDeletionRouteImport.update({
-  id: '/data-deletion',
-  path: '/data-deletion',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CartRoute = CartRouteImport.update({
-  id: '/cart',
-  path: '/cart',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -157,269 +98,74 @@ const AccountRoute = AccountRouteImport.update({
   path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StoreIndexRoute = StoreIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StoreRoute,
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataDeletionRoute = DataDeletionRouteImport.update({
+  id: '/data-deletion',
+  path: '/data-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImmersiveStoreRoute = ImmersiveStoreRouteImport.update({
+  id: '/immersive-store',
+  path: '/immersive-store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OffersRoute = OffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const VendorDashboardRoute = VendorDashboardRouteImport.update({
-  id: '/vendor/dashboard',
-  path: '/vendor/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VendorSlugRoute = VendorSlugRouteImport.update({
-  id: '/vendor/$slug',
-  path: '/vendor/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StoreSettingsRoute = StoreSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreProductsRoute = StoreProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreOrdersRoute = StoreOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreMarketingRoute = StoreMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreInventoryRoute = StoreInventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreEarningsRoute = StoreEarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreDashboardRoute = StoreDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreCustomersRoute = StoreCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreAnalyticsRoute = StoreAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => StoreRoute,
-} as any)
-const SitemapXmlRoute = SitemapXmlRouteImport.update({
-  id: '/sitemap/xml',
-  path: '/sitemap/xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RobotsTxtRoute = RobotsTxtRouteImport.update({
-  id: '/robots/txt',
-  path: '/robots/txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProductSlugRoute = ProductSlugRouteImport.update({
-  id: '/product/$slug',
-  path: '/product/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PagesSlugRoute = PagesSlugRouteImport.update({
-  id: '/pages/$slug',
-  path: '/pages/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GoogleShoppingXmlRoute = GoogleShoppingXmlRouteImport.update({
-  id: '/google-shopping/xml',
-  path: '/google-shopping/xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Demo3dViewerRoute = Demo3dViewerRouteImport.update({
-  id: '/demo/3d-viewer',
-  path: '/demo/3d-viewer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CategoryIdRoute = CategoryIdRouteImport.update({
-  id: '/category/$id',
-  path: '/category/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSystemHealthRoute = AdminSystemHealthRouteImport.update({
-  id: '/system-health',
-  path: '/system-health',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudioRoute = AdminStudioRouteImport.update({
-  id: '/studio',
-  path: '/studio',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStoresRoute = AdminStoresRouteImport.update({
-  id: '/stores',
-  path: '/stores',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStorefrontRoute = AdminStorefrontRouteImport.update({
-  id: '/storefront',
-  path: '/storefront',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminShippingRoute = AdminShippingRouteImport.update({
-  id: '/shipping',
-  path: '/shipping',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSessionsRoute = AdminSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSeoRoute = AdminSeoRouteImport.update({
-  id: '/seo',
-  path: '/seo',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminReviewsRoute = AdminReviewsRouteImport.update({
-  id: '/reviews',
-  path: '/reviews',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminProductsRoute = AdminProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPlatformRoute = AdminPlatformRouteImport.update({
-  id: '/platform',
-  path: '/platform',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
-  id: '/payments',
-  path: '/payments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPagesRoute = AdminPagesRouteImport.update({
-  id: '/pages',
-  path: '/pages',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMediaRoute = AdminMediaRouteImport.update({
-  id: '/media',
-  path: '/media',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLiveLogsRoute = AdminLiveLogsRouteImport.update({
-  id: '/live-logs',
-  path: '/live-logs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminInventoryRoute = AdminInventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminInsightsRoute = AdminInsightsRouteImport.update({
-  id: '/insights',
-  path: '/insights',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDealsRoute = AdminDealsRouteImport.update({
-  id: '/deals',
-  path: '/deals',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCustomersRoute = AdminCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCouponsRoute = AdminCouponsRouteImport.update({
-  id: '/coupons',
-  path: '/coupons',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminBranchesRoute = AdminBranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminBannersRoute = AdminBannersRouteImport.update({
-  id: '/banners',
-  path: '/banners',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
-  id: '/audit-logs',
-  path: '/audit-logs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
-  id: '/appearance',
-  path: '/appearance',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
-  id: '/ai-settings',
-  path: '/ai-settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAiMemoryRoute = AdminAiMemoryRouteImport.update({
-  id: '/ai-memory',
-  path: '/ai-memory',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
-  id: '/ai-developer',
-  path: '/ai-developer',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAiAgentRoute = AdminAiAgentRouteImport.update({
@@ -427,19 +173,292 @@ const AdminAiAgentRoute = AdminAiAgentRouteImport.update({
   path: '/ai-agent',
   getParentRoute: () => AdminRoute,
 } as any)
-const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
-  id: '/api/webhooks/whatsapp',
-  path: '/api/webhooks/whatsapp',
+const AdminAiDeveloperRoute = AdminAiDeveloperRouteImport.update({
+  id: '/ai-developer',
+  path: '/ai-developer',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiMemoryRoute = AdminAiMemoryRouteImport.update({
+  id: '/ai-memory',
+  path: '/ai-memory',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
+  id: '/ai-settings',
+  path: '/ai-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBannersRoute = AdminBannersRouteImport.update({
+  id: '/banners',
+  path: '/banners',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBranchesRoute = AdminBranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCouponsRoute = AdminCouponsRouteImport.update({
+  id: '/coupons',
+  path: '/coupons',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCustomersRoute = AdminCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDealsRoute = AdminDealsRouteImport.update({
+  id: '/deals',
+  path: '/deals',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInsightsRoute = AdminInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInventoryRoute = AdminInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLiveLogsRoute = AdminLiveLogsRouteImport.update({
+  id: '/live-logs',
+  path: '/live-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMediaRoute = AdminMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPagesRoute = AdminPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPlatformRoute = AdminPlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReviewsRoute = AdminReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSeoRoute = AdminSeoRouteImport.update({
+  id: '/seo',
+  path: '/seo',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSessionsRoute = AdminSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminShippingRoute = AdminShippingRouteImport.update({
+  id: '/shipping',
+  path: '/shipping',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStorefrontRoute = AdminStorefrontRouteImport.update({
+  id: '/storefront',
+  path: '/storefront',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStoresRoute = AdminStoresRouteImport.update({
+  id: '/stores',
+  path: '/stores',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStudioRoute = AdminStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSystemHealthRoute = AdminSystemHealthRouteImport.update({
+  id: '/system-health',
+  path: '/system-health',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const CategoryIdRoute = CategoryIdRouteImport.update({
+  id: '/category/$id',
+  path: '/category/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
-  id: '/api/public/image-proxy',
-  path: '/api/public/image-proxy',
+const Demo3dViewerRoute = Demo3dViewerRouteImport.update({
+  id: '/demo/3d-viewer',
+  path: '/demo/3d-viewer',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAiDebugRoute = ApiAiDebugRouteImport.update({
-  id: '/api/ai/debug',
-  path: '/api/ai/debug',
+const GoogleShoppingXmlRoute = GoogleShoppingXmlRouteImport.update({
+  id: '/google-shopping/xml',
+  path: '/google-shopping/xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagesSlugRoute = PagesSlugRouteImport.update({
+  id: '/pages/$slug',
+  path: '/pages/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductSlugRoute = ProductSlugRouteImport.update({
+  id: '/product/$slug',
+  path: '/product/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsTxtRoute = RobotsTxtRouteImport.update({
+  id: '/robots/txt',
+  path: '/robots/txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapXmlRoute = SitemapXmlRouteImport.update({
+  id: '/sitemap/xml',
+  path: '/sitemap/xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreAnalyticsRoute = StoreAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreCustomersRoute = StoreCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreDashboardRoute = StoreDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreEarningsRoute = StoreEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreInventoryRoute = StoreInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreMarketingRoute = StoreMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreOrdersRoute = StoreOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreProductsRoute = StoreProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreSettingsRoute = StoreSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => StoreRoute,
+} as any)
+const VendorSlugRoute = VendorSlugRouteImport.update({
+  id: '/vendor/$slug',
+  path: '/vendor/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorDashboardRoute = VendorDashboardRouteImport.update({
+  id: '/vendor/dashboard',
+  path: '/vendor/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDiagnosticsWhatsappRoute =
+  AdminDiagnosticsWhatsappRouteImport.update({
+    id: '/diagnostics/whatsapp',
+    path: '/diagnostics/whatsapp',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminIntegrationsFacebookRoute =
+  AdminIntegrationsFacebookRouteImport.update({
+    id: '/integrations/facebook',
+    path: '/integrations/facebook',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminIntegrationsWhatsappRoute =
+  AdminIntegrationsWhatsappRouteImport.update({
+    id: '/integrations/whatsapp',
+    path: '/integrations/whatsapp',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminProductIdRoute = AdminProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStoresTenantIdRoute = AdminStoresTenantIdRouteImport.update({
+  id: '/$tenantId',
+  path: '/$tenantId',
+  getParentRoute: () => AdminStoresRoute,
+} as any)
+const ApiAiAgentRoute = ApiAiAgentRouteImport.update({
+  id: '/api/ai/agent',
+  path: '/api/ai/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiAnalyzeProductRoute = ApiAiAnalyzeProductRouteImport.update({
@@ -447,33 +466,21 @@ const ApiAiAnalyzeProductRoute = ApiAiAnalyzeProductRouteImport.update({
   path: '/api/ai/analyze-product',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAiAgentRoute = ApiAiAgentRouteImport.update({
-  id: '/api/ai/agent',
-  path: '/api/ai/agent',
+const ApiAiDebugRoute = ApiAiDebugRouteImport.update({
+  id: '/api/ai/debug',
+  path: '/api/ai/debug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminStoresTenantIdRoute = AdminStoresTenantIdRouteImport.update({
-  id: '/$tenantId',
-  path: '/$tenantId',
-  getParentRoute: () => AdminStoresRoute,
+const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
+  id: '/api/public/image-proxy',
+  path: '/api/public/image-proxy',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminProductIdRoute = AdminProductIdRouteImport.update({
-  id: '/product/$id',
-  path: '/product/$id',
-  getParentRoute: () => AdminRoute,
+const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
+  id: '/api/webhooks/whatsapp',
+  path: '/api/webhooks/whatsapp',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIntegrationsWhatsappRoute =
-  AdminIntegrationsWhatsappRouteImport.update({
-    id: '/integrations/whatsapp',
-    path: '/integrations/whatsapp',
-    getParentRoute: () => AdminRoute,
-  } as any)
-const AdminDiagnosticsWhatsappRoute =
-  AdminDiagnosticsWhatsappRouteImport.update({
-    id: '/diagnostics/whatsapp',
-    path: '/diagnostics/whatsapp',
-    getParentRoute: () => AdminRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -545,6 +552,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/store/': typeof StoreIndexRoute
   '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
+  '/admin/integrations/facebook': typeof AdminIntegrationsFacebookRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -622,6 +630,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/store': typeof StoreIndexRoute
   '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
+  '/admin/integrations/facebook': typeof AdminIntegrationsFacebookRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -702,6 +711,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/store/': typeof StoreIndexRoute
   '/admin/diagnostics/whatsapp': typeof AdminDiagnosticsWhatsappRoute
+  '/admin/integrations/facebook': typeof AdminIntegrationsFacebookRoute
   '/admin/integrations/whatsapp': typeof AdminIntegrationsWhatsappRoute
   '/admin/product/$id': typeof AdminProductIdRoute
   '/admin/stores/$tenantId': typeof AdminStoresTenantIdRoute
@@ -783,6 +793,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/store/'
     | '/admin/diagnostics/whatsapp'
+    | '/admin/integrations/facebook'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -860,6 +871,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/store'
     | '/admin/diagnostics/whatsapp'
+    | '/admin/integrations/facebook'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -939,6 +951,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/store/'
     | '/admin/diagnostics/whatsapp'
+    | '/admin/integrations/facebook'
     | '/admin/integrations/whatsapp'
     | '/admin/product/$id'
     | '/admin/stores/$tenantId'
@@ -983,95 +996,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/track': {
-      id: '/track'
-      path: '/track'
-      fullPath: '/track'
-      preLoaderRoute: typeof TrackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/store': {
-      id: '/store'
-      path: '/store'
-      fullPath: '/store'
-      preLoaderRoute: typeof StoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search': {
-      id: '/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof SearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy-policy': {
-      id: '/privacy-policy'
-      path: '/privacy-policy'
-      fullPath: '/privacy-policy'
-      preLoaderRoute: typeof PrivacyPolicyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/offers': {
-      id: '/offers'
-      path: '/offers'
-      fullPath: '/offers'
-      preLoaderRoute: typeof OffersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/immersive-store': {
-      id: '/immersive-store'
-      path: '/immersive-store'
-      fullPath: '/immersive-store'
-      preLoaderRoute: typeof ImmersiveStoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/data-deletion': {
-      id: '/data-deletion'
-      path: '/data-deletion'
-      fullPath: '/data-deletion'
-      preLoaderRoute: typeof DataDeletionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cart': {
-      id: '/cart'
-      path: '/cart'
-      fullPath: '/cart'
-      preLoaderRoute: typeof CartRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -1081,375 +1010,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/store/': {
-      id: '/store/'
-      path: '/'
-      fullPath: '/store/'
-      preLoaderRoute: typeof StoreIndexRouteImport
-      parentRoute: typeof StoreRoute
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-deletion': {
+      id: '/data-deletion'
+      path: '/data-deletion'
+      fullPath: '/data-deletion'
+      preLoaderRoute: typeof DataDeletionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/immersive-store': {
+      id: '/immersive-store'
+      path: '/immersive-store'
+      fullPath: '/immersive-store'
+      preLoaderRoute: typeof ImmersiveStoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offers': {
+      id: '/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof OffersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/vendor/dashboard': {
-      id: '/vendor/dashboard'
-      path: '/vendor/dashboard'
-      fullPath: '/vendor/dashboard'
-      preLoaderRoute: typeof VendorDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vendor/$slug': {
-      id: '/vendor/$slug'
-      path: '/vendor/$slug'
-      fullPath: '/vendor/$slug'
-      preLoaderRoute: typeof VendorSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/store/settings': {
-      id: '/store/settings'
-      path: '/settings'
-      fullPath: '/store/settings'
-      preLoaderRoute: typeof StoreSettingsRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/products': {
-      id: '/store/products'
-      path: '/products'
-      fullPath: '/store/products'
-      preLoaderRoute: typeof StoreProductsRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/orders': {
-      id: '/store/orders'
-      path: '/orders'
-      fullPath: '/store/orders'
-      preLoaderRoute: typeof StoreOrdersRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/marketing': {
-      id: '/store/marketing'
-      path: '/marketing'
-      fullPath: '/store/marketing'
-      preLoaderRoute: typeof StoreMarketingRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/inventory': {
-      id: '/store/inventory'
-      path: '/inventory'
-      fullPath: '/store/inventory'
-      preLoaderRoute: typeof StoreInventoryRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/earnings': {
-      id: '/store/earnings'
-      path: '/earnings'
-      fullPath: '/store/earnings'
-      preLoaderRoute: typeof StoreEarningsRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/dashboard': {
-      id: '/store/dashboard'
-      path: '/dashboard'
-      fullPath: '/store/dashboard'
-      preLoaderRoute: typeof StoreDashboardRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/customers': {
-      id: '/store/customers'
-      path: '/customers'
-      fullPath: '/store/customers'
-      preLoaderRoute: typeof StoreCustomersRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/analytics': {
-      id: '/store/analytics'
-      path: '/analytics'
-      fullPath: '/store/analytics'
-      preLoaderRoute: typeof StoreAnalyticsRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/sitemap/xml': {
-      id: '/sitemap/xml'
-      path: '/sitemap/xml'
-      fullPath: '/sitemap/xml'
-      preLoaderRoute: typeof SitemapXmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/robots/txt': {
-      id: '/robots/txt'
-      path: '/robots/txt'
-      fullPath: '/robots/txt'
-      preLoaderRoute: typeof RobotsTxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/product/$slug': {
-      id: '/product/$slug'
-      path: '/product/$slug'
-      fullPath: '/product/$slug'
-      preLoaderRoute: typeof ProductSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pages/$slug': {
-      id: '/pages/$slug'
-      path: '/pages/$slug'
-      fullPath: '/pages/$slug'
-      preLoaderRoute: typeof PagesSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/google-shopping/xml': {
-      id: '/google-shopping/xml'
-      path: '/google-shopping/xml'
-      fullPath: '/google-shopping/xml'
-      preLoaderRoute: typeof GoogleShoppingXmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/3d-viewer': {
-      id: '/demo/3d-viewer'
-      path: '/demo/3d-viewer'
-      fullPath: '/demo/3d-viewer'
-      preLoaderRoute: typeof Demo3dViewerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/category/$id': {
-      id: '/category/$id'
-      path: '/category/$id'
-      fullPath: '/category/$id'
-      preLoaderRoute: typeof CategoryIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/system-health': {
-      id: '/admin/system-health'
-      path: '/system-health'
-      fullPath: '/admin/system-health'
-      preLoaderRoute: typeof AdminSystemHealthRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/studio': {
-      id: '/admin/studio'
-      path: '/studio'
-      fullPath: '/admin/studio'
-      preLoaderRoute: typeof AdminStudioRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/stores': {
-      id: '/admin/stores'
-      path: '/stores'
-      fullPath: '/admin/stores'
-      preLoaderRoute: typeof AdminStoresRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/storefront': {
-      id: '/admin/storefront'
-      path: '/storefront'
-      fullPath: '/admin/storefront'
-      preLoaderRoute: typeof AdminStorefrontRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/shipping': {
-      id: '/admin/shipping'
-      path: '/shipping'
-      fullPath: '/admin/shipping'
-      preLoaderRoute: typeof AdminShippingRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/sessions': {
-      id: '/admin/sessions'
-      path: '/sessions'
-      fullPath: '/admin/sessions'
-      preLoaderRoute: typeof AdminSessionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/seo': {
-      id: '/admin/seo'
-      path: '/seo'
-      fullPath: '/admin/seo'
-      preLoaderRoute: typeof AdminSeoRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/reviews': {
-      id: '/admin/reviews'
-      path: '/reviews'
-      fullPath: '/admin/reviews'
-      preLoaderRoute: typeof AdminReviewsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/products': {
-      id: '/admin/products'
-      path: '/products'
-      fullPath: '/admin/products'
-      preLoaderRoute: typeof AdminProductsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/platform': {
-      id: '/admin/platform'
-      path: '/platform'
-      fullPath: '/admin/platform'
-      preLoaderRoute: typeof AdminPlatformRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/payments': {
-      id: '/admin/payments'
-      path: '/payments'
-      fullPath: '/admin/payments'
-      preLoaderRoute: typeof AdminPaymentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/pages': {
-      id: '/admin/pages'
-      path: '/pages'
-      fullPath: '/admin/pages'
-      preLoaderRoute: typeof AdminPagesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/orders': {
-      id: '/admin/orders'
-      path: '/orders'
-      fullPath: '/admin/orders'
-      preLoaderRoute: typeof AdminOrdersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/notifications': {
-      id: '/admin/notifications'
-      path: '/notifications'
-      fullPath: '/admin/notifications'
-      preLoaderRoute: typeof AdminNotificationsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/media': {
-      id: '/admin/media'
-      path: '/media'
-      fullPath: '/admin/media'
-      preLoaderRoute: typeof AdminMediaRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/live-logs': {
-      id: '/admin/live-logs'
-      path: '/live-logs'
-      fullPath: '/admin/live-logs'
-      preLoaderRoute: typeof AdminLiveLogsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/inventory': {
-      id: '/admin/inventory'
-      path: '/inventory'
-      fullPath: '/admin/inventory'
-      preLoaderRoute: typeof AdminInventoryRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/insights': {
-      id: '/admin/insights'
-      path: '/insights'
-      fullPath: '/admin/insights'
-      preLoaderRoute: typeof AdminInsightsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/deals': {
-      id: '/admin/deals'
-      path: '/deals'
-      fullPath: '/admin/deals'
-      preLoaderRoute: typeof AdminDealsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/customers': {
-      id: '/admin/customers'
-      path: '/customers'
-      fullPath: '/admin/customers'
-      preLoaderRoute: typeof AdminCustomersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/coupons': {
-      id: '/admin/coupons'
-      path: '/coupons'
-      fullPath: '/admin/coupons'
-      preLoaderRoute: typeof AdminCouponsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/categories': {
-      id: '/admin/categories'
-      path: '/categories'
-      fullPath: '/admin/categories'
-      preLoaderRoute: typeof AdminCategoriesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/campaigns': {
-      id: '/admin/campaigns'
-      path: '/campaigns'
-      fullPath: '/admin/campaigns'
-      preLoaderRoute: typeof AdminCampaignsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/branches': {
-      id: '/admin/branches'
-      path: '/branches'
-      fullPath: '/admin/branches'
-      preLoaderRoute: typeof AdminBranchesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/banners': {
-      id: '/admin/banners'
-      path: '/banners'
-      fullPath: '/admin/banners'
-      preLoaderRoute: typeof AdminBannersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/audit-logs': {
-      id: '/admin/audit-logs'
-      path: '/audit-logs'
-      fullPath: '/admin/audit-logs'
-      preLoaderRoute: typeof AdminAuditLogsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/appearance': {
-      id: '/admin/appearance'
-      path: '/appearance'
-      fullPath: '/admin/appearance'
-      preLoaderRoute: typeof AdminAppearanceRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/ai-settings': {
-      id: '/admin/ai-settings'
-      path: '/ai-settings'
-      fullPath: '/admin/ai-settings'
-      preLoaderRoute: typeof AdminAiSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/ai-memory': {
-      id: '/admin/ai-memory'
-      path: '/ai-memory'
-      fullPath: '/admin/ai-memory'
-      preLoaderRoute: typeof AdminAiMemoryRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/ai-developer': {
-      id: '/admin/ai-developer'
-      path: '/ai-developer'
-      fullPath: '/admin/ai-developer'
-      preLoaderRoute: typeof AdminAiDeveloperRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/ai-agent': {
@@ -1459,53 +1115,375 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiAgentRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/api/webhooks/whatsapp': {
-      id: '/api/webhooks/whatsapp'
-      path: '/api/webhooks/whatsapp'
-      fullPath: '/api/webhooks/whatsapp'
-      preLoaderRoute: typeof ApiWebhooksWhatsappRouteImport
+    '/admin/ai-developer': {
+      id: '/admin/ai-developer'
+      path: '/ai-developer'
+      fullPath: '/admin/ai-developer'
+      preLoaderRoute: typeof AdminAiDeveloperRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-memory': {
+      id: '/admin/ai-memory'
+      path: '/ai-memory'
+      fullPath: '/admin/ai-memory'
+      preLoaderRoute: typeof AdminAiMemoryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-settings': {
+      id: '/admin/ai-settings'
+      path: '/ai-settings'
+      fullPath: '/admin/ai-settings'
+      preLoaderRoute: typeof AdminAiSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/appearance': {
+      id: '/admin/appearance'
+      path: '/appearance'
+      fullPath: '/admin/appearance'
+      preLoaderRoute: typeof AdminAppearanceRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/banners': {
+      id: '/admin/banners'
+      path: '/banners'
+      fullPath: '/admin/banners'
+      preLoaderRoute: typeof AdminBannersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/branches': {
+      id: '/admin/branches'
+      path: '/branches'
+      fullPath: '/admin/branches'
+      preLoaderRoute: typeof AdminBranchesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/campaigns': {
+      id: '/admin/campaigns'
+      path: '/campaigns'
+      fullPath: '/admin/campaigns'
+      preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/coupons': {
+      id: '/admin/coupons'
+      path: '/coupons'
+      fullPath: '/admin/coupons'
+      preLoaderRoute: typeof AdminCouponsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/customers': {
+      id: '/admin/customers'
+      path: '/customers'
+      fullPath: '/admin/customers'
+      preLoaderRoute: typeof AdminCustomersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/deals': {
+      id: '/admin/deals'
+      path: '/deals'
+      fullPath: '/admin/deals'
+      preLoaderRoute: typeof AdminDealsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/insights': {
+      id: '/admin/insights'
+      path: '/insights'
+      fullPath: '/admin/insights'
+      preLoaderRoute: typeof AdminInsightsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inventory': {
+      id: '/admin/inventory'
+      path: '/inventory'
+      fullPath: '/admin/inventory'
+      preLoaderRoute: typeof AdminInventoryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/live-logs': {
+      id: '/admin/live-logs'
+      path: '/live-logs'
+      fullPath: '/admin/live-logs'
+      preLoaderRoute: typeof AdminLiveLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/media': {
+      id: '/admin/media'
+      path: '/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AdminMediaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pages': {
+      id: '/admin/pages'
+      path: '/pages'
+      fullPath: '/admin/pages'
+      preLoaderRoute: typeof AdminPagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/platform': {
+      id: '/admin/platform'
+      path: '/platform'
+      fullPath: '/admin/platform'
+      preLoaderRoute: typeof AdminPlatformRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/reviews': {
+      id: '/admin/reviews'
+      path: '/reviews'
+      fullPath: '/admin/reviews'
+      preLoaderRoute: typeof AdminReviewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/seo': {
+      id: '/admin/seo'
+      path: '/seo'
+      fullPath: '/admin/seo'
+      preLoaderRoute: typeof AdminSeoRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/sessions': {
+      id: '/admin/sessions'
+      path: '/sessions'
+      fullPath: '/admin/sessions'
+      preLoaderRoute: typeof AdminSessionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/shipping': {
+      id: '/admin/shipping'
+      path: '/shipping'
+      fullPath: '/admin/shipping'
+      preLoaderRoute: typeof AdminShippingRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/storefront': {
+      id: '/admin/storefront'
+      path: '/storefront'
+      fullPath: '/admin/storefront'
+      preLoaderRoute: typeof AdminStorefrontRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/stores': {
+      id: '/admin/stores'
+      path: '/stores'
+      fullPath: '/admin/stores'
+      preLoaderRoute: typeof AdminStoresRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/studio': {
+      id: '/admin/studio'
+      path: '/studio'
+      fullPath: '/admin/studio'
+      preLoaderRoute: typeof AdminStudioRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/system-health': {
+      id: '/admin/system-health'
+      path: '/system-health'
+      fullPath: '/admin/system-health'
+      preLoaderRoute: typeof AdminSystemHealthRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/category/$id': {
+      id: '/category/$id'
+      path: '/category/$id'
+      fullPath: '/category/$id'
+      preLoaderRoute: typeof CategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/image-proxy': {
-      id: '/api/public/image-proxy'
-      path: '/api/public/image-proxy'
-      fullPath: '/api/public/image-proxy'
-      preLoaderRoute: typeof ApiPublicImageProxyRouteImport
+    '/demo/3d-viewer': {
+      id: '/demo/3d-viewer'
+      path: '/demo/3d-viewer'
+      fullPath: '/demo/3d-viewer'
+      preLoaderRoute: typeof Demo3dViewerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ai/debug': {
-      id: '/api/ai/debug'
-      path: '/api/ai/debug'
-      fullPath: '/api/ai/debug'
-      preLoaderRoute: typeof ApiAiDebugRouteImport
+    '/google-shopping/xml': {
+      id: '/google-shopping/xml'
+      path: '/google-shopping/xml'
+      fullPath: '/google-shopping/xml'
+      preLoaderRoute: typeof GoogleShoppingXmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ai/analyze-product': {
-      id: '/api/ai/analyze-product'
-      path: '/api/ai/analyze-product'
-      fullPath: '/api/ai/analyze-product'
-      preLoaderRoute: typeof ApiAiAnalyzeProductRouteImport
+    '/pages/$slug': {
+      id: '/pages/$slug'
+      path: '/pages/$slug'
+      fullPath: '/pages/$slug'
+      preLoaderRoute: typeof PagesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ai/agent': {
-      id: '/api/ai/agent'
-      path: '/api/ai/agent'
-      fullPath: '/api/ai/agent'
-      preLoaderRoute: typeof ApiAiAgentRouteImport
+    '/product/$slug': {
+      id: '/product/$slug'
+      path: '/product/$slug'
+      fullPath: '/product/$slug'
+      preLoaderRoute: typeof ProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/stores/$tenantId': {
-      id: '/admin/stores/$tenantId'
-      path: '/$tenantId'
-      fullPath: '/admin/stores/$tenantId'
-      preLoaderRoute: typeof AdminStoresTenantIdRouteImport
-      parentRoute: typeof AdminStoresRoute
+    '/robots/txt': {
+      id: '/robots/txt'
+      path: '/robots/txt'
+      fullPath: '/robots/txt'
+      preLoaderRoute: typeof RobotsTxtRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/product/$id': {
-      id: '/admin/product/$id'
-      path: '/product/$id'
-      fullPath: '/admin/product/$id'
-      preLoaderRoute: typeof AdminProductIdRouteImport
+    '/sitemap/xml': {
+      id: '/sitemap/xml'
+      path: '/sitemap/xml'
+      fullPath: '/sitemap/xml'
+      preLoaderRoute: typeof SitemapXmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/': {
+      id: '/store/'
+      path: '/'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/analytics': {
+      id: '/store/analytics'
+      path: '/analytics'
+      fullPath: '/store/analytics'
+      preLoaderRoute: typeof StoreAnalyticsRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/customers': {
+      id: '/store/customers'
+      path: '/customers'
+      fullPath: '/store/customers'
+      preLoaderRoute: typeof StoreCustomersRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/dashboard': {
+      id: '/store/dashboard'
+      path: '/dashboard'
+      fullPath: '/store/dashboard'
+      preLoaderRoute: typeof StoreDashboardRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/earnings': {
+      id: '/store/earnings'
+      path: '/earnings'
+      fullPath: '/store/earnings'
+      preLoaderRoute: typeof StoreEarningsRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/inventory': {
+      id: '/store/inventory'
+      path: '/inventory'
+      fullPath: '/store/inventory'
+      preLoaderRoute: typeof StoreInventoryRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/marketing': {
+      id: '/store/marketing'
+      path: '/marketing'
+      fullPath: '/store/marketing'
+      preLoaderRoute: typeof StoreMarketingRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/orders': {
+      id: '/store/orders'
+      path: '/orders'
+      fullPath: '/store/orders'
+      preLoaderRoute: typeof StoreOrdersRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/products': {
+      id: '/store/products'
+      path: '/products'
+      fullPath: '/store/products'
+      preLoaderRoute: typeof StoreProductsRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/settings': {
+      id: '/store/settings'
+      path: '/settings'
+      fullPath: '/store/settings'
+      preLoaderRoute: typeof StoreSettingsRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/vendor/$slug': {
+      id: '/vendor/$slug'
+      path: '/vendor/$slug'
+      fullPath: '/vendor/$slug'
+      preLoaderRoute: typeof VendorSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendor/dashboard': {
+      id: '/vendor/dashboard'
+      path: '/vendor/dashboard'
+      fullPath: '/vendor/dashboard'
+      preLoaderRoute: typeof VendorDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/diagnostics/whatsapp': {
+      id: '/admin/diagnostics/whatsapp'
+      path: '/diagnostics/whatsapp'
+      fullPath: '/admin/diagnostics/whatsapp'
+      preLoaderRoute: typeof AdminDiagnosticsWhatsappRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/integrations/facebook': {
+      id: '/admin/integrations/facebook'
+      path: '/integrations/facebook'
+      fullPath: '/admin/integrations/facebook'
+      preLoaderRoute: typeof AdminIntegrationsFacebookRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/integrations/whatsapp': {
@@ -1515,12 +1493,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIntegrationsWhatsappRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/diagnostics/whatsapp': {
-      id: '/admin/diagnostics/whatsapp'
-      path: '/diagnostics/whatsapp'
-      fullPath: '/admin/diagnostics/whatsapp'
-      preLoaderRoute: typeof AdminDiagnosticsWhatsappRouteImport
+    '/admin/product/$id': {
+      id: '/admin/product/$id'
+      path: '/product/$id'
+      fullPath: '/admin/product/$id'
+      preLoaderRoute: typeof AdminProductIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/stores/$tenantId': {
+      id: '/admin/stores/$tenantId'
+      path: '/$tenantId'
+      fullPath: '/admin/stores/$tenantId'
+      preLoaderRoute: typeof AdminStoresTenantIdRouteImport
+      parentRoute: typeof AdminStoresRoute
+    }
+    '/api/ai/agent': {
+      id: '/api/ai/agent'
+      path: '/api/ai/agent'
+      fullPath: '/api/ai/agent'
+      preLoaderRoute: typeof ApiAiAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/analyze-product': {
+      id: '/api/ai/analyze-product'
+      path: '/api/ai/analyze-product'
+      fullPath: '/api/ai/analyze-product'
+      preLoaderRoute: typeof ApiAiAnalyzeProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/debug': {
+      id: '/api/ai/debug'
+      path: '/api/ai/debug'
+      fullPath: '/api/ai/debug'
+      preLoaderRoute: typeof ApiAiDebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/image-proxy': {
+      id: '/api/public/image-proxy'
+      path: '/api/public/image-proxy'
+      fullPath: '/api/public/image-proxy'
+      preLoaderRoute: typeof ApiPublicImageProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/whatsapp': {
+      id: '/api/webhooks/whatsapp'
+      path: '/api/webhooks/whatsapp'
+      fullPath: '/api/webhooks/whatsapp'
+      preLoaderRoute: typeof ApiWebhooksWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1573,6 +1593,7 @@ interface AdminRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminDiagnosticsWhatsappRoute: typeof AdminDiagnosticsWhatsappRoute
+  AdminIntegrationsFacebookRoute: typeof AdminIntegrationsFacebookRoute
   AdminIntegrationsWhatsappRoute: typeof AdminIntegrationsWhatsappRoute
   AdminProductIdRoute: typeof AdminProductIdRoute
 }
@@ -1613,6 +1634,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminDiagnosticsWhatsappRoute: AdminDiagnosticsWhatsappRoute,
+  AdminIntegrationsFacebookRoute: AdminIntegrationsFacebookRoute,
   AdminIntegrationsWhatsappRoute: AdminIntegrationsWhatsappRoute,
   AdminProductIdRoute: AdminProductIdRoute,
 }
@@ -1681,13 +1703,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
