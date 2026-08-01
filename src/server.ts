@@ -1,7 +1,7 @@
 import "./lib/error-capture";
-
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { logServerError } from "@/services/live-logs.service";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,12 +46,62 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+
+      // Auto-log Vercel server request stream (skip self live-logs polling)
+      if (!pathname.includes("live-logs") && !pathname.includes("listLiveLogs")) {
+        const status = response.status;
+        const method = request.method;
+        const host = url.hostname;
+
+        let level: "info" | "warn" | "error" | "fatal" = "info";
+        if (status >= 500) level = "error";
+        else if (status >= 400) level = "warn";
+
+        let cause = `HTTP ${status} ${method} ${pathname}`;
+        if (pathname.includes("/image-proxy")) {
+          const targetUrl = url.searchParams.get("url");
+          try {
+            const hostObj = targetUrl ? new URL(targetUrl).hostname : "unknown";
+            cause = `[IMAGE_PROXY] { hostname: '${hostObj}' }`;
+          } catch {
+            cause = `[IMAGE_PROXY] ${method} ${pathname}`;
+          }
+        } else if (pathname.includes("/_serverFn/")) {
+          cause = `[ServerFn] ${method} ${pathname.substring(0, 32)}...`;
+        }
+
+        logServerError({
+          errorName: `[${method}] ${pathname}`,
+          errorType: pathname.startsWith("/api") ? "Server Function" : "Storefront UI",
+          level,
+          location: pathname,
+          cause,
+          context: { method, status, host, path: pathname },
+        }).catch(() => {});
+      }
+
       return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+
+      if (!pathname.includes("live-logs")) {
+        logServerError({
+          errorName: `[${request.method}] ${pathname} Execution Error`,
+          errorType: "Server Function",
+          level: "error",
+          location: pathname,
+          cause: error?.message || String(error),
+          stackTrace: error?.stack || String(error),
+          context: { method: request.method, status: 500, host: url.hostname, path: pathname },
+        }).catch(() => {});
+      }
+
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
