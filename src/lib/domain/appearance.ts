@@ -100,22 +100,26 @@ export type ProductPageConfig = z.infer<typeof ProductPageConfigSchema>;
 
 // ── 5. Cart Config Schema ─────────────────────────────────────────────────────
 export const CartConfigSchema = z.object({
-  cartStyle: z.enum(["drawer", "page", "modal"]).catch("page"),
-  checkoutBtnPosition: z.enum(["bottom_fixed", "inline", "both"]).catch("bottom_fixed"),
-  whatsappEnabled: z.boolean().catch(true),
-  whatsappPhone: z.string().catch("967771370740"),
+  cartStyle: z.enum(["drawer", "page", "modal"]).catch("page").default("page"),
+  checkoutBtnPosition: z
+    .enum(["bottom_fixed", "inline", "both"])
+    .catch("bottom_fixed")
+    .default("bottom_fixed"),
+  whatsappEnabled: z.boolean().catch(true).default(true),
+  whatsappPhone: z.string().catch("967771370740").default("967771370740"),
   whatsappOrderTemplate: z
     .string()
-    .catch("مرحباً، أريد طلب:\n{products}\nالإجمالي: {total}\nالاسم: {name}\nالعنوان: {address}"),
-  floatingBarEnabled: z.boolean().catch(true),
-  floatingBarPosition: z.enum(["top", "bottom"]).catch("bottom"),
-  quickWhatsAppOrder: z.boolean().catch(true),
-  couponFieldEnabled: z.boolean().catch(true),
-  deliveryFormEnabled: z.boolean().catch(true),
-  defaultShippingText: z.string().catch("يتم الاتفاق عليه"),
-  shippingFee: z.number().min(0).catch(3000),
-  freeShippingThreshold: z.number().min(0).catch(0),
-  defaultShippingFee: z.number().min(0).catch(3000),
+    .catch("مرحباً، أريد طلب:\n{products}\nالإجمالي: {total}\nالاسم: {name}\nالعنوان: {address}")
+    .default("مرحباً، أريد طلب:\n{products}\nالإجمالي: {total}\nالاسم: {name}\nالعنوان: {address}"),
+  floatingBarEnabled: z.boolean().catch(true).default(true),
+  floatingBarPosition: z.enum(["top", "bottom"]).catch("bottom").default("bottom"),
+  quickWhatsAppOrder: z.boolean().catch(true).default(true),
+  couponFieldEnabled: z.boolean().catch(true).default(true),
+  deliveryFormEnabled: z.boolean().catch(true).default(true),
+  defaultShippingText: z.string().catch("يتم الاتفاق عليه").default("يتم الاتفاق عليه"),
+  shippingFee: z.number().min(0).catch(3000).default(3000),
+  freeShippingThreshold: z.number().min(0).catch(0).default(0),
+  defaultShippingFee: z.number().min(0).catch(3000).default(3000),
 });
 export type CartConfig = z.infer<typeof CartConfigSchema>;
 

@@ -61,6 +61,7 @@ import { Route as AdminPagesRouteImport } from './routes/admin.pages'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
+import { Route as AdminLiveLogsRouteImport } from './routes/admin.live-logs'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
 import { Route as AdminInsightsRouteImport } from './routes/admin.insights'
 import { Route as AdminDealsRouteImport } from './routes/admin.deals'
@@ -71,7 +72,6 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminBranchesRouteImport } from './routes/admin.branches'
 import { Route as AdminBannersRouteImport } from './routes/admin.banners'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
-import { Route as AdminLiveLogsRouteImport } from './routes/admin.live-logs'
 import { Route as AdminAppearanceRouteImport } from './routes/admin.appearance'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
 import { Route as AdminAiMemoryRouteImport } from './routes/admin.ai-memory'
@@ -347,6 +347,11 @@ const AdminMediaRoute = AdminMediaRouteImport.update({
   path: '/media',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLiveLogsRoute = AdminLiveLogsRouteImport.update({
+  id: '/live-logs',
+  path: '/live-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminInventoryRoute = AdminInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -395,11 +400,6 @@ const AdminBannersRoute = AdminBannersRouteImport.update({
 const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLiveLogsRoute = AdminLiveLogsRouteImport.update({
-  id: '/live-logs',
-  path: '/live-logs',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAppearanceRoute = AdminAppearanceRouteImport.update({
@@ -1347,6 +1347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMediaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/live-logs': {
+      id: '/admin/live-logs'
+      path: '/live-logs'
+      fullPath: '/admin/live-logs'
+      preLoaderRoute: typeof AdminLiveLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/inventory': {
       id: '/admin/inventory'
       path: '/inventory'
@@ -1415,13 +1422,6 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/admin/audit-logs'
       preLoaderRoute: typeof AdminAuditLogsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/live-logs': {
-      id: '/admin/live-logs'
-      path: '/live-logs'
-      fullPath: '/admin/live-logs'
-      preLoaderRoute: typeof AdminLiveLogsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/appearance': {
@@ -1553,6 +1553,7 @@ interface AdminRouteChildren {
   AdminDealsRoute: typeof AdminDealsRoute
   AdminInsightsRoute: typeof AdminInsightsRoute
   AdminInventoryRoute: typeof AdminInventoryRoute
+  AdminLiveLogsRoute: typeof AdminLiveLogsRoute
   AdminMediaRoute: typeof AdminMediaRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
@@ -1569,7 +1570,6 @@ interface AdminRouteChildren {
   AdminStoresRoute: typeof AdminStoresRouteWithChildren
   AdminStudioRoute: typeof AdminStudioRoute
   AdminSystemHealthRoute: typeof AdminSystemHealthRoute
-  AdminLiveLogsRoute: typeof AdminLiveLogsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminDiagnosticsWhatsappRoute: typeof AdminDiagnosticsWhatsappRoute
@@ -1593,6 +1593,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDealsRoute: AdminDealsRoute,
   AdminInsightsRoute: AdminInsightsRoute,
   AdminInventoryRoute: AdminInventoryRoute,
+  AdminLiveLogsRoute: AdminLiveLogsRoute,
   AdminMediaRoute: AdminMediaRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
@@ -1609,7 +1610,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStoresRoute: AdminStoresRouteWithChildren,
   AdminStudioRoute: AdminStudioRoute,
   AdminSystemHealthRoute: AdminSystemHealthRoute,
-  AdminLiveLogsRoute: AdminLiveLogsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminDiagnosticsWhatsappRoute: AdminDiagnosticsWhatsappRoute,

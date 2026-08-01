@@ -10,19 +10,20 @@ import {
   Copy,
   Loader2,
   Plus,
-  Download,
   RefreshCw,
   Link2,
-  Check,
   AlertCircle,
   MoreVertical,
   Share2,
   FileSpreadsheet,
   Globe,
   Clock,
-  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
+import type { ImportResult } from "@/lib/catalog-import.functions";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
@@ -43,8 +44,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCurrentTenant } from "@/components/tenant-provider";
 
-const DEFAULT_CATALOG_URL =
-  "https://firebasestorage.googleapis.com/v0/b/smartcontentcreator-d49f2.firebasestorage.app/o/catalogs%2Fglobal%2Fcatalog.csv?alt=media&token=8d793707-b96a-4ee9-bca1-0912af180138&ext=.csv";
+// The catalog source URL should be configured via environment variable CATALOG_IMPORT_URL.
+// Administrators can also supply a one-time URL via the import prompt.
+// Never commit Firebase download tokens as constants in source code.
+const CATALOG_IMPORT_URL =
+  typeof import.meta.env !== "undefined" && import.meta.env.VITE_CATALOG_IMPORT_URL
+    ? (import.meta.env.VITE_CATALOG_IMPORT_URL as string)
+    : ""; // No hardcoded token — admin must supply URL via prompt
 
 export const Route = createFileRoute("/admin/products")({
   component: ProductsPage,
@@ -62,6 +68,9 @@ function ProductsPage() {
   const [page, setPage] = useState<number>(1);
   const pageSize = 20;
   const [showInstructions, setShowInstructions] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showFailures, setShowFailures] = useState(false);
+  const importResultRef = useRef<HTMLDivElement>(null);
 
   const query = useMemo(
     () => ({
@@ -139,8 +148,24 @@ function ProductsPage() {
   const importMut = useMutation({
     mutationFn: (url: string) => importCatalogFromUrl({ url, publish: true }),
     onSuccess: (r) => {
-      toast.success(`تم الاستيراد: ${r.processed}/${r.total}`);
+      setImportResult(r);
+      setShowFailures(false);
+      const successCount = r.inserted + r.updated;
+      if (r.failed === 0 && successCount > 0) {
+        toast.success(
+          `✅ اكتمل الاستيراد: ${successCount} منتج | ${r.primaryImagesImported} صورة رئيسية | ${r.additionalImagesImported} صورة إضافية | ${r.videosImported} فيديو`,
+        );
+      } else if (successCount > 0 && (r.failed > 0 || r.skipped > 0)) {
+        toast.warning(
+          `⚠️ اكتمل جزئياً: ${successCount} تمت معالجتهم، ${r.failed} فشل، ${r.skipped} تخطي`,
+        );
+      } else {
+        toast.error("❌ لم يُستورد أي منتج صالح");
+      }
       invalidate();
+      qc.invalidateQueries({ queryKey: ["storefront-products"] });
+      qc.invalidateQueries({ queryKey: ["admin-categories"] });
+      setTimeout(() => importResultRef.current?.scrollIntoView({ behavior: "smooth" }), 300);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -319,8 +344,15 @@ function ProductsPage() {
           </button>
           <button
             onClick={() => {
-              const url = window.prompt("رابط ملف CSV للاستيراد:", DEFAULT_CATALOG_URL);
-              if (url && url.trim()) importMut.mutate(url.trim());
+              const defaultUrl = CATALOG_IMPORT_URL || "";
+              const url = window.prompt(
+                "رابط ملف CSV للاستيراد (HTTPS فقط):",
+                defaultUrl,
+              );
+              if (url && url.trim()) {
+                setImportResult(null);
+                importMut.mutate(url.trim());
+              }
             }}
             disabled={importMut.isPending}
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-bold hover:bg-accent disabled:opacity-60 transition"
@@ -360,6 +392,101 @@ function ProductsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Import Result Panel */}
+      {importMut.isPending && (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+          <div>
+            <p className="font-bold text-foreground text-sm">جارٍ استيراد الكتالوج...</p>
+            <p className="text-xs text-muted-foreground mt-0.5">تحميل → تحليل → التحقق → استيراد المنتجات والوسائط</p>
+          </div>
+        </div>
+      )}
+
+      {importResult && !importMut.isPending && (
+        <div
+          ref={importResultRef}
+          className={`rounded-2xl border p-5 ${
+            importResult.failed === 0 && importResult.productsProcessed > 0
+              ? "border-success/40 bg-success/5"
+              : importResult.productsProcessed > 0
+                ? "border-warning/40 bg-warning/5"
+                : "border-destructive/40 bg-destructive/5"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {importResult.failed === 0 && importResult.productsProcessed > 0 ? (
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+              ) : importResult.productsProcessed > 0 ? (
+                <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+              ) : (
+                <XCircle className="h-5 w-5 text-destructive shrink-0" />
+              )}
+              <h3 className="font-bold text-foreground text-sm">
+                {importResult.failed === 0 && importResult.productsProcessed > 0
+                  ? "✅ اكتمل الاستيراد بنجاح"
+                  : importResult.productsProcessed > 0
+                    ? "⚠️ اكتمل الاستيراد جزئياً"
+                    : "❌ فشل الاستيراد"}
+              </h3>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: "صفوف CSV", value: importResult.csvRows, color: "text-foreground" },
+              { label: "منتجات صالحة", value: importResult.validRows, color: "text-foreground" },
+              { label: "تمت معالجتهم", value: importResult.productsProcessed, color: "text-success" },
+              { label: "تخطي", value: importResult.skipped, color: "text-warning" },
+              { label: "فشل", value: importResult.failed, color: "text-destructive" },
+              { label: "صور رئيسية", value: importResult.primaryImagesImported, color: "text-primary" },
+              { label: "صور إضافية", value: importResult.additionalImagesImported, color: "text-primary" },
+              { label: "فيديوهات", value: importResult.videosImported, color: "text-primary" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl border border-border/60 bg-surface p-3">
+                <p className="text-[10px] font-medium text-muted-foreground">{s.label}</p>
+                <p className={`text-xl font-black mt-0.5 ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {importResult.failures.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowFailures((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-bold text-destructive hover:opacity-80 transition"
+              >
+                {showFailures ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+                {importResult.failures.length} مشكلة موجودة — انقر للتفاصيل
+              </button>
+              {showFailures && (
+                <div className="mt-3 space-y-1.5 max-h-64 overflow-y-auto">
+                  {importResult.failures.map((f, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 text-xs"
+                    >
+                      <span className="font-bold text-destructive">صف #{f.rowNumber}</span>
+                      {f.externalId && (
+                        <span className="text-muted-foreground font-mono ms-2">{f.externalId}</span>
+                      )}
+                      {f.title && <span className="ms-2 text-foreground">{f.title}</span>}
+                      <span className="ms-2 text-destructive">[{f.code}]</span>
+                      <span className="ms-1 text-muted-foreground">{f.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Feed URL Card */}
       <div className="rounded-2xl border border-border/60 bg-surface/50 p-5 shadow-card">
