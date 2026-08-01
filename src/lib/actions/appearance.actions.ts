@@ -1,4 +1,5 @@
 // Security-critical CMS file — no @ts-nocheck allowed
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -78,6 +79,16 @@ async function resolvePublicCmsTenant(db: any): Promise<string | null> {
   }
 }
 
+function parseSection<T>(schema: z.ZodSchema<T>, raw: unknown, fallback: T): T {
+  try {
+    const res = schema.safeParse(raw ?? {});
+    if (res.success) return res.data;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Parse the raw DB rows into the full StorefrontSettingsShape using safe Zod defaults. */
 function rowsToSettings(
   data: Array<{ key: string; value: unknown; draft_value?: unknown }>,
@@ -85,62 +96,79 @@ function rowsToSettings(
 ): StorefrontSettingsShape {
   const settingsMap = new Map<string, unknown>();
   for (const row of data) {
-    // In preview mode: use draft_value if available, otherwise fall back to value
     const activeValue = previewMode && row.draft_value != null ? row.draft_value : row.value;
     settingsMap.set(row.key, activeValue);
   }
 
   return {
-    hero: HeroConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.hero).parse(
-      settingsMap.get("hero") ?? {}
-    ),
-    theme: ThemeConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.theme).parse(
-      settingsMap.get("theme") ?? {}
-    ),
-    products_layout: ProductsLayoutConfigSchema.catch(
+    hero: parseSection(HeroConfigSchema, settingsMap.get("hero"), DEFAULT_STOREFRONT_SETTINGS.hero),
+    theme: parseSection(ThemeConfigSchema, settingsMap.get("theme"), DEFAULT_STOREFRONT_SETTINGS.theme),
+    products_layout: parseSection(
+      ProductsLayoutConfigSchema,
+      settingsMap.get("products_layout"),
       DEFAULT_STOREFRONT_SETTINGS.products_layout
-    ).parse(settingsMap.get("products_layout") ?? {}),
-    product_page: ProductPageConfigSchema.catch(
+    ),
+    product_page: parseSection(
+      ProductPageConfigSchema,
+      settingsMap.get("product_page"),
       DEFAULT_STOREFRONT_SETTINGS.product_page
-    ).parse(settingsMap.get("product_page") ?? {}),
-    cart_config: CartConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.cart_config).parse(
-      settingsMap.get("cart_config") ?? {}
     ),
-    checkout: CheckoutConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.checkout).parse(
-      settingsMap.get("checkout") ?? {}
+    cart_config: parseSection(
+      CartConfigSchema,
+      settingsMap.get("cart_config"),
+      DEFAULT_STOREFRONT_SETTINGS.cart_config
     ),
-    navigation: NavigationConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.navigation).parse(
-      settingsMap.get("navigation") ?? {}
+    checkout: parseSection(
+      CheckoutConfigSchema,
+      settingsMap.get("checkout"),
+      DEFAULT_STOREFRONT_SETTINGS.checkout
     ),
-    pages: PagesConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.pages).parse(
-      settingsMap.get("pages") ?? {}
+    navigation: parseSection(
+      NavigationConfigSchema,
+      settingsMap.get("navigation"),
+      DEFAULT_STOREFRONT_SETTINGS.navigation
     ),
-    translation: TranslationConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.translation).parse(
-      settingsMap.get("translation") ?? {}
+    pages: parseSection(PagesConfigSchema, settingsMap.get("pages"), DEFAULT_STOREFRONT_SETTINGS.pages),
+    translation: parseSection(
+      TranslationConfigSchema,
+      settingsMap.get("translation"),
+      DEFAULT_STOREFRONT_SETTINGS.translation
     ),
-    notifications: NotificationsConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.notifications).parse(
-      settingsMap.get("notifications") ?? {}
+    notifications: parseSection(
+      NotificationsConfigSchema,
+      settingsMap.get("notifications"),
+      DEFAULT_STOREFRONT_SETTINGS.notifications
     ),
-    sections: SectionsConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.sections).parse(
-      settingsMap.get("sections") ?? {}
+    sections: parseSection(
+      SectionsConfigSchema,
+      settingsMap.get("sections"),
+      DEFAULT_STOREFRONT_SETTINGS.sections
     ),
-    seo: SeoConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.seo).parse(
-      settingsMap.get("seo") ?? {}
+    seo: parseSection(SeoConfigSchema, settingsMap.get("seo"), DEFAULT_STOREFRONT_SETTINGS.seo),
+    advanced: parseSection(
+      AdvancedConfigSchema,
+      settingsMap.get("advanced"),
+      DEFAULT_STOREFRONT_SETTINGS.advanced
     ),
-    advanced: AdvancedConfigSchema.catch(DEFAULT_STOREFRONT_SETTINGS.advanced).parse(
-      settingsMap.get("advanced") ?? {}
+    store_identity: parseSection(
+      StoreIdentitySchema,
+      settingsMap.get("store_identity"),
+      DEFAULT_STOREFRONT_SETTINGS.store_identity
     ),
-    store_identity: StoreIdentitySchema.catch(DEFAULT_STOREFRONT_SETTINGS.store_identity).parse(
-      settingsMap.get("store_identity") ?? {}
+    brand_settings: parseSection(
+      BrandSettingsSchema,
+      settingsMap.get("brand_settings"),
+      DEFAULT_STOREFRONT_SETTINGS.brand_settings
     ),
-    brand_settings: BrandSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.brand_settings).parse(
-      settingsMap.get("brand_settings") ?? {}
+    social_links: parseSection(
+      SocialLinksSettingsSchema,
+      settingsMap.get("social_links"),
+      DEFAULT_STOREFRONT_SETTINGS.social_links
     ),
-    social_links: SocialLinksSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.social_links).parse(
-      settingsMap.get("social_links") ?? {}
-    ),
-    general_settings: GeneralStoreSettingsSchema.catch(DEFAULT_STOREFRONT_SETTINGS.general_settings).parse(
-      settingsMap.get("general_settings") ?? {}
+    general_settings: parseSection(
+      GeneralStoreSettingsSchema,
+      settingsMap.get("general_settings"),
+      DEFAULT_STOREFRONT_SETTINGS.general_settings
     ),
   };
 }
