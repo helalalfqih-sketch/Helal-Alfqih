@@ -38,8 +38,10 @@ import {
   ShieldCheck,
   MessageSquare,
   Code2,
+  Terminal,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { initGlobalLiveErrorListeners } from "@/lib/live-error-capturer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { I18nProvider, useI18n } from "@/lib/i18n";
@@ -264,6 +266,10 @@ function ShellInner() {
   };
   type NavGroup = { label: string; emoji: string; items: NavItem[] };
 
+  useEffect(() => {
+    initGlobalLiveErrorListeners();
+  }, []);
+
   // Target Information Architecture — all items are real routes (no soon:true)
   const groups: NavGroup[] = [
     {
@@ -334,6 +340,7 @@ function ShellInner() {
         { to: "/admin/stores", label: "المتاجر", icon: Store },
         { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: ShieldCheck },
         { to: "/admin/system-health", label: "حالة النظام والأداء", icon: Activity },
+        { to: "/admin/live-logs", label: "سجلات الأخطاء المباشرة (Live Logs)", icon: Terminal },
         { to: "/admin/integrations/whatsapp", label: "WhatsApp Media Sync", icon: MessageSquare },
         { to: "/admin/platform", label: "التكاملات (SaaS)", icon: Globe },
         { to: "/admin/settings", label: t("nav.settings"), icon: Settings },

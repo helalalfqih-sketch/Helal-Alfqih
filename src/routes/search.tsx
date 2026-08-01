@@ -10,13 +10,14 @@ import {
   CheckCircle2,
   AlertCircle,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { ProductCard } from "@/components/product-card";
 import { ProductCardSkeleton } from "@/components/ui/skeleton";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product } from "@/lib/store-data";
-import { categories as defaultCategories } from "@/lib/store-data";
+import { categories as defaultCategories, products as defaultProducts } from "@/lib/store-data";
 import { z } from "zod";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -75,6 +76,7 @@ function SearchPage() {
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+
 
   // Fetch Categories for Filter
   useEffect(() => {
@@ -292,8 +294,8 @@ function SearchPage() {
               setShowFilterDrawer((open) => !open);
             }}
             aria-label="تصفية النتائج"
-            aria-expanded={showFilterDrawer}
             aria-controls="search-filter-drawer"
+            aria-expanded={showFilterDrawer}
             className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold transition hover:bg-accent min-h-[44px]"
           >
             <SlidersHorizontal className="h-4 w-4 text-primary" />

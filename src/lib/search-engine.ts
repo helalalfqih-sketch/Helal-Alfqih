@@ -134,7 +134,6 @@ export async function searchProductsAdvanced(
   // Text Search Matching & Scoring
   if (search && search.trim()) {
     const rawTokens = getExpandedTokens(search);
-
     // Stop-words: tokens that are too common or semantically empty to drive relevance
     const STOP_WORDS = new Set([
       "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of", "to", "for", "with", "and", "or", "is",
