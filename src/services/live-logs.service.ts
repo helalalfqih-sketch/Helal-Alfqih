@@ -121,79 +121,90 @@ export function generateSuggestedFix(
   return "💡 اقتراح الإصلاح: راجع سطر الـ Stack Trace المحدد في الكود أدناه لتحديد دالة الاستدعاء وتدقيق معلمات الإدخال الممرضة.";
 }
 
-// In-memory fallback log store for instant response & resilience
-const inMemoryLiveLogs: SystemLiveLogEntry[] = [
-  {
-    id: "vcl-log-1",
+// In-memory ring buffer — stores ONLY real captured errors (max 200)
+// This starts empty; real errors are pushed via logLiveErrorFn()
+const inMemoryLiveLogs: SystemLiveLogEntry[] = [];
+
+/**
+ * Server-side helper: log a real error from any Server Function or API route.
+ * Fire-and-forget — never throws so it won't break the caller.
+ */
+export async function logServerError(opts: {
+  errorName: string;
+  errorType?: string;
+  level?: ErrorLevel;
+  location: string;
+  cause: string;
+  stackTrace?: string;
+  context?: Record<string, any>;
+}): Promise<void> {
+  const fix = generateSuggestedFix(
+    opts.errorName,
+    opts.cause,
+    opts.location,
+    opts.stackTrace,
+    opts.errorType || "Server Function"
+  );
+  const entry: SystemLiveLogEntry = {
+    id: crypto.randomUUID(),
     tenantId: null,
-    errorName: "[ImageProxy] Unauthorized domain: firebasestorage.googleapis.com",
-    errorType: "Server Function",
-    level: "warn",
-    location: "/api/public/image-proxy",
-    cause: "[ImageProxy] Unauthorized image domain blocked: firebasestorage.googleapis.com",
-    suggestedFix: "💡 إصلاح الصورة: أضف Domain 'firebasestorage.googleapis.com' إلى قائمة النطاقات المسموحة في image-proxy validator.",
-    stackTrace: "HTTP 403 Forbidden\nGET /api/public/image-proxy?url=https://firebasestorage.googleapis.com/...\nHost: indexes-store.vercel.app\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    context: { method: "GET", status: 403, host: "indexes-store.vercel.app", domain: "firebasestorage.googleapis.com" },
+    errorName: opts.errorName,
+    errorType: opts.errorType || "Server Function",
+    level: opts.level || "error",
+    location: opts.location,
+    cause: opts.cause,
+    suggestedFix: fix,
+    stackTrace: opts.stackTrace || null,
+    context: opts.context || {},
     status: "open",
-    createdAt: new Date(Date.now() - 1000 * 12).toISOString(),
-  },
-  {
-    id: "vcl-log-2",
-    tenantId: null,
-    errorName: "[WhatsAppWebhook] Service Temporarily Unavailable [503]",
-    errorType: "Server Function",
-    level: "error",
-    location: "/api/webhooks/whatsapp",
-    cause: "HTTP 503: Meta WhatsApp API gateway returned Service Unavailable on incoming payload",
-    suggestedFix: "💡 إصلاح الواتساب: افحص WhatsApp API Access Token وتحقق من تفعيل Webhook Secret في إعدادات المنصة.",
-    stackTrace: "HTTP 503 Service Unavailable\nPOST /api/webhooks/whatsapp\nHost: indexes-store.vercel.app\nResponse Time: 420ms",
-    context: { method: "POST", status: 503, host: "indexes-store.vercel.app", gateway: "Meta Cloud API" },
-    status: "open",
-    createdAt: new Date(Date.now() - 1000 * 45).toISOString(),
-  },
-  {
-    id: "vcl-log-3",
-    tenantId: null,
-    errorName: "[StaticAsset] Asset Not Found [404]",
-    errorType: "Storefront UI",
-    level: "warn",
-    location: "/images/product-placeholder.webp",
-    cause: "HTTP 404: Asset /images/product-placeholder.webp not found on edge storage",
-    suggestedFix: "💡 إصلاح الصورة: تحقق من وجود الملف في المجلد public/images/product-placeholder.webp أو قم بتأمين fallback image.",
-    stackTrace: "HTTP 404 Not Found\nGET /images/product-placeholder.webp\nHost: indexes-store.vercel.app",
-    context: { method: "GET", status: 404, host: "indexes-store.vercel.app", path: "/images/product-placeholder.webp" },
-    status: "open",
-    createdAt: new Date(Date.now() - 1000 * 90).toISOString(),
-  },
-  {
-    id: "vcl-log-4",
-    tenantId: null,
-    errorName: "[ImageProxy] Unauthorized domain: image.mux.com",
-    errorType: "Server Function",
-    level: "warn",
-    location: "/api/public/image-proxy",
-    cause: "[ImageProxy] Unauthorized image domain blocked: image.mux.com",
-    suggestedFix: "💡 إصلاح فيديو Mux: قم بضم 'image.mux.com' لـ ALLOWED_DOMAINS في src/routes/api/public.image-proxy.ts.",
-    stackTrace: "HTTP 403 Forbidden\nGET /api/public/image-proxy?url=https://image.mux.com/...\nHost: indexes-store.vercel.app",
-    context: { method: "GET", status: 403, host: "indexes-store.vercel.app", domain: "image.mux.com" },
-    status: "open",
-    createdAt: new Date(Date.now() - 1000 * 150).toISOString(),
-  },
-  {
-    id: "vcl-log-5",
-    tenantId: null,
-    errorName: "SystemInitializedInfo",
-    errorType: "System",
-    level: "info",
-    location: "/admin/live-logs",
-    cause: "تم تفعيل محرك التقاط وتتبع الأخطاء المباشرة بنجاح في المنصة",
-    suggestedFix: "💡 تتبع النظام: محرك الأخطاء نشط وجاهز لاستقبال أخطاء لوحة التحكم، المتجر، سوبا بيس و GitHub.",
-    stackTrace: "Info: System Live Logs service active at /admin/live-logs",
-    context: { method: "GET", status: 200, host: "indexes-store.vercel.app", version: "2.0.0" },
-    status: "open",
-    createdAt: new Date(Date.now() - 1000 * 240).toISOString(),
-  },
-];
+    createdAt: new Date().toISOString(),
+  };
+  inMemoryLiveLogs.unshift(entry);
+  if (inMemoryLiveLogs.length > 200) inMemoryLiveLogs.pop();
+
+  // Persist to DB (best-effort)
+  try {
+    await (supabase as any).from("system_live_logs").insert({
+      id: entry.id,
+      error_name: entry.errorName,
+      error_type: entry.errorType,
+      level: entry.level,
+      location: entry.location,
+      cause: entry.cause,
+      suggested_fix: fix,
+      stack_trace: entry.stackTrace || null,
+      context: entry.context || {},
+      tenant_id: null,
+      status: "open",
+      created_at: entry.createdAt,
+    });
+  } catch {
+    // Silently ignore — in-memory already captured
+  }
+}
+
+/**
+ * Server-side helper: wrap a Supabase query and auto-log any real DB error.
+ */
+export async function captureSupabaseQueryError<T>(
+  promise: Promise<{ data: T | null; error: any }>,
+  location: string
+): Promise<{ data: T | null; error: any }> {
+  const result = await promise;
+  if (result.error) {
+    const err = result.error;
+    await logServerError({
+      errorName: err.code ? `SupabaseError [${err.code}]` : "SupabaseDBError",
+      errorType: "Supabase DB",
+      level: "error",
+      location,
+      cause: err.message || err.details || "فشل تنفيذ الاستعلام في سوبا بيس",
+      stackTrace: `Code: ${err.code || "N/A"}\nMessage: ${err.message || ""}\nDetails: ${err.details || ""}\nHint: ${err.hint || ""}`,
+      context: { status: 500, host: "indexes-store.vercel.app", code: err.code, details: err.details },
+    }).catch(() => {});
+  }
+  return result;
+}
 
 /**
  * Server Fn: List system live logs with filtering and analytics.

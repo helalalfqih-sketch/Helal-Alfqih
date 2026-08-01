@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import crypto from "crypto";
+import { logServerError } from "@/services/live-logs.service";
 
 const STORAGE_BUCKET = "product-images";
 
@@ -207,14 +208,35 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         // 2. HMAC Verification — MANDATORY (no dev bypass)
         const appSecret = process.env.META_APP_SECRET;
         if (!appSecret) {
+          logServerError({
+            errorName: "[WhatsApp] META_APP_SECRET not configured",
+            errorType: "Server Function", level: "error",
+            location: "/api/webhooks/whatsapp",
+            cause: "Environment variable META_APP_SECRET is missing — WhatsApp webhook cannot process incoming payloads",
+            context: { method: "POST", status: 503, host: "indexes-store.vercel.app" },
+          }).catch(() => {});
           return new Response("Service Unavailable: META_APP_SECRET not configured", { status: 503 });
         }
 
         const signature = request.headers.get("X-Hub-Signature-256");
         if (!signature) {
+          logServerError({
+            errorName: "[WhatsApp] Missing X-Hub-Signature-256",
+            errorType: "Server Function", level: "warn",
+            location: "/api/webhooks/whatsapp",
+            cause: "Incoming POST to /api/webhooks/whatsapp is missing X-Hub-Signature-256 header — possible unauthorized request",
+            context: { method: "POST", status: 403, host: "indexes-store.vercel.app" },
+          }).catch(() => {});
           return new Response("Forbidden: Missing signature header", { status: 403 });
         }
         if (!verifyMetaSignature(rawBody, signature)) {
+          logServerError({
+            errorName: "[WhatsApp] Invalid HMAC Signature",
+            errorType: "Server Function", level: "error",
+            location: "/api/webhooks/whatsapp",
+            cause: "HMAC signature verification failed for incoming WhatsApp webhook — possible tampered or replayed request",
+            context: { method: "POST", status: 403, host: "indexes-store.vercel.app" },
+          }).catch(() => {});
           return new Response("Forbidden: Invalid signature", { status: 403 });
         }
 
@@ -256,6 +278,13 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
             try {
               db = await getWebhookServiceDb();
             } catch {
+              logLiveErrorFn({ data: {
+                errorName: "[WhatsApp] Service Role DB Unavailable",
+                errorType: "Supabase DB", level: "error",
+                location: "/api/webhooks/whatsapp",
+                cause: "Supabase Service Role client is unavailable — WhatsApp media pipeline cannot proceed",
+                context: { method: "POST", status: 503, host: "indexes-store.vercel.app" },
+              }).catch(() => {});
               return Response.json({ error: "Service unavailable" }, { status: 503 });
             }
 
@@ -367,6 +396,14 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
                 } catch {
                   console.error("[WA] Compensating Storage cleanup failed (orphan may exist)");
                 }
+                logServerError({
+                  errorName: "[WhatsApp] media_files DB Insert Failed",
+                  errorType: "Supabase DB", level: "error",
+                  location: "/api/webhooks/whatsapp",
+                  cause: `DB insert into media_files failed after successful Storage upload: ${insertError.message || insertError.code}`,
+                  stackTrace: `Code: ${insertError.code}\nMessage: ${insertError.message}\nDetails: ${insertError.details}`,
+                  context: { method: "POST", status: 500, host: "indexes-store.vercel.app", errorCode: insertError.code },
+                }).catch(() => {});
                 await updateWebhookEventStatus(db, tenantId, messageId, "failed");
                 results.push({ messageId, status: "db_insert_failed" });
                 continue;

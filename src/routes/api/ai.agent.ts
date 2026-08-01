@@ -11,6 +11,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { resolveActiveAIProvider } from "@/lib/ai-provider.server";
 import { runAgentEngine } from "@/services/ai-agent/agent.engine";
+import { logServerError } from "@/services/live-logs.service";
 
 const InputSchema = z.object({
   sessionId: z.string().min(1),
@@ -119,11 +120,18 @@ export const Route = createFileRoute("/api/ai/agent")({
                 ? "تم تجاوز حد الطلبات مؤقتاً، حاول مرة أخرى بعد قليل."
                 : "حدث خطأ في معالجة الطلب. يرجى المحاولة مجدداً.";
 
-              sendEvent({
-                type: "error",
-                error: userFriendlyErr,
-                detail: errMsg,
-              });
+              // Real error capture
+              logServerError({
+                errorName: err?.name || "AIAgentStreamError",
+                errorType: "Server Function",
+                level: /rate|quota|429/i.test(errMsg) ? "warn" : "error",
+                location: "/api/ai/agent",
+                cause: errMsg,
+                stackTrace: err?.stack || errMsg,
+                context: { method: "POST", status: 500, host: "indexes-store.vercel.app", provider: payload.providerId },
+              }).catch(() => {});
+
+              sendEvent({ type: "error", error: userFriendlyErr, detail: errMsg });
               controller.close();
             }
           },

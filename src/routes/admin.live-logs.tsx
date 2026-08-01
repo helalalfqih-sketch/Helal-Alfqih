@@ -521,8 +521,21 @@ function AdminLiveLogsPage() {
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-500 font-mono">
-                    No logs found matching criteria.
+                  <td colSpan={7} className="py-16 text-center font-mono">
+                    <div className="flex flex-col items-center gap-3 text-zinc-500">
+                      <div className="h-12 w-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                        <span className="text-emerald-400 text-2xl">✓</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-zinc-300">لا توجد أخطاء مسجَّلة حالياً</p>
+                        <p className="text-xs text-zinc-600 mt-1">
+                          النظام نشط وجاهز — ستظهر الأخطاء الحقيقية هنا فور حدوثها تلقائياً
+                        </p>
+                        <p className="text-[10px] text-zinc-700 mt-0.5 font-mono">
+                          Listening: /api/public/image-proxy · /api/webhooks/whatsapp · /api/ai/agent · Admin UI · Storefront UI
+                        </p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (

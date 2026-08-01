@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import sharp from "sharp";
 import crypto from "crypto";
+import { logServerError } from "@/services/live-logs.service";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -120,6 +121,19 @@ export const Route = createFileRoute("/api/public/image-proxy")({
         // Domain Allowlist Check (Strict match, no substring wildcard)
         if (!isDomainAllowed(parsedUrl.hostname)) {
           console.warn("[ImageProxy] Unauthorized image domain blocked:", parsedUrl.hostname);
+
+          // ── Real error capture ───────────────────────────────────────────
+          logServerError({
+            errorName: `[ImageProxy] Unauthorized domain: ${parsedUrl.hostname}`,
+            errorType: "Server Function",
+            level: "warn",
+            location: "/api/public/image-proxy",
+            cause: `[ImageProxy] Unauthorized image domain blocked: ${parsedUrl.hostname}`,
+            stackTrace: `HTTP 403 Forbidden\nGET /api/public/image-proxy\nBlocked hostname: ${parsedUrl.hostname}`,
+            context: { method: "GET", status: 403, host: "indexes-store.vercel.app", blockedDomain: parsedUrl.hostname },
+          }).catch(() => {});
+          // ────────────────────────────────────────────────────────────────
+
           return new Response(`Forbidden: Host '${parsedUrl.hostname}' is not in the allowed domains list`, {
             status: 403,
             headers: CORS_HEADERS,
@@ -238,6 +252,19 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           }
 
           console.error(`[ImageProxy] Processing error for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
+
+          // ── Real error capture ───────────────────────────────────────────
+          logServerError({
+            errorName: `[ImageProxy] Processing Error`,
+            errorType: "Server Function",
+            level: "error",
+            location: "/api/public/image-proxy",
+            cause: `Processing failed for host ${parsedUrl.hostname}: ${(err as any)?.message || String(err)}`,
+            stackTrace: (err as any)?.stack || String(err),
+            context: { method: "GET", status: 502, host: "indexes-store.vercel.app", blockedDomain: parsedUrl.hostname },
+          }).catch(() => {});
+          // ────────────────────────────────────────────────────────────────
+
           return new Response("Image proxy processing failed", {
             status: 502,
             headers: CORS_HEADERS,
