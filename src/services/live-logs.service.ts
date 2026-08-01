@@ -195,7 +195,6 @@ export async function logServerError(opts: {
     console.warn("Log DB insert notice:", err);
   }
 }
-}
 
 /**
  * Server-side helper: wrap a Supabase query and auto-log any real DB error.
