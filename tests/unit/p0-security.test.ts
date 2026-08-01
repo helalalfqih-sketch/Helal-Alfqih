@@ -4,14 +4,18 @@ import path from "path";
 
 // Hoisted mock for tenant-context
 vi.mock("@/lib/saas/tenant-context", () => ({
-  resolveTenantId: vi.fn(async (client: any, opts: any) => {
+  resolveTenantId: vi.fn(async (client: unknown, opts: Record<string, unknown>) => {
     if (opts?.userId === "fail_tenant") throw new Error("Tenant error");
     if (!opts?.userId) return null;
     return "test-tenant-uuid";
   }),
 }));
 
-import { checkTenantPermission, PermissionDeniedError, ConfigurationError } from "@/lib/users.functions";
+import {
+  checkTenantPermission,
+  PermissionDeniedError,
+  ConfigurationError,
+} from "@/lib/users.functions";
 import { getMediaFilesByIds, fetchMediaFilesByIdsCore } from "@/lib/media.functions";
 import {
   sanitizeContextData,
@@ -33,7 +37,9 @@ describe("P0 Security Suite — Tenant RBAC & Authorization (Fail-Closed)", () =
       },
     };
 
-    await expect(checkTenantPermission("products", mockContext)).rejects.toThrow(ConfigurationError);
+    await expect(checkTenantPermission("products", mockContext)).rejects.toThrow(
+      ConfigurationError,
+    );
   });
 
   it("should allow tenant owners full permission", async () => {
@@ -95,13 +101,18 @@ describe("P0 Security Suite — Tenant RBAC & Authorization (Fail-Closed)", () =
     };
 
     const mockContext = { userId, supabase: mockClient };
-    await expect(checkTenantPermission("settings", mockContext)).rejects.toThrow(PermissionDeniedError);
+    await expect(checkTenantPermission("settings", mockContext)).rejects.toThrow(
+      PermissionDeniedError,
+    );
   });
 });
 
 describe("P0 Security Suite — Media Files & Sequence Schema Integrity", () => {
   it("sequence_number migration exists and contains required idempotent schema definitions", () => {
-    const migrationPath = path.resolve(__dirname, "../../supabase/migrations/20260730_add_media_files_sequence_number.sql");
+    const migrationPath = path.resolve(
+      __dirname,
+      "../../supabase/migrations/20260730_add_media_files_sequence_number.sql",
+    );
     expect(fs.existsSync(migrationPath)).toBe(true);
     const sql = fs.readFileSync(migrationPath, "utf-8");
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS sequence_number INT DEFAULT 0");
@@ -116,7 +127,10 @@ describe("P0 Security Suite — Media Files & Sequence Schema Integrity", () => 
         select: () => ({
           eq: () => ({
             in: () => ({
-              order: async () => ({ data: null, error: { code: "42703", message: "column sequence_number does not exist" } }),
+              order: async () => ({
+                data: null,
+                error: { code: "42703", message: "column sequence_number does not exist" },
+              }),
             }),
           }),
         }),
@@ -124,7 +138,9 @@ describe("P0 Security Suite — Media Files & Sequence Schema Integrity", () => 
     };
 
     const validUuid = "11111111-1111-1111-1111-111111111111";
-    await expect(fetchMediaFilesByIdsCore(mockDb, "test-tenant-uuid", [validUuid])).rejects.toThrow("MEDIA_SEQUENCE_SCHEMA_MISSING");
+    await expect(fetchMediaFilesByIdsCore(mockDb, "test-tenant-uuid", [validUuid])).rejects.toThrow(
+      "MEDIA_SEQUENCE_SCHEMA_MISSING",
+    );
   });
 
   it("getMediaFilesByIds throws generic error instead of returning [] on database error", async () => {
@@ -133,7 +149,10 @@ describe("P0 Security Suite — Media Files & Sequence Schema Integrity", () => 
         select: () => ({
           eq: () => ({
             in: () => ({
-              order: async () => ({ data: null, error: { code: "50000", message: "Connection timeout" } }),
+              order: async () => ({
+                data: null,
+                error: { code: "50000", message: "Connection timeout" },
+              }),
             }),
           }),
         }),
@@ -141,11 +160,16 @@ describe("P0 Security Suite — Media Files & Sequence Schema Integrity", () => 
     };
 
     const validUuid = "22222222-2222-2222-2222-222222222222";
-    await expect(fetchMediaFilesByIdsCore(mockDb, "test-tenant-uuid", [validUuid])).rejects.toThrow("Failed to fetch media records");
+    await expect(fetchMediaFilesByIdsCore(mockDb, "test-tenant-uuid", [validUuid])).rejects.toThrow(
+      "Failed to fetch media records",
+    );
   });
 
   it("media.functions.ts contains zero runtime bucket creation calls", () => {
-    const fileContent = fs.readFileSync(path.resolve(__dirname, "../../src/lib/media.functions.ts"), "utf-8");
+    const fileContent = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/media.functions.ts"),
+      "utf-8",
+    );
     expect(fileContent).not.toContain("storage.createBucket");
     expect(fileContent).not.toContain("ensureBucketExists");
   });
@@ -163,13 +187,23 @@ describe("P0 Security Suite — Incident Center Ingestion, Sanitization & Finger
     const sanitized = sanitizeContextData(rawContext);
     expect(sanitized.password).toBe("[REDACTED_SENSITIVE_DATA]");
     expect(sanitized.user_token).toBe("[REDACTED_SENSITIVE_DATA]");
-    expect(sanitized.signed_url).toBe("https://storage.supabase.co/file.png?token=[REDACTED]&sig=[REDACTED]");
+    expect(sanitized.signed_url).toBe(
+      "https://storage.supabase.co/file.png?token=[REDACTED]&sig=[REDACTED]",
+    );
     expect(sanitized.normalField).toBe("public_value");
   });
 
   it("generates deterministic SHA-256 fingerprint for error deduplication", () => {
-    const fp1 = generateIncidentFingerprint("error", "server", "Database connection lost to 10.0.0.1:5432");
-    const fp2 = generateIncidentFingerprint("error", "server", "Database connection lost to 10.0.0.2:5432");
+    const fp1 = generateIncidentFingerprint(
+      "error",
+      "server",
+      "Database connection lost to 10.0.0.1:5432",
+    );
+    const fp2 = generateIncidentFingerprint(
+      "error",
+      "server",
+      "Database connection lost to 10.0.0.2:5432",
+    );
     expect(fp1).toBe(fp2); // Normalized IPs match same fingerprint
   });
 
@@ -182,7 +216,7 @@ describe("P0 Security Suite — Incident Center Ingestion, Sanitization & Finger
   });
 
   it("classifies HTTP 200 with application error payload as semantic failure incident", async () => {
-    let insertedRow: any = null;
+    let insertedRow: Record<string, unknown> | null = null;
     const mockDb = {
       from: () => ({
         select: () => ({
@@ -192,7 +226,7 @@ describe("P0 Security Suite — Incident Center Ingestion, Sanitization & Finger
             }),
           }),
         }),
-        insert: (row: any) => ({
+        insert: (row: Record<string, unknown>) => ({
           select: () => ({
             single: async () => {
               insertedRow = row;
@@ -218,14 +252,31 @@ describe("P0 Security Suite — Incident Center Ingestion, Sanitization & Finger
 
 describe("P0 Security Suite — UI State & Polling Constraints", () => {
   it("AI Developer initial build state is NOT_MEASURED", () => {
-    const developerFile = fs.readFileSync(path.resolve(__dirname, "../../src/routes/admin.ai-developer.tsx"), "utf-8");
+    const developerFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/routes/admin.ai-developer.tsx"),
+      "utf-8",
+    );
     expect(developerFile).toContain('status: "NOT_MEASURED"');
-    expect(developerFile).not.toContain('passed: true,\n    errorCount: 0,\n    summary: "Build validated cleanly with 0 errors."');
+    expect(developerFile).not.toContain(
+      'passed: true,\n    errorCount: 0,\n    summary: "Build validated cleanly with 0 errors."',
+    );
   });
 
   it("AI Developer disables execution journal background polling when idle", () => {
-    const developerFile = fs.readFileSync(path.resolve(__dirname, "../../src/routes/admin.ai-developer.tsx"), "utf-8");
+    const developerFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/routes/admin.ai-developer.tsx"),
+      "utf-8",
+    );
     expect(developerFile).toContain("refetchIntervalInBackground: false");
     expect(developerFile).toContain("refetchInterval: isExecuting ? 5000 : false");
+  });
+
+  it("admin.products.tsx does not leak CATALOG_IMPORT_URL to browser bundle", () => {
+    const adminProductsFile = fs.readFileSync(
+      path.resolve(__dirname, "../../src/routes/admin.products.tsx"),
+      "utf-8",
+    );
+    expect(adminProductsFile).not.toContain("VITE_CATALOG_IMPORT_URL");
+    expect(adminProductsFile).not.toContain("const CATALOG_IMPORT_URL");
   });
 });

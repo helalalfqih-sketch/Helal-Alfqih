@@ -17,11 +17,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
 import { getRequest } from "@tanstack/react-start/server";
-import {
-  parseCatalogCsv,
-  slugify,
-  type NormalizedCatalogRow,
-} from "@/lib/catalog/catalog-csv";
+import { parseCatalogCsv, slugify, type NormalizedCatalogRow } from "@/lib/catalog/catalog-csv";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,10 +48,7 @@ export interface ImportResult {
 
 // ─── SSRF / URL Safety ────────────────────────────────────────────────────────
 
-const ALLOWED_FETCH_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
+const ALLOWED_FETCH_HOSTS = new Set(["firebasestorage.googleapis.com", "storage.googleapis.com"]);
 const MAX_RESPONSE_BYTES = 25 * 1024 * 1024; // 25 MB
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -82,9 +75,7 @@ function validateFetchUrl(rawUrl: string): URL {
   }
   if (!ALLOWED_FETCH_HOSTS.has(host)) {
     // Allow only trusted hosts; log safe host name (no token)
-    throw new Error(
-      `المضيف '${host}' غير مدرج في القائمة المسموح بها لروابط الاستيراد`,
-    );
+    throw new Error(`المضيف '${host}' غير مدرج في القائمة المسموح بها لروابط الاستيراد`);
   }
   return u;
 }
@@ -100,12 +91,10 @@ async function upsertBatch(
   batch: ProductInsert[],
 ): Promise<{ upserted: number; error: string | null }> {
   if (batch.length === 0) return { upserted: 0, error: null };
-  const { error, count } = await supabase
-    .from("products")
-    .upsert(batch as ProductInsert[], {
-      onConflict: "tenant_id,external_id",
-      count: "exact",
-    });
+  const { error, count } = await supabase.from("products").upsert(batch as ProductInsert[], {
+    onConflict: "tenant_id,external_id",
+    count: "exact",
+  });
   if (error) return { upserted: 0, error: error.message };
   return { upserted: count ?? batch.length, error: null };
 }
@@ -132,17 +121,14 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) =>
     z
       .object({
-        url: z.string().url(),
+        url: z.string().url().optional(),
         tenantId: z.string().uuid().optional(),
         publish: z.boolean().default(true),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<ImportResult> => {
-    const { supabase, userId } = context as unknown as {
-      supabase: SupabaseClient<Database>;
-      userId: string;
-    };
+    const { supabase, userId } = context;
 
     // ── Admin authorization ──────────────────────────────────────────────────
     const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
@@ -155,14 +141,20 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     const tenantId = await resolveAdminTenant({ supabase, userId }, data.tenantId);
 
     // ── Fetch CSV ────────────────────────────────────────────────────────────
+    const importUrl =
+      data.url || process.env.CATALOG_IMPORT_URL || process.env.VITE_CATALOG_IMPORT_URL;
+    if (!importUrl) {
+      throw new Error("No catalog URL provided and CATALOG_IMPORT_URL is not set.");
+    }
+
     // Validate URL for SSRF safety
-    validateFetchUrl(data.url);
+    validateFetchUrl(importUrl);
 
     const controller = new AbortController();
     const fetchTimeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let csvText: string;
     try {
-      const res = await fetch(data.url, { signal: controller.signal });
+      const res = await fetch(importUrl, { signal: controller.signal });
       if (!res.ok) throw new Error(`فشل تحميل ملف CSV (${res.status})`);
       // Guard response size
       const contentLength = Number(res.headers.get("content-length") ?? 0);
@@ -214,7 +206,11 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
       });
     }
 
-    const records: (ProductInsert & { _rowNumber: number; _imageCount: number; _hasVideo: boolean })[] = [];
+    const records: (ProductInsert & {
+      _rowNumber: number;
+      _imageCount: number;
+      _hasVideo: boolean;
+    })[] = [];
 
     for (const row of validRows) {
       let slug = slugify(row.title, row.externalId ?? `product-${row.rowNumber}`);
@@ -261,7 +257,7 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     let additionalImagesImported = 0;
     let videosDiscovered = 0;
     let videosImported = 0;
-    let mediaWarnings = 0;
+    const mediaWarnings = 0;
 
     // Separate records with external_id (upsertable by stable key) from those without
     const withExt = records.filter((r) => r.external_id);
@@ -271,10 +267,7 @@ export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
     for (let start = 0; start < withExt.length; start += BATCH_SIZE) {
       const batch = withExt.slice(start, start + BATCH_SIZE);
       const cleanBatch = batch.map(({ _rowNumber, _imageCount, _hasVideo, ...rest }) => rest);
-      const { upserted, error } = await upsertBatch(
-        supabase,
-        cleanBatch as ProductInsert[],
-      );
+      const { upserted, error } = await upsertBatch(supabase, cleanBatch as ProductInsert[]);
       if (error) {
         // Mark all rows in this batch as failed
         for (const r of batch) {

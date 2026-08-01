@@ -84,10 +84,10 @@ export const listInventoryMovements = (productId: string) =>
 
 // ------------ Catalog Import ------------
 
-export const importCatalogFromUrl = (input: { url: string; publish?: boolean }) =>
+export const importCatalogFromUrl = (input: { url?: string; publish?: boolean }) =>
   adminImportCatalogFromUrl({
     data: z
-      .object({ url: z.string().url(), publish: z.boolean().default(true) })
+      .object({ url: z.string().url().optional(), publish: z.boolean().default(true) })
       .parse(input),
   });
 

@@ -257,9 +257,7 @@ describe("parseCatalogCsv", () => {
   });
 
   it("skips empty title rows and reports MISSING_TITLE", () => {
-    const csv = buildCsv([
-      buildCsvRow({ id: "prd_1784144746335", title: "" }),
-    ]);
+    const csv = buildCsv([buildCsvRow({ id: "prd_1784144746335", title: "" })]);
     const result = parseCatalogCsv(csv);
     expect(result.validRows).toHaveLength(0);
     expect(result.skippedRows).toHaveLength(1);

@@ -44,14 +44,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCurrentTenant } from "@/components/tenant-provider";
 
-// The catalog source URL should be configured via environment variable CATALOG_IMPORT_URL.
-// Administrators can also supply a one-time URL via the import prompt.
-// Never commit Firebase download tokens as constants in source code.
-const CATALOG_IMPORT_URL =
-  typeof import.meta.env !== "undefined" && import.meta.env.VITE_CATALOG_IMPORT_URL
-    ? (import.meta.env.VITE_CATALOG_IMPORT_URL as string)
-    : ""; // No hardcoded token — admin must supply URL via prompt
-
 export const Route = createFileRoute("/admin/products")({
   component: ProductsPage,
 });
@@ -146,7 +138,7 @@ function ProductsPage() {
   });
 
   const importMut = useMutation({
-    mutationFn: (url: string) => importCatalogFromUrl({ url, publish: true }),
+    mutationFn: (url?: string) => importCatalogFromUrl({ url, publish: true }),
     onSuccess: (r) => {
       setImportResult(r);
       setShowFailures(false);
@@ -280,7 +272,8 @@ function ProductsPage() {
   }, [products, filter]);
 
   // Total counts from response metadata
-  const totalCount = (productsQ.data as any)?.total ?? (productsQ.data as any)?.totalCount ?? products.length;
+  const metaData = productsQ.data as unknown as { total?: number; totalCount?: number };
+  const totalCount = Number(metaData?.total ?? metaData?.totalCount ?? products.length);
   const pageCount = Math.ceil(totalCount / pageSize) || 1;
   const syncedCount = products.filter((p) => p.meta_sync_status === "synced").length;
   const pendingCount = products.filter(
@@ -344,14 +337,13 @@ function ProductsPage() {
           </button>
           <button
             onClick={() => {
-              const defaultUrl = CATALOG_IMPORT_URL || "";
               const url = window.prompt(
-                "رابط ملف CSV للاستيراد (HTTPS فقط):",
-                defaultUrl,
+                "رابط ملف CSV للاستيراد (HTTPS فقط)\nاتركه فارغاً لاستخدام الرابط الافتراضي المخزن في السيرفر:",
+                "",
               );
-              if (url && url.trim()) {
+              if (url !== null) {
                 setImportResult(null);
-                importMut.mutate(url.trim());
+                importMut.mutate(url.trim() || undefined);
               }
             }}
             disabled={importMut.isPending}
@@ -399,7 +391,9 @@ function ProductsPage() {
           <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
           <div>
             <p className="font-bold text-foreground text-sm">جارٍ استيراد الكتالوج...</p>
-            <p className="text-xs text-muted-foreground mt-0.5">تحميل → تحليل → التحقق → استيراد المنتجات والوسائط</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              تحميل → تحليل → التحقق → استيراد المنتجات والوسائط
+            </p>
           </div>
         </div>
       )}
@@ -438,11 +432,23 @@ function ProductsPage() {
             {[
               { label: "صفوف CSV", value: importResult.csvRows, color: "text-foreground" },
               { label: "منتجات صالحة", value: importResult.validRows, color: "text-foreground" },
-              { label: "تمت معالجتهم", value: importResult.productsProcessed, color: "text-success" },
+              {
+                label: "تمت معالجتهم",
+                value: importResult.productsProcessed,
+                color: "text-success",
+              },
               { label: "تخطي", value: importResult.skipped, color: "text-warning" },
               { label: "فشل", value: importResult.failed, color: "text-destructive" },
-              { label: "صور رئيسية", value: importResult.primaryImagesImported, color: "text-primary" },
-              { label: "صور إضافية", value: importResult.additionalImagesImported, color: "text-primary" },
+              {
+                label: "صور رئيسية",
+                value: importResult.primaryImagesImported,
+                color: "text-primary",
+              },
+              {
+                label: "صور إضافية",
+                value: importResult.additionalImagesImported,
+                color: "text-primary",
+              },
               { label: "فيديوهات", value: importResult.videosImported, color: "text-primary" },
             ].map((s) => (
               <div key={s.label} className="rounded-xl border border-border/60 bg-surface p-3">
@@ -809,7 +815,9 @@ function ProductsPage() {
                         togglePublish.mutate({ id: p.id, is_published: !p.is_published })
                       }
                       disabled={togglePublish.isPending}
-                      aria-label={p.is_published ? `إخفاء المنتج ${p.name}` : `نشر المنتج ${p.name}`}
+                      aria-label={
+                        p.is_published ? `إخفاء المنتج ${p.name}` : `نشر المنتج ${p.name}`
+                      }
                       className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition min-h-[44px] ${
                         p.is_published
                           ? "border-warning/30 bg-warning/10 text-warning hover:bg-warning/20"
@@ -846,7 +854,10 @@ function ProductsPage() {
 
       {/* Pagination Controls */}
       {pageCount > 1 && (
-        <div className="flex items-center justify-between border-t border-border/50 pt-4 text-xs font-bold" dir="rtl">
+        <div
+          className="flex items-center justify-between border-t border-border/50 pt-4 text-xs font-bold"
+          dir="rtl"
+        >
           <span className="text-muted-foreground">
             الصفحة {page} من {pageCount} (إجمالي {totalCount} منتج)
           </span>
