@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createVertex } from "@ai-sdk/google-vertex";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -33,9 +34,7 @@ export function decryptApiKey(encrypted?: string | null): string | null {
   if (!encrypted.startsWith("ENC:")) return encrypted;
   try {
     const decoded = Buffer.from(encrypted.slice(4), "base64").toString("utf-8");
-    return decoded.startsWith(`${SECRET_SALT}:`)
-      ? decoded.slice(SECRET_SALT.length + 1)
-      : decoded;
+    return decoded.startsWith(`${SECRET_SALT}:`) ? decoded.slice(SECRET_SALT.length + 1) : decoded;
   } catch {
     return encrypted;
   }
