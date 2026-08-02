@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText } from "ai";
@@ -51,9 +52,7 @@ export function decryptApiKey(encrypted?: string | null): string | null {
   if (!encrypted.startsWith("ENC:")) return encrypted;
   try {
     const decoded = Buffer.from(encrypted.slice(4), "base64").toString("utf-8");
-    return decoded.startsWith(`${SECRET_SALT}:`)
-      ? decoded.slice(SECRET_SALT.length + 1)
-      : decoded;
+    return decoded.startsWith(`${SECRET_SALT}:`) ? decoded.slice(SECRET_SALT.length + 1) : decoded;
   } catch {
     return encrypted;
   }
@@ -206,9 +205,7 @@ export const deleteAIProviderFn = createServerFn({ method: "POST" })
 
 export const toggleAIProviderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z.object({ id: z.string(), enabled: z.boolean() }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ id: z.string(), enabled: z.boolean() }).parse(input))
   .handler(async ({ context, data }) => {
     const db = getSafeDb(context);
     const { error } = await db
