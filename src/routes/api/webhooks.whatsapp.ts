@@ -230,6 +230,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         // 2. HMAC Verification — MANDATORY (no dev bypass)
         const appSecret = process.env.META_APP_SECRET;
         if (!appSecret) {
+          console.error("[WA 503 REASON] META_APP_SECRET is not configured in process.env");
           logServerError({
             errorName: "[WhatsApp] META_APP_SECRET not configured",
             errorType: "Server Function", level: "error",
@@ -299,7 +300,8 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
             let db: any;
             try {
               db = await getWebhookServiceDb();
-            } catch {
+            } catch (err: any) {
+              console.error("[WA 503 REASON] getWebhookServiceDb failed:", err?.message);
               logServerError({
                 errorName: "[WhatsApp] Service Role DB Unavailable",
                 errorType: "Supabase DB",
@@ -331,6 +333,7 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
               // 8. Atomic Idempotency Check
               const idempotency = await checkAndInsertWebhookEvent(db, tenantId, messageId);
               if (idempotency.error) {
+                console.error("[WA 503 REASON] Idempotency check failed:", idempotency.error);
                 return Response.json({ error: "Service unavailable: idempotency check failed" }, { status: 503 });
               }
               if (!idempotency.isNew) {
