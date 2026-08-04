@@ -319,11 +319,12 @@ export const Route = createFileRoute("/")({
           }
         | undefined
     )?.settings?.seo;
-    const baseUrl =
+    const baseUrl = (
       process.env.SITE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : null) ||
       import.meta.env.VITE_PUBLIC_URL ||
-      "";
+      process.env.VITE_PUBLIC_URL ||
+      ""
+    ).replace(/\/$/, "");
     const title = seo?.metaTitle || "اندكس ستور — الرئيسية | تسوّق أونلاين في اليمن";
     const description =
       seo?.metaDescription ||
@@ -675,8 +676,8 @@ function HomePage() {
               عرض الكل ←
             </Link>
           </div>
-          {/* Mobile horizontal scroll */}
-          <div className="flex overflow-x-auto scrollbar-none gap-3 px-4 pb-2 md:hidden">
+          {/* Mobile horizontal scroll with scroll-padding */}
+          <div className="flex overflow-x-auto scrollbar-none gap-3 px-4 scroll-pl-4 scroll-pr-4 pb-2 md:hidden">
             {allProducts
               .slice(
                 0,
