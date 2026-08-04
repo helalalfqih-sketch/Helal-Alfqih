@@ -55,13 +55,14 @@ export function MobileCommerceBottomBar() {
     <nav
       className="fixed inset-x-3 z-40 mx-auto w-auto max-w-md md:hidden"
       style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      aria-label="التنقل الرئيسي"
     >
       <ul
         className="grid grid-cols-5 items-center rounded-[28px] px-1 py-1.5 shadow-2xl backdrop-blur-[20px]"
         style={{
-          background: "rgba(6, 18, 30, 0.92)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "inset 0 1px 0 rgba(31,94,255,0.4), 0 18px 44px -16px rgba(0,0,0,0.85)",
+          background: "rgba(6, 14, 28, 0.94)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "inset 0 1px 0 rgba(100,80,200,0.3), 0 18px 44px -16px rgba(0,0,0,0.85)",
         }}
       >
         {items.map((it, idx) => {
@@ -96,19 +97,31 @@ export function MobileCommerceBottomBar() {
                 }}
                 className={`mx-auto flex w-fit flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[10px] font-bold transition-all ${
                   active
-                    ? "bg-primary/20 text-neon glow-neon"
+                    ? "text-white"
                     : "text-showcase-muted hover:text-white"
                 }`}
               >
                 <div className="relative">
-                  <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
+                  {active ? (
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-2xl"
+                      style={{
+                        background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                        boxShadow: "0 4px 20px -4px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <Icon className="h-5 w-5 stroke-[2.5] text-white" />
+                    </div>
+                  ) : (
+                    <Icon className="h-5 w-5" />
+                  )}
                   {it.badge ? (
-                    <span className="absolute -end-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-black text-white shadow-sm">
+                    <span className="absolute -end-2.5 -top-1.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 text-[9px] font-black text-white shadow-lg shadow-primary/40">
                       {it.badge}
                     </span>
                   ) : null}
                 </div>
-                <span>{it.label}</span>
+                <span className={active ? "font-black" : ""}>{it.label}</span>
               </Link>
             </li>
           );
@@ -117,3 +130,4 @@ export function MobileCommerceBottomBar() {
     </nav>
   );
 }
+
