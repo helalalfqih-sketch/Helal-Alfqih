@@ -26,19 +26,12 @@ function verifyMetaSignature(rawBody: string, signatureHeader: string | null): b
 // ── Service Role DB (Narrow Gateway — only after HMAC + integration verified) ──
 
 async function getWebhookServiceDb() {
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (supabaseAdmin) {
-        console.log("[WA-DEBUG] Using service role client");
-        return supabaseAdmin;
-      }
-    } catch (e: any) {
-      console.error("[WA-DEBUG] client.server import failed:", e?.message);
-      // fallback to anon client
-    }
-  } else {
-    console.warn("[WA-DEBUG] SUPABASE_SERVICE_ROLE_KEY is not set, falling back to anon client");
+  try {
+    const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = getSupabaseAdmin();
+    if (admin) return admin;
+  } catch {
+    // fallback to anon client
   }
   const { supabase } = await import("@/integrations/supabase/client");
   return supabase;
