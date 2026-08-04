@@ -30,7 +30,7 @@ import {
 } from "@/lib/seo";
 
 const idbPersister = {
-  persistClient: async (client: any) => {
+  persistClient: async (client: unknown) => {
     await set("react-query-offline-cache", client);
   },
   restoreClient: async () => {
@@ -88,7 +88,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
     MonitoringService.captureException(error, { component: "RootErrorComponent" });
   }, [error]);
-
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -152,27 +151,40 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const ogImage = seo?.ogImage || DEFAULT_OG_IMAGE;
     const ogTitle = seo?.ogTitle || title;
     const ogDescription = seo?.ogDescription || description;
-    const themeColor = storeIdentity?.themeColor || seo?.themeColor || brandSettings?.primaryColor || "#1F5EFF";
-    const faviconUrl = storeIdentity?.faviconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/favicon.ico";
-    const appleTouchIconUrl = storeIdentity?.appleTouchIconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/apple-touch-icon.png";
+    const themeColor =
+      storeIdentity?.themeColor || seo?.themeColor || brandSettings?.primaryColor || "#1F5EFF";
+    const faviconUrl =
+      storeIdentity?.faviconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/favicon.ico";
+    const appleTouchIconUrl =
+      storeIdentity?.appleTouchIconUrl ||
+      storeIdentity?.logoUrl ||
+      navigation?.logoUrl ||
+      "/apple-touch-icon.png";
     const twitterUsername = seo?.twitterUsername || "@indexes_store";
 
-    const baseUrl =
+    const baseUrl = (
       process.env.SITE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : null) ||
       import.meta.env.VITE_PUBLIC_URL ||
-      "";
+      process.env.VITE_PUBLIC_URL ||
+      ""
+    ).replace(/\/$/, "");
     const logoUrl = storeIdentity?.logoUrl || navigation?.logoUrl || undefined;
 
     // Collect enabled social URLs for sameAs JSON-LD
     const sameAsList: string[] = [];
     if (socialLinks) {
-      if (socialLinks.facebook?.enabled && socialLinks.facebook?.url) sameAsList.push(socialLinks.facebook.url);
-      if (socialLinks.instagram?.enabled && socialLinks.instagram?.url) sameAsList.push(socialLinks.instagram.url);
-      if (socialLinks.tiktok?.enabled && socialLinks.tiktok?.url) sameAsList.push(socialLinks.tiktok.url);
-      if (socialLinks.youtube?.enabled && socialLinks.youtube?.url) sameAsList.push(socialLinks.youtube.url);
-      if (socialLinks.whatsapp?.enabled && socialLinks.whatsapp?.url) sameAsList.push(socialLinks.whatsapp.url);
-      if (socialLinks.telegram?.enabled && socialLinks.telegram?.url) sameAsList.push(socialLinks.telegram.url);
+      if (socialLinks.facebook?.enabled && socialLinks.facebook?.url)
+        sameAsList.push(socialLinks.facebook.url);
+      if (socialLinks.instagram?.enabled && socialLinks.instagram?.url)
+        sameAsList.push(socialLinks.instagram.url);
+      if (socialLinks.tiktok?.enabled && socialLinks.tiktok?.url)
+        sameAsList.push(socialLinks.tiktok.url);
+      if (socialLinks.youtube?.enabled && socialLinks.youtube?.url)
+        sameAsList.push(socialLinks.youtube.url);
+      if (socialLinks.whatsapp?.enabled && socialLinks.whatsapp?.url)
+        sameAsList.push(socialLinks.whatsapp.url);
+      if (socialLinks.telegram?.enabled && socialLinks.telegram?.url)
+        sameAsList.push(socialLinks.telegram.url);
     }
 
     // Dynamic Structured Data
@@ -182,7 +194,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       logoUrl,
       phone: seo?.schemaPhone || generalSettings?.phone || navigation?.whatsappPhone,
       email: seo?.schemaEmail || generalSettings?.email || navigation?.supportEmail,
-      streetAddress: seo?.schemaAddressStreet || generalSettings?.address || navigation?.addressText,
+      streetAddress:
+        seo?.schemaAddressStreet || generalSettings?.address || navigation?.addressText,
       addressLocality: seo?.schemaAddressCity || generalSettings?.city || "صنعاء",
       country: seo?.schemaCountry || generalSettings?.country || "اليمن",
       openingHours: seo?.schemaOpeningHours || generalSettings?.workingHours,
@@ -221,7 +234,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: ogTitle },
       { name: "twitter:description", content: ogDescription },
       { name: "twitter:image", content: ogImage },
-      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      {
+        name: "robots",
+        content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      },
     ];
 
     // Add Google verification code if configured
@@ -238,11 +254,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
     const linkTags: Record<string, string>[] = [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: faviconUrl, type: faviconUrl.endsWith(".ico") ? "image/x-icon" : "image/png" },
+      {
+        rel: "icon",
+        href: faviconUrl,
+        type: faviconUrl.endsWith(".ico") ? "image/x-icon" : "image/png",
+      },
       { rel: "apple-touch-icon", sizes: "180x180", href: appleTouchIconUrl },
-      { rel: "canonical", href: baseUrl },
-      { rel: "alternate", hrefLang: "ar", href: baseUrl },
-      { rel: "alternate", hrefLang: "x-default", href: baseUrl },
+      ...(baseUrl
+        ? [
+            { rel: "canonical", href: baseUrl },
+            { rel: "alternate", hrefLang: "ar", href: baseUrl },
+            { rel: "alternate", hrefLang: "x-default", href: baseUrl },
+          ]
+        : []),
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com" },
       { rel: "preconnect", href: "https://images.unsplash.com" },
@@ -279,7 +303,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl">
@@ -311,7 +334,6 @@ function RootComponent() {
     MonitoringService.init();
     let lastUserId: string | null | undefined;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-
       const uid = session?.user?.id ?? null;
       if (event === "INITIAL_SESSION") {
         lastUserId = uid;
@@ -329,7 +351,10 @@ function RootComponent() {
   }, [queryClient]);
 
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: idbPersister, maxAge: 1000 * 60 * 60 * 24 * 7 }}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: idbPersister, maxAge: 1000 * 60 * 60 * 24 * 7 }}
+    >
       <AppearanceProvider initialSettings={settings}>
         <TenantProvider>
           {isAdmin || isBare ? (

@@ -571,15 +571,15 @@ function Scene({
   useEffect(() => {
     const aspect = size.width / size.height;
     if (aspect < 1) {
-      // Narrow portrait layout (e.g. mobile viewport simulation on desktop)
-      camera.position.z = 5.8 / (aspect * 1.15);
-      camera.position.y = 0.55;
+      // Narrow portrait layout (mobile viewports e.g. 390x844)
+      camera.position.z = 6.4;
+      camera.position.y = 0.2;
     } else {
-      // Normal landscape layout (e.g. desktop full screen)
-      camera.position.z = 5.8;
+      // Normal landscape layout
+      camera.position.z = 5.6;
       camera.position.y = 0.25;
     }
-    camera.lookAt(0, -0.15, 0);
+    camera.lookAt(0, -0.1, 0);
     camera.updateProjectionMatrix();
   }, [size.width, size.height, camera]);
 
@@ -693,8 +693,8 @@ export function ProductSphereHero({
   title = "معرض المنتجات الذكي",
   subtitle = "اسحب الكرة — كل وجه منتج، اضغط لتفتحه",
   maxProducts = 16,
-  radius = 2.2,
-  tileScale = 0.8,
+  radius = 1.85,
+  tileScale = 0.65,
   cardShape = "rectangle",
   showName = true,
   showPrice = true,
@@ -753,7 +753,7 @@ export function ProductSphereHero({
   return (
     <section
       dir="rtl"
-      className="relative -mx-4 overflow-hidden rounded-3xl h-[52vh] min-h-[380px] sm:h-[88vh] sm:min-h-[580px]"
+      className="relative mx-0 overflow-hidden rounded-3xl h-[340px] sm:h-[450px] md:h-[520px]"
       style={{
         background: `radial-gradient(ellipse at 50% 30%, #0d1435 0%, #06091f 55%, ${BG_BOT} 100%)`,
       }}
@@ -1200,12 +1200,18 @@ export function ProductSphereHero({
                           e.preventDefault();
                           try {
                             const { supabase } = await import("@/integrations/supabase/client");
-                            if (supabase) {
-                              await (supabase as any).from("product_video_requests").insert({
+                            await (
+                              supabase as unknown as {
+                                from: (t: string) => {
+                                  insert: (d: Record<string, unknown>) => Promise<unknown>;
+                                };
+                              }
+                            )
+                              .from("product_video_requests")
+                              .insert({
                                 product_id: activeSpecsProduct.id,
                                 product_name: activeSpecsProduct.name,
                               });
-                            }
                           } catch (err) {
                             console.error("Failed to request video:", err);
                           }

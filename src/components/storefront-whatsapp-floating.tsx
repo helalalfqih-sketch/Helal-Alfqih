@@ -43,77 +43,81 @@ export function MobileCommerceBottomBar() {
   const storeName = settings.navigation?.storeName || "اندكس ستور";
   const waHref = whatsappLink(`مرحباً، أود الاستفسار والتسوق من ${storeName}`, phone);
 
-  const items = [
-    { to: "/", label: "الرئيسية", icon: Home },
-    { to: "/search", label: "البحث", icon: Search, event: "click_search" },
-    { to: "/cart", label: "السلة", icon: ShoppingCart, badge: count },
-    { isWhatsApp: true, href: waHref, label: "واتساب", icon: MessageCircle, event: "click_whatsapp" },
-    { to: "/account", label: "حسابي", icon: User },
-  ];
-
   return (
     <nav
-      className="fixed inset-x-3 z-40 mx-auto w-auto max-w-md md:hidden"
-      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      className="fixed bottom-0 inset-x-0 z-50 w-full bg-[#0F0C1B] border-t border-slate-800/90 h-[72px] sm:h-[84px] md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      aria-label="التنقل الرئيسي"
     >
-      <ul
-        className="grid grid-cols-5 items-center rounded-[28px] px-1 py-1.5 shadow-2xl backdrop-blur-[20px]"
-        style={{
-          background: "rgba(6, 18, 30, 0.92)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "inset 0 1px 0 rgba(31,94,255,0.4), 0 18px 44px -16px rgba(0,0,0,0.85)",
-        }}
-      >
-        {items.map((it, idx) => {
-          const Icon = it.icon;
-          if (it.isWhatsApp) {
-            return (
-              <li key={idx}>
-                <a
-                  href={it.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackEvent("click_whatsapp", { source: "bottom_nav" })}
-                  className="mx-auto flex w-fit flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[10px] font-bold text-emerald-400 hover:text-white transition-all"
-                >
-                  <Icon className="h-5 w-5 stroke-[2.5]" />
-                  <span>{it.label}</span>
-                </a>
-              </li>
-            );
-          }
+      <div className="flex items-center justify-around h-full px-4 max-w-md mx-auto relative">
+        {/* 1. Account */}
+        <Link
+          to="/account"
+          className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
+            pathname === "/account" ? "text-white font-bold" : "text-slate-400 hover:text-white"
+          }`}
+        >
+          <User className="h-5 w-5" />
+          <span>حسابي</span>
+        </Link>
 
-          const active = pathname === it.to;
-          return (
-            <li key={idx}>
-              <Link
-                to={it.to!}
-                preload="intent"
-                onClick={() => {
-                  if (it.event === "click_search") {
-                    trackEvent("click_search", { source: "bottom_nav" });
-                  }
-                }}
-                className={`mx-auto flex w-fit flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[10px] font-bold transition-all ${
-                  active
-                    ? "bg-primary/20 text-neon glow-neon"
-                    : "text-showcase-muted hover:text-white"
-                }`}
-              >
-                <div className="relative">
-                  <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
-                  {it.badge ? (
-                    <span className="absolute -end-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-black text-white shadow-sm">
-                      {it.badge}
-                    </span>
-                  ) : null}
-                </div>
-                <span>{it.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+        {/* 2. WhatsApp */}
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackEvent("click_whatsapp", { source: "bottom_nav" })}
+          className="flex flex-col items-center gap-1 text-xs font-medium text-slate-400 hover:text-emerald-400 transition-colors"
+        >
+          <MessageCircle className="h-5 w-5" />
+          <span>واتساب</span>
+        </a>
+
+        {/* 3. Cart */}
+        <Link
+          to="/cart"
+          className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors relative ${
+            pathname === "/cart" ? "text-white font-bold" : "text-slate-400 hover:text-white"
+          }`}
+        >
+          <div className="relative">
+            <ShoppingCart className="h-5 w-5" />
+            {count > 0 && (
+              <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-[#0F0C1B]">
+                {count}
+              </span>
+            )}
+          </div>
+          <span>السلة</span>
+        </Link>
+
+        {/* 4. Search */}
+        <Link
+          to="/search"
+          onClick={() => trackEvent("click_search", { source: "bottom_nav" })}
+          className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
+            pathname === "/search" ? "text-white font-bold" : "text-slate-400 hover:text-white"
+          }`}
+        >
+          <Search className="h-5 w-5" />
+          <span>البحث</span>
+        </Link>
+
+        {/* 5. Central Floating Home Tab */}
+        <Link
+          to="/"
+          className="flex flex-col items-center justify-center relative -top-4 sm:-top-5"
+        >
+          <div className="absolute inset-0 bg-purple-600 rounded-full blur-xl opacity-60" />
+          <div
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#0F0C1B] border-2 border-purple-500 flex flex-col items-center justify-center text-white relative z-10 shadow-[0_0_20px_rgba(123,63,255,0.6)] transition-transform hover:scale-105"
+            style={{ background: "linear-gradient(135deg, #7b3fff 0%, #4f24e0 100%)" }}
+          >
+            <Home className="h-5 w-5 text-white" />
+            <span className="text-[9px] font-bold text-white mt-0.5">الرئيسية</span>
+          </div>
+        </Link>
+      </div>
     </nav>
   );
 }
