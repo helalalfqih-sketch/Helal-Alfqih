@@ -620,32 +620,31 @@ function HomePage() {
         </div>
       </motion.section>
 
-      {/* 4. SMART CATEGORIES — horizontal scrollable circles on mobile */}
+      {/* 4. SMART CATEGORIES — 2 visible rows of circular category icons on mobile */}
       {settings.sections.categories.enabled && (
         <motion.section key="categories" {...revealProps} className="relative z-10 px-4">
-          <div className="flex overflow-x-auto scrollbar-none gap-4 pb-2 md:grid md:grid-cols-6 md:overflow-visible md:gap-5">
-            {categories.slice(0, settings.sections.categories.limit ?? 6).map((c) => {
+          <div className="grid grid-rows-2 grid-flow-col auto-cols-[72px] gap-x-3 gap-y-3.5 overflow-x-auto scrollbar-none pb-2 md:grid-rows-1 md:grid-cols-6 md:auto-cols-auto md:overflow-visible md:gap-5">
+            {categories.slice(0, settings.sections.categories.limit ?? 12).map((c) => {
               const imageUrl = (c as any).imageUrl || (c as any).image_url || "";
               return (
                 <Link
                   key={c.id}
                   to="/category/$id"
                   params={{ id: c.id }}
-                  className="group flex flex-col items-center gap-2 shrink-0"
-                  style={{ minWidth: "72px" }}
+                  className="group flex flex-col items-center gap-1.5 shrink-0"
                 >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-all group-hover:border-purple-500/40 group-hover:bg-purple-500/10 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] sm:h-18 sm:w-18">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-all group-hover:border-purple-500/40 group-hover:bg-purple-500/10 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] sm:h-16 sm:w-16">
                     {imageUrl ? (
                       <img
                         src={imageUrl}
                         alt={c.name}
-                        className="h-8 w-8 object-contain sm:h-9 sm:w-9"
+                        className="h-7 w-7 object-contain sm:h-8 sm:w-8"
                       />
                     ) : (
-                      <Icons.Package className="h-6 w-6 text-slate-400 group-hover:text-purple-400 transition-colors" />
+                      <Icons.Package className="h-5 w-5 text-slate-400 group-hover:text-purple-400 transition-colors" />
                     )}
                   </div>
-                  <span className="text-[11px] font-bold text-slate-300 text-center leading-tight whitespace-nowrap group-hover:text-white transition-colors">
+                  <span className="text-[10px] font-bold text-slate-300 text-center leading-tight max-w-[72px] truncate group-hover:text-white transition-colors">
                     {c.name}
                   </span>
                 </Link>

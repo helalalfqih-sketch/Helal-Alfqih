@@ -157,11 +157,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const appleTouchIconUrl = storeIdentity?.appleTouchIconUrl || storeIdentity?.logoUrl || navigation?.logoUrl || "/apple-touch-icon.png";
     const twitterUsername = seo?.twitterUsername || "@indexes_store";
 
-    const baseUrl =
+    const baseUrl = (
       process.env.SITE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : null) ||
       import.meta.env.VITE_PUBLIC_URL ||
-      "";
+      process.env.VITE_PUBLIC_URL ||
+      ""
+    ).replace(/\/$/, "");
     const logoUrl = storeIdentity?.logoUrl || navigation?.logoUrl || undefined;
 
     // Collect enabled social URLs for sameAs JSON-LD
@@ -240,9 +241,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: faviconUrl, type: faviconUrl.endsWith(".ico") ? "image/x-icon" : "image/png" },
       { rel: "apple-touch-icon", sizes: "180x180", href: appleTouchIconUrl },
-      { rel: "canonical", href: baseUrl },
-      { rel: "alternate", hrefLang: "ar", href: baseUrl },
-      { rel: "alternate", hrefLang: "x-default", href: baseUrl },
+      ...(baseUrl
+        ? [
+            { rel: "canonical", href: baseUrl },
+            { rel: "alternate", hrefLang: "ar", href: baseUrl },
+            { rel: "alternate", hrefLang: "x-default", href: baseUrl },
+          ]
+        : []),
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com" },
       { rel: "preconnect", href: "https://images.unsplash.com" },
