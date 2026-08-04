@@ -48,8 +48,9 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   const videoCloseRef = useRef<HTMLButtonElement>(null);
 
   const modelUrl = (product as LegacyProductShape).modelUrl ?? null;
+  const pRec = product as Record<string, unknown>;
   const rawPlaybackId =
-    (product as any).videoPlaybackId || (product as any).video_playback_id || null;
+    (pRec.videoPlaybackId as string) || (pRec.video_playback_id as string) || null;
   const isMuxFormat =
     rawPlaybackId &&
     typeof rawPlaybackId === "string" &&
@@ -61,7 +62,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
     /^[A-Za-z0-9_-]{10,40}$/.test(rawPlaybackId.trim());
 
   const videoPlaybackId = isMuxFormat ? rawPlaybackId.trim() : null;
-  const rawVideoUrl = (product as any).video_url || (product as any).videoUrl || null;
+  const rawVideoUrl = (pRec.video_url as string) || (pRec.videoUrl as string) || null;
   const directVideoUrl =
     typeof rawVideoUrl === "string" && rawVideoUrl.trim().length > 0 && rawVideoUrl.includes("http")
       ? rawVideoUrl.trim()
@@ -155,18 +156,16 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
   }, [showNoVideoModal]);
 
   // Badge & Theme determination
-  const rawBadge = (product as any).badge || "";
+  const rawBadge = (pRec.badge as string) || "";
   const isBestSeller =
-    (product as any).is_best_seller || rawBadge.includes("مبيع") || rawBadge.includes("أكثر");
-  const isDeal = (product as any).is_deal || rawBadge.includes("صفقة") || discount > 15;
-  const isNew = (product as any).is_new || rawBadge.includes("جديد");
+    Boolean(pRec.is_best_seller) || rawBadge.includes("مبيع") || rawBadge.includes("أكثر");
+  const isDeal = Boolean(pRec.is_deal) || rawBadge.includes("صفقة") || discount > 15;
+  const isNew = Boolean(pRec.is_new) || rawBadge.includes("جديد");
 
   const categoryName =
-    (product as any).category_name || (product as any).brand || (product as any).sku || null;
+    (pRec.category_name as string) || (pRec.brand as string) || (pRec.sku as string) || null;
   const realViews =
-    (product as any).views_count && Number((product as any).views_count) > 0
-      ? `${(product as any).views_count} مشاهدة`
-      : null;
+    pRec.views_count && Number(pRec.views_count) > 0 ? `${pRec.views_count} مشاهدة` : null;
   const realRating = product.rating && product.rating > 0 ? product.rating : null;
   const isFav = isFavorite(product.id);
 
@@ -216,11 +215,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
       data-product-slug={product.slug}
       data-product-name={product.name}
       data-product-price={product.price}
-      className="group relative flex flex-col h-full overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#070f1e]/95 backdrop-blur-xl p-2 sm:p-3 shadow-xl transition-all duration-300 hover:border-cyan-400/50 hover:shadow-[0_0_20px_rgba(56,189,248,0.2)]"
+      className="group relative flex flex-col h-full overflow-hidden rounded-[24px] sm:rounded-[28px] border border-slate-800 bg-[#0F0C1B] p-3 sm:p-4 shadow-xl transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(123,63,255,0.25)]"
     >
-      <div className="flex flex-col h-full justify-between gap-2">
-        {/* ================= 1. TOP FLOATING STATUS CAPSULE ================= */}
-        <div className="flex items-center justify-between gap-1 rounded-full border border-purple-500/40 bg-purple-950/70 px-2.5 py-1 backdrop-blur-md text-[10px] text-purple-200">
+      <div className="flex flex-col h-full justify-between gap-2.5">
+        {/* ================= 1. TOP OVERLAYS (FAVORITE & DISCOUNT) ================= */}
+        <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-black/40">
+          {/* Favorite button top-right */}
           <button
             type="button"
             onClick={(e) => {
@@ -232,31 +232,19 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             aria-label={
               isFav ? `إزالة ${product.name} من المفضلة` : `إضافة ${product.name} إلى المفضلة`
             }
-            className="flex items-center justify-center h-6 w-6 min-h-[44px] min-w-[44px] rounded-full bg-white/10 hover:bg-white/20 transition active:scale-95"
+            className="absolute top-2.5 end-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-slate-400 hover:text-purple-400 backdrop-blur-md transition active:scale-95"
             title={isFav ? "إزالة من المفضلة" : "إضافة للمفضلة"}
           >
-            <Heart
-              className={`h-3.5 w-3.5 ${isFav ? "fill-red-500 text-red-500" : "text-purple-300"}`}
-            />
+            <Heart className={`h-4 w-4 ${isFav ? "fill-purple-500 text-purple-500" : ""}`} />
           </button>
 
-          <div className="flex items-center gap-1.5">
-            {hasValidVideo && (
-              <span className="rounded-md bg-purple-600/80 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                فيديو
-              </span>
-            )}
-            {realRating && (
-              <div className="flex items-center gap-0.5">
-                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span className="font-bold text-white text-[10px]">{realRating}</span>
-              </div>
-            )}
-          </div>
-        </div>
+          {/* Real Discount Badge top-left */}
+          {discount > 0 && (
+            <div className="absolute top-2.5 start-2.5 z-20 rounded-xl bg-[#7B3FFF] px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
+              خصم {discount}%
+            </div>
+          )}
 
-        {/* ================= 2. MEDIA & OVERLAY BADGES ================= */}
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-black/40">
           {/* Top Right Video Badge Overlay */}
           {hasValidVideo && (
             <button
@@ -264,10 +252,10 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               type="button"
               onClick={handleVideoClick}
               aria-label={`تشغيل فيديو ${product.name}`}
-              className="absolute start-2 top-2 z-20 flex items-center gap-1 rounded-full border border-cyan-400/40 bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white backdrop-blur-md transition hover:bg-cyan-500 hover:text-slate-950 active:scale-95 shadow-md"
+              className="absolute start-2.5 bottom-2.5 z-20 flex items-center gap-1 rounded-full border border-purple-400/40 bg-black/70 px-2 py-0.5 text-[10px] font-bold text-purple-300 backdrop-blur-md transition hover:bg-purple-600 hover:text-white active:scale-95 shadow-md"
               title="مشاهدة الفيديو"
             >
-              <Video className="h-3 w-3 text-cyan-400" />
+              <Video className="h-3 w-3" />
               <span>فيديو</span>
             </button>
           )}
@@ -283,7 +271,7 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
                 size="card"
                 eager={eager}
                 draggable={false}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
               />
             )}
           </Link>
@@ -294,77 +282,67 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
               {realViews}
             </div>
           )}
-
-          {/* Discount Tag */}
-          {discount > 0 && (
-            <div className="absolute end-2 top-2 z-10 rounded-full bg-red-600/90 border border-red-400/30 px-2 py-0.5 text-[9px] font-black text-white backdrop-blur-md">
-              خصم {discount}%
-            </div>
-          )}
         </div>
 
-        {/* ================= 3. PRODUCT INFORMATION ================= */}
-        <div className="flex flex-col gap-0.5 text-start px-0.5">
-          {categoryName && (
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
-              {categoryName}
-            </span>
-          )}
-
+        {/* ================= 2. PRODUCT INFORMATION ================= */}
+        <div className="flex flex-col gap-1 text-center flex-grow justify-end">
           <Link to="/product/$slug" params={{ slug: product.slug }}>
             <h3
               title={product.name}
-              className="line-clamp-2 text-xs font-bold leading-snug text-white transition-colors group-hover:text-cyan-300 min-h-[32px]"
+              className="line-clamp-1 text-sm sm:text-base font-bold text-white transition-colors group-hover:text-purple-300"
             >
               {product.name}
             </h3>
           </Link>
 
-          <div className="mt-0.5 flex items-baseline gap-1.5">
-            <span className="text-xs sm:text-sm font-black text-cyan-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
+          {categoryName ? (
+            <p className="text-xs text-slate-400 truncate">{categoryName}</p>
+          ) : (
+            <p className="text-xs text-slate-400 truncate font-mono">منتج مميز</p>
+          )}
+
+          {/* Rating (only rendered if real rating exists) */}
+          {realRating && (
+            <div className="flex items-center justify-center gap-1 text-xs my-0.5">
+              <span className="text-[#7B3FFF]">★</span>
+              <span className="text-white font-bold">{realRating}</span>
+            </div>
+          )}
+
+          {/* Prices */}
+          <div className="flex items-center justify-center gap-2 my-1">
+            <span className="text-base sm:text-lg font-bold text-[#7B3FFF]">
               {formatPrice(product.price)}
             </span>
-            {product.oldPrice && (
-              <span className="text-[10px] font-medium text-slate-500 line-through">
+            {product.oldPrice && product.oldPrice > product.price && (
+              <span className="text-xs text-slate-500 line-through">
                 {formatPrice(product.oldPrice)}
               </span>
             )}
           </div>
         </div>
 
-        {/* ================= 4. CARD ACTIONS ================= */}
-        <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-white/10">
+        {/* ================= 3. CARD ACTION BUTTON ================= */}
+        <div className="grid grid-cols-1 gap-1.5 pt-1">
           <button
             type="button"
             onClick={handleAddToCart}
             aria-label={`أضف ${product.name} إلى السلة`}
-            className={`flex items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold transition shadow-md min-h-[44px] ${
-              addedToCartToast
-                ? "bg-emerald-500 text-white"
-                : "bg-[#112233] hover:bg-cyan-500 hover:text-slate-950 border border-white/15 text-white"
+            className={`w-full text-white text-xs sm:text-sm font-bold py-2.5 sm:py-3 rounded-2xl flex items-center justify-center gap-2 transition-colors border border-purple-500/30 ${
+              addedToCartToast ? "bg-emerald-600 text-white" : "bg-[#1F1545] hover:bg-[#7B3FFF]"
             }`}
           >
             {addedToCartToast ? (
-              <Check className="h-3 w-3" />
+              <>
+                <Check className="h-4 w-4" />
+                <span>تمت الإضافة</span>
+              </>
             ) : (
-              <ShoppingCart className="h-3 w-3 text-cyan-400" />
+              <>
+                <span>أضف للسلة</span>
+                <ShoppingCart className="h-4 w-4" />
+              </>
             )}
-            <span className="truncate"> سلة</span>
-          </button>
-
-          <button
-            ref={quickViewTriggerRef}
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowQuickViewModal(true);
-            }}
-            aria-label={`معاينة سريعة لـ ${product.name}`}
-            className="flex items-center justify-center gap-1 rounded-xl border border-white/15 bg-[#112233] px-1.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-white/15 hover:border-cyan-400/50 min-h-[44px]"
-          >
-            <Eye className="h-3 w-3 text-cyan-400" />
-            <span className="truncate">معاينة </span>
           </button>
         </div>
       </div>
@@ -378,7 +356,9 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${dialogId}-video-title`}
-            onClick={(e) => { if (e.target === e.currentTarget) setShowVideoModal(false); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowVideoModal(false);
+            }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
           >
             <div
@@ -430,7 +410,9 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${dialogId}-novideo-title`}
-            onClick={(e) => { if (e.target === e.currentTarget) setShowNoVideoModal(false); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNoVideoModal(false);
+            }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md cursor-pointer"
           >
             <div

@@ -186,25 +186,24 @@ export function StoreThemeLayout({ children }: { children: React.ReactNode }) {
           {settings.notifications.announcementText}
         </div>
       ) : settings.navigation?.deliveryInfoText || hasRealFreeShipping ? (
-        <div
-          className="relative z-50 shrink-0 overflow-hidden"
-          style={{ background: "linear-gradient(90deg, #0d0b2e 0%, #130f35 100%)" }}
-        >
-          <div className="flex items-center justify-center gap-3 py-2 px-4 text-[11px] font-bold text-white/90 flex-wrap">
-            {settings.navigation?.deliveryInfoText && (
-              <span className="flex items-center gap-1.5">
-                <Zap className="h-3 w-3 text-amber-400" />
-                {settings.navigation.deliveryInfoText}
-              </span>
-            )}
+        <div className="px-4 py-2 sm:px-6">
+          <div className="flex items-center justify-between border border-slate-800/70 rounded-full px-4 sm:px-8 py-2.5 sm:py-3.5 text-xs sm:text-sm bg-[#0A0714] text-slate-300">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-sm sm:text-base">⚡</span>
+              <span>{settings.navigation?.deliveryInfoText || "توصيل سريع خلال 24 - 48 ساعة"}</span>
+            </div>
             {hasRealFreeShipping && (
-              <>
-                {settings.navigation?.deliveryInfoText && <span className="text-white/30">|</span>}
-                <span className="flex items-center gap-1.5">
-                  <Truck className="h-3 w-3 text-purple-400" />
-                  شحن مجاني للطلبات فوق {freeShippingThreshold.toLocaleString("ar-YE")} ريال
+              <div className="flex items-center gap-2">
+                <span>🚀</span>
+                <span>
+                  شحن مجاني للطلبات فوق{" "}
+                  <span className="text-purple-400 font-bold mx-1">
+                    {freeShippingThreshold.toLocaleString("ar-YE")}
+                  </span>{" "}
+                  ريال
                 </span>
-              </>
+                <span className="text-amber-400">🚚</span>
+              </div>
             )}
           </div>
         </div>
@@ -254,20 +253,18 @@ function StoreTopBar() {
   return (
     <>
       <header
-        className="sticky top-0 z-40 w-full"
+        className="sticky top-0 z-40 w-full bg-[#08060F] border-b border-slate-800/80"
         style={{
-          background: "rgba(6,12,26,0.92)",
           backdropFilter: "blur(16px) saturate(150%)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2.5 md:px-6">
-          {/* Mobile: Hamburger */}
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 md:px-6">
+          {/* Mobile: Hamburger Menu Button */}
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label="فتح القائمة"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition md:hidden min-h-[44px] min-w-[44px]"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-800 bg-[#0F0C1B] text-white hover:bg-slate-800/80 transition md:hidden shrink-0"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -287,7 +284,7 @@ function StoreTopBar() {
             to="/search"
             preload="intent"
             onClick={() => trackEvent("click_search", { source: "header" })}
-            className="flex flex-1 items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-semibold text-slate-400 transition-all hover:border-white/20 hover:bg-white/8 md:max-w-lg"
+            className="flex flex-1 items-center gap-2.5 rounded-full border border-slate-800 bg-[#151025] px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-400 transition-all hover:border-slate-700 md:max-w-lg"
             aria-label="بحث"
           >
             <Search className="h-4 w-4 text-slate-500 shrink-0" />
