@@ -190,25 +190,27 @@ export function StoreThemeLayout({ children }: { children: React.ReactNode }) {
         >
           {settings.notifications.announcementText}
         </div>
-      ) : (
+      ) : (settings.navigation?.deliveryInfoText || hasRealFreeShipping) ? (
         <div className="relative z-50 shrink-0 overflow-hidden" style={{ background: "linear-gradient(90deg, #0d0b2e 0%, #130f35 100%)" }}>
           <div className="flex items-center justify-center gap-3 py-2 px-4 text-[11px] font-bold text-white/90 flex-wrap">
-            <span className="flex items-center gap-1.5">
-              <Zap className="h-3 w-3 text-amber-400" />
-              توصيل سريع خلال 24 - 48 ساعة
-            </span>
+            {settings.navigation?.deliveryInfoText && (
+              <span className="flex items-center gap-1.5">
+                <Zap className="h-3 w-3 text-amber-400" />
+                {settings.navigation.deliveryInfoText}
+              </span>
+            )}
             {hasRealFreeShipping && (
               <>
-                <span className="text-white/30">|</span>
+                {settings.navigation?.deliveryInfoText && <span className="text-white/30">|</span>}
                 <span className="flex items-center gap-1.5">
-                  🚚 شحن مجاني للطلبات فوق {freeShippingThreshold.toLocaleString("ar-YE")} ريال
                   <Truck className="h-3 w-3 text-purple-400" />
+                  شحن مجاني للطلبات فوق {freeShippingThreshold.toLocaleString("ar-YE")} ريال
                 </span>
               </>
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* 2. PWA & App Install Banner */}
       <AppInstallBanner />

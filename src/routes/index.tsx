@@ -743,32 +743,42 @@ function HomePage() {
         </motion.section>
       )}
 
-      {/* 7b. TRUST BADGES */}
-      {settings.sections.trustBadges?.enabled !== false && (
-        <motion.section {...revealProps} className="relative z-10 px-4">
-          <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-            {[
-              { icon: Icons.Headphones, text: "دعم 24/7", sub: "خدمة عملاء مميزة", configKey: "badge1" as const },
-              { icon: Icons.RotateCcw, text: "إرجاع سهل", sub: "خلال 14 يوم", configKey: "badge2" as const },
-              { icon: Icons.Truck, text: "شحن مجاني", sub: settings.cart_config?.freeShippingThreshold ? `فوق ${settings.cart_config.freeShippingThreshold.toLocaleString("ar-YE")} ريال` : "على جميع الطلبات", configKey: "badge3" as const },
-              { icon: Icons.ShieldCheck, text: "ضمان سنتين", sub: "على جميع المنتجات", configKey: undefined },
-            ].map((badge, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[200px] md:min-w-0"
-              >
-                <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
-                <div className="text-start">
-                  <span className="text-xs font-bold text-white block">
-                    {badge.configKey ? (settings.sections.trustBadges as any)?.[badge.configKey] || badge.text : badge.text}
-                  </span>
-                  <span className="text-[10px] text-slate-400">{badge.sub}</span>
+      {/* 7b. TRUST BADGES — only when explicitly enabled in CMS */}
+      {settings.sections.trustBadges?.enabled === true && (() => {
+        const tb = settings.sections.trustBadges;
+        const freeShipThreshold = settings.cart_config?.freeShippingThreshold;
+        const badges = [
+          tb.badge1 ? { icon: Icons.Truck, text: tb.badge1 } : null,
+          tb.badge2 ? { icon: Icons.ShieldCheck, text: tb.badge2 } : null,
+          tb.badge3 ? { icon: Icons.RotateCcw, text: tb.badge3 } : null,
+        ].filter(Boolean) as { icon: typeof Icons.Truck; text: string }[];
+
+        // Add free shipping badge only when a real threshold is configured
+        if (freeShipThreshold && freeShipThreshold > 0) {
+          badges.push({
+            icon: Icons.Package,
+            text: `شحن مجاني فوق ${freeShipThreshold.toLocaleString("ar-YE")} ريال`,
+          });
+        }
+
+        if (badges.length === 0) return null;
+
+        return (
+          <motion.section {...revealProps} className="relative z-10 px-4">
+            <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
+              {badges.map((badge, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[180px] md:min-w-0"
+                >
+                  <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
+                  <span className="text-xs font-bold text-white">{badge.text}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-      )}
+              ))}
+            </div>
+          </motion.section>
+        );
+      })()}
 
       {/* 8b. VIRTUAL SHOWROOM */}
       {settings.sections.showroom.enabled && (
