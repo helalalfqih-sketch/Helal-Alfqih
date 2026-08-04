@@ -59,7 +59,26 @@ async function checkAndInsertWebhookEvent(
   tenantId: string,
   messageId: string,
 ): Promise<{ isNew: boolean; error?: string }> {
-  // Atomic insert — unique constraint on (provider, external_event_id, tenant_id)
+  // 1. Try SECURITY DEFINER RPC first (bypasses RLS across all key formats)
+  try {
+    const { data: rpcData, error: rpcErr } = await db.rpc("record_webhook_event", {
+      p_tenant_id: tenantId,
+      p_provider: "whatsapp",
+      p_external_event_id: messageId,
+    });
+
+    if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+      const row = rpcData[0];
+      if (row.err_msg) {
+        return { isNew: false, error: `DB idempotency check failed: ${row.err_msg}` };
+      }
+      return { isNew: Boolean(row.is_new) };
+    }
+  } catch {
+    // Fallthrough to direct insert
+  }
+
+  // 2. Direct table insert fallback
   const { error } = await db.from("webhook_events").insert({
     provider: "whatsapp",
     external_event_id: messageId,
@@ -69,11 +88,9 @@ async function checkAndInsertWebhookEvent(
   });
 
   if (error) {
-    // Unique constraint violation = already processed
     if (error.code === "23505") {
       return { isNew: false };
     }
-    // Actual DB error = block processing
     return { isNew: false, error: `DB idempotency check failed: ${error.message}` };
   }
 
@@ -86,6 +103,18 @@ async function updateWebhookEventStatus(
   messageId: string,
   status: "processing" | "processed" | "failed" | "ignored",
 ) {
+  try {
+    const { error: rpcErr } = await db.rpc("update_webhook_event_status", {
+      p_tenant_id: tenantId,
+      p_provider: "whatsapp",
+      p_external_event_id: messageId,
+      p_status: status,
+    });
+    if (!rpcErr) return;
+  } catch {
+    // Fallthrough
+  }
+
   await db
     .from("webhook_events")
     .update({ status, updated_at: new Date().toISOString() })
@@ -362,18 +391,18 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
               }
 
               // 13. Insert media_files ONLY after Storage success
-              const { error: insertError } = await db
-                .from("media_files")
-                .insert({
-                  tenant_id: tenantId,
-                  file_name: fileName,
-                  file_path: storagePath,
-                  file_url: permanentUrl,
-                  file_type: (messageType === "video" ? "video" : "image") as "image" | "video" | "other",
-                  mime_type: mimeType,
-                  size_bytes: binary.buffer.byteLength,
-                  source: "whatsapp",
-                  metadata: {
+              let insertError: any = null;
+              try {
+                const { error: rpcErr } = await db.rpc("insert_media_file", {
+                  p_tenant_id: tenantId,
+                  p_file_name: fileName,
+                  p_file_path: storagePath,
+                  p_file_url: permanentUrl,
+                  p_file_type: messageType === "video" ? "video" : "image",
+                  p_mime_type: mimeType,
+                  p_size_bytes: binary.buffer.byteLength,
+                  p_source: "whatsapp",
+                  p_metadata: {
                     whatsapp_message_id: messageId,
                     sender_hash: senderHash,
                     whatsapp_media_id: mediaId,
@@ -382,6 +411,35 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
                     received_at: new Date().toISOString(),
                   },
                 });
+                insertError = rpcErr;
+              } catch {
+                insertError = true;
+              }
+
+              if (insertError) {
+                // Fallback to direct insert
+                const { error: directErr } = await db
+                  .from("media_files")
+                  .insert({
+                    tenant_id: tenantId,
+                    file_name: fileName,
+                    file_path: storagePath,
+                    file_url: permanentUrl,
+                    file_type: (messageType === "video" ? "video" : "image") as "image" | "video" | "other",
+                    mime_type: mimeType,
+                    size_bytes: binary.buffer.byteLength,
+                    source: "whatsapp",
+                    metadata: {
+                      whatsapp_message_id: messageId,
+                      sender_hash: senderHash,
+                      whatsapp_media_id: mediaId,
+                      caption,
+                      upload_success: true,
+                      received_at: new Date().toISOString(),
+                    },
+                  });
+                insertError = directErr;
+              }
 
               if (insertError) {
                 // Compensating cleanup: remove Storage object on DB failure
