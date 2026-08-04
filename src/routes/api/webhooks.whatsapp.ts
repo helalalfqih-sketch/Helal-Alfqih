@@ -47,27 +47,16 @@ async function getWebhookServiceDb() {
 // ── Tenant Resolution (Strict — No Fallback) ──────────────────────────────
 
 async function resolveTenantFromPhoneNumberId(db: any, phoneNumberId: string): Promise<string | null> {
-  // Only resolve through active whatsapp_integrations record
-  const { data: integration, error } = await db
-    .from("whatsapp_integrations")
-    .select("tenant_id, status")
-    .eq("phone_number_id", phoneNumberId)
-    .maybeSingle();
+  // Use SECURITY DEFINER RPC to bypass RLS — works with new sb_secret_ key format
+  const { data: tenantId, error } = await db
+    .rpc("get_whatsapp_tenant_by_phone", { p_phone_number_id: phoneNumberId });
 
   if (error) {
-    console.error("[WA] Integration lookup DB error:", error.code, "-", error.message, "-", error.details);
+    console.error("[WA] Integration lookup RPC error:", error.code, "-", error.message, "-", error.details);
     return null;
   }
 
-  if (!integration) return null;
-
-  // Only active integrations are valid
-  if (integration.status && integration.status !== "active") return null;
-
-  return integration.tenant_id || null;
-  // NO first-tenant fallback
-  // NO metadata fallback
-  // NO default-tenant fallback
+  return tenantId || null;
 }
 
 // ── Atomic Idempotency via webhook_events ──────────────────────────────────
