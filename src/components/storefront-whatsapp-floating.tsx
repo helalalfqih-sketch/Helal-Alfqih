@@ -47,7 +47,13 @@ export function MobileCommerceBottomBar() {
     { to: "/", label: "الرئيسية", icon: Home },
     { to: "/search", label: "البحث", icon: Search, event: "click_search" },
     { to: "/cart", label: "السلة", icon: ShoppingCart, badge: count },
-    { isWhatsApp: true, href: waHref, label: "واتساب", icon: MessageCircle, event: "click_whatsapp" },
+    {
+      isWhatsApp: true,
+      href: waHref,
+      label: "واتساب",
+      icon: MessageCircle,
+      event: "click_whatsapp",
+    },
     { to: "/account", label: "حسابي", icon: User },
   ];
 
@@ -96,9 +102,7 @@ export function MobileCommerceBottomBar() {
                   }
                 }}
                 className={`mx-auto flex w-fit flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[10px] font-bold transition-all ${
-                  active
-                    ? "text-white"
-                    : "text-showcase-muted hover:text-white"
+                  active ? "text-white" : "text-showcase-muted hover:text-white"
                 }`}
               >
                 <div className="relative">
@@ -107,7 +111,8 @@ export function MobileCommerceBottomBar() {
                       className="flex h-10 w-10 items-center justify-center rounded-2xl"
                       style={{
                         background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-                        boxShadow: "0 4px 20px -4px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.15)",
+                        boxShadow:
+                          "0 4px 20px -4px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.15)",
                       }}
                     >
                       <Icon className="h-5 w-5 stroke-[2.5] text-white" />
@@ -130,4 +135,3 @@ export function MobileCommerceBottomBar() {
     </nav>
   );
 }
-

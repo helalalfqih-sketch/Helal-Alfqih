@@ -62,17 +62,12 @@ function CinematicBackground() {
 }
 
 /* ── Mobile Navigation Drawer ─────────────────────────────────────────── */
-function MobileDrawer({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { settings } = useAppearance();
   const storeLogo = settings.store_identity?.logoUrl || settings.navigation?.logoUrl || noqtaLogo;
-  const storeName = settings.brand_settings?.storeName || settings.navigation?.storeName || "اندكس ستور";
+  const storeName =
+    settings.brand_settings?.storeName || settings.navigation?.storeName || "اندكس ستور";
 
   const navLinks = [
     { to: "/", label: "الرئيسية", icon: Home },
@@ -190,8 +185,11 @@ export function StoreThemeLayout({ children }: { children: React.ReactNode }) {
         >
           {settings.notifications.announcementText}
         </div>
-      ) : (settings.navigation?.deliveryInfoText || hasRealFreeShipping) ? (
-        <div className="relative z-50 shrink-0 overflow-hidden" style={{ background: "linear-gradient(90deg, #0d0b2e 0%, #130f35 100%)" }}>
+      ) : settings.navigation?.deliveryInfoText || hasRealFreeShipping ? (
+        <div
+          className="relative z-50 shrink-0 overflow-hidden"
+          style={{ background: "linear-gradient(90deg, #0d0b2e 0%, #130f35 100%)" }}
+        >
           <div className="flex items-center justify-center gap-3 py-2 px-4 text-[11px] font-bold text-white/90 flex-wrap">
             {settings.navigation?.deliveryInfoText && (
               <span className="flex items-center gap-1.5">
@@ -248,12 +246,21 @@ function StoreTopBar() {
   ];
 
   const storeLogo = settings.store_identity?.logoUrl || settings.navigation?.logoUrl || noqtaLogo;
-  const storeName = settings.brand_settings?.storeName || settings.navigation?.storeName || "اندكس ستور";
-  const searchPlaceholder = settings.navigation?.searchPlaceholder || "ابحث عن منتج، قسم أو علامة تجارية...";
+  const storeName =
+    settings.brand_settings?.storeName || settings.navigation?.storeName || "اندكس ستور";
+  const searchPlaceholder =
+    settings.navigation?.searchPlaceholder || "ابحث عن منتج، قسم أو علامة تجارية...";
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full" style={{ background: "rgba(6,12,26,0.92)", backdropFilter: "blur(16px) saturate(150%)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <header
+        className="sticky top-0 z-40 w-full"
+        style={{
+          background: "rgba(6,12,26,0.92)",
+          backdropFilter: "blur(16px) saturate(150%)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
         <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2.5 md:px-6">
           {/* Mobile: Hamburger */}
           <button

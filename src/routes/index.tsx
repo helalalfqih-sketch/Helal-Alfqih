@@ -243,9 +243,7 @@ function SlideshowHero({ hero }: { hero: HeroConfig }) {
               onClick={() => setActiveIndex(i)}
               aria-label={`الشريحة ${i + 1}`}
               className={`h-2 rounded-full transition-all duration-300 ${
-                i === activeIndex
-                  ? "w-5 bg-white"
-                  : "w-2 bg-white/40 hover:bg-white/60"
+                i === activeIndex ? "w-5 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
               }`}
             />
           ))}
@@ -625,7 +623,13 @@ function HomePage() {
         <motion.section key="categories" {...revealProps} className="relative z-10 px-4">
           <div className="grid grid-rows-2 grid-flow-col auto-cols-[72px] gap-x-3 gap-y-3.5 overflow-x-auto scrollbar-none pb-2 md:grid-rows-1 md:grid-cols-6 md:auto-cols-auto md:overflow-visible md:gap-5">
             {categories.slice(0, settings.sections.categories.limit ?? 12).map((c) => {
-              const imageUrl = (c as any).imageUrl || (c as any).image_url || "";
+              const categoryObj = c as Record<string, unknown>;
+              const imageUrl =
+                typeof categoryObj.imageUrl === "string"
+                  ? categoryObj.imageUrl
+                  : typeof categoryObj.image_url === "string"
+                    ? categoryObj.image_url
+                    : "";
               return (
                 <Link
                   key={c.id}
@@ -658,7 +662,10 @@ function HomePage() {
       {settings.sections.latest.enabled && (
         <motion.section key="latest" {...revealProps} className="relative z-10 pt-2">
           <div className="mb-4 flex items-center justify-between px-4">
-            <h2 className="text-base font-black leading-tight sm:text-xl flex items-center gap-1.5" style={{ color: LIGHT }}>
+            <h2
+              className="text-base font-black leading-tight sm:text-xl flex items-center gap-1.5"
+              style={{ color: LIGHT }}
+            >
               🔥 {settings.sections.latest.title || "أفضل العروض"}
             </h2>
             <Link
@@ -671,7 +678,10 @@ function HomePage() {
           {/* Mobile horizontal scroll */}
           <div className="flex overflow-x-auto scrollbar-none gap-3 px-4 pb-2 md:hidden">
             {allProducts
-              .slice(0, settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit)
+              .slice(
+                0,
+                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
+              )
               .map((p, i) => (
                 <div key={p.id} className="w-[160px] shrink-0">
                   <ProductCard product={p} eager={i < 2} />
@@ -679,9 +689,14 @@ function HomePage() {
               ))}
           </div>
           {/* Desktop grid */}
-          <div className={`hidden md:grid px-4 ${getGridClass(settings.products_layout).replace('grid ', '')}`}>
+          <div
+            className={`hidden md:grid px-4 ${getGridClass(settings.products_layout).replace("grid ", "")}`}
+          >
             {allProducts
-              .slice(0, settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit)
+              .slice(
+                0,
+                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
+              )
               .map((p, i) => (
                 <ProductCard key={p.id} product={p} eager={i < 2} />
               ))}
@@ -743,41 +758,42 @@ function HomePage() {
       )}
 
       {/* 7b. TRUST BADGES — only when explicitly enabled in CMS */}
-      {settings.sections.trustBadges?.enabled === true && (() => {
-        const tb = settings.sections.trustBadges;
-        const freeShipThreshold = settings.cart_config?.freeShippingThreshold;
-        const badges = [
-          tb.badge1 ? { icon: Icons.Truck, text: tb.badge1 } : null,
-          tb.badge2 ? { icon: Icons.ShieldCheck, text: tb.badge2 } : null,
-          tb.badge3 ? { icon: Icons.RotateCcw, text: tb.badge3 } : null,
-        ].filter(Boolean) as { icon: typeof Icons.Truck; text: string }[];
+      {settings.sections.trustBadges?.enabled === true &&
+        (() => {
+          const tb = settings.sections.trustBadges;
+          const freeShipThreshold = settings.cart_config?.freeShippingThreshold;
+          const badges = [
+            tb.badge1 ? { icon: Icons.Truck, text: tb.badge1 } : null,
+            tb.badge2 ? { icon: Icons.ShieldCheck, text: tb.badge2 } : null,
+            tb.badge3 ? { icon: Icons.RotateCcw, text: tb.badge3 } : null,
+          ].filter(Boolean) as { icon: typeof Icons.Truck; text: string }[];
 
-        // Add free shipping badge only when a real threshold is configured
-        if (freeShipThreshold && freeShipThreshold > 0) {
-          badges.push({
-            icon: Icons.Package,
-            text: `شحن مجاني فوق ${freeShipThreshold.toLocaleString("ar-YE")} ريال`,
-          });
-        }
+          // Add free shipping badge only when a real threshold is configured
+          if (freeShipThreshold && freeShipThreshold > 0) {
+            badges.push({
+              icon: Icons.Package,
+              text: `شحن مجاني فوق ${freeShipThreshold.toLocaleString("ar-YE")} ريال`,
+            });
+          }
 
-        if (badges.length === 0) return null;
+          if (badges.length === 0) return null;
 
-        return (
-          <motion.section {...revealProps} className="relative z-10 px-4">
-            <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-              {badges.map((badge, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[180px] md:min-w-0"
-                >
-                  <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
-                  <span className="text-xs font-bold text-white">{badge.text}</span>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-        );
-      })()}
+          return (
+            <motion.section {...revealProps} className="relative z-10 px-4">
+              <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
+                {badges.map((badge, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[180px] md:min-w-0"
+                  >
+                    <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
+                    <span className="text-xs font-bold text-white">{badge.text}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          );
+        })()}
 
       {/* 8b. VIRTUAL SHOWROOM */}
       {settings.sections.showroom.enabled && (
