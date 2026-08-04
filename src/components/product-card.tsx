@@ -113,10 +113,11 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
     };
 
     document.addEventListener("keydown", handleKeyDown);
+    const triggerEl = quickViewTriggerRef.current;
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      quickViewTriggerRef.current?.focus();
+      triggerEl?.focus();
     };
   }, [showQuickViewModal]);
 
@@ -132,11 +133,12 @@ export function ProductCard({ product, eager = false }: ProductCardProps) {
       if (event.key === "Escape") setShowVideoModal(false);
     };
     document.addEventListener("keydown", handleKeyDown);
+    const videoTriggerEl = videoTriggerRef.current;
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      videoTriggerRef.current?.focus();
+      videoTriggerEl?.focus();
     };
   }, [showVideoModal]);
 
