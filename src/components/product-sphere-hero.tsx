@@ -690,11 +690,11 @@ function StarField() {
 export function ProductSphereHero({
   products,
   badgeText = "INDEXES · LIVE SHOWCASE",
-  title = "معرض المنتجات الذكي",
+  title = "آلاف المنتجات",
   subtitle = "اسحب الكرة — كل وجه منتج، اضغط لتفتحه",
   maxProducts = 16,
-  radius = 1.85,
-  tileScale = 0.65,
+  radius = 2.05,
+  tileScale = 0.7,
   cardShape = "rectangle",
   showName = true,
   showPrice = true,
@@ -753,7 +753,7 @@ export function ProductSphereHero({
   return (
     <section
       dir="rtl"
-      className="relative mx-0 overflow-hidden rounded-3xl h-[340px] sm:h-[450px] md:h-[520px]"
+      className="relative w-full mx-0 overflow-hidden rounded-3xl h-[380px] sm:h-[480px] md:h-[560px]"
       style={{
         background: `radial-gradient(ellipse at 50% 30%, #0d1435 0%, #06091f 55%, ${BG_BOT} 100%)`,
       }}

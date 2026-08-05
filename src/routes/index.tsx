@@ -13,7 +13,7 @@ import {
 } from "@/lib/queries/catalog";
 import { CategoryRailSkeleton, ProductRailSkeleton } from "@/components/home/home-skeletons";
 import { NeonProductCard } from "@/components/home/neon-product-card";
-import { ScrollGlobeHero } from "@/components/home/scroll-globe-hero";
+import { AiSearchPanel } from "@/components/home/ai-search-panel";
 import { TrustStrip } from "@/components/home/trust-strip";
 import loyaltyGem from "@/assets/loyalty-gem.png";
 import { Reveal } from "@/components/motion/reveal";
@@ -232,7 +232,7 @@ export function StorefrontHero({
       return (
         <div data-testid="hero-sphere-3d">
           <Suspense fallback={<div className="h-40" />}>
-            <ProductSphereHero products={products} />
+            <ProductSphereHero products={products} title="آلاف المنتجات" />
           </Suspense>
         </div>
       );
@@ -253,6 +253,30 @@ export function StorefrontHero({
     default:
       return null;
   }
+}
+
+function StoreIdentity() {
+  return (
+    <div className="flex h-[56px] items-center justify-between gap-2 px-1">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-[52px] w-[52px] shrink-0 place-items-center gap-0.5 rounded-[18px] border border-neon/55 bg-ink-card text-neon-2 shadow-[0_0_26px_-10px_var(--neon)]">
+          <Icons.ShoppingBag className="mx-auto h-[22px] w-[22px]" strokeWidth={1.7} />
+          <span className="block text-[7px] font-bold tracking-[0.14em] text-ink-text">
+            INDEXES
+          </span>
+        </span>
+        <div className="text-right">
+          <p className="flex items-center gap-1.5 text-[17.5px] font-bold leading-tight">
+            اندكس ستور
+            <Icons.BadgeCheck className="h-[16px] w-[16px] shrink-0 fill-neon text-ink" />
+          </p>
+          <p className="text-[12.5px] leading-tight text-ink-muted">
+            كل ما تحتاجه في مكان واحد
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export const Route = createFileRoute("/")({
@@ -295,7 +319,7 @@ function HomeSkeleton() {
       className="flex flex-col gap-3.5 bg-ink px-3.5 pt-3 text-ink-text sm:px-4 lg:px-9"
     >
       <div className="h-11 rounded-[14px] border border-ink-line bg-ink-card lg:h-[50px]" />
-      <div className="h-[228px] rounded-[24px] border border-ink-line bg-[#0A1020]" />
+      <div className="h-[380px] rounded-[24px] border border-ink-line bg-[#0A1020]" />
       <CategoryRailSkeleton />
       <ProductRailSkeleton />
       <div className="h-24 rounded-2xl border border-ink-line bg-[#0A1020] lg:h-[84px]" />
@@ -318,7 +342,7 @@ function HomePage() {
       dir="rtl"
       className="flex flex-col gap-3.5 bg-ink px-3.5 pt-3 text-ink-text sm:px-4 lg:px-9"
     >
-      {/* Shipping strip */}
+      {/* 1. Shipping bar */}
       <div className="flex h-11 items-center justify-between gap-3 rounded-[14px] border border-ink-line bg-ink-card px-3 text-[11px] font-semibold leading-4 lg:h-[50px] lg:rounded-2xl lg:px-[30px] lg:text-[16px]">
         <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
           <Icons.Zap className="h-3.5 w-3.5 shrink-0 text-neon-2" />
@@ -332,10 +356,23 @@ function HomePage() {
         </span>
       </div>
 
-      {/* Scroll-driven product globe → compact promotional hero */}
-      <ScrollGlobeHero products={globeProducts} />
+      {/* 2. Store identity */}
+      <StoreIdentity />
 
-      {/* Categories */}
+      {/* 3. Product sphere hero (Dominant mobile scale) */}
+      <Suspense fallback={<div className="h-[380px] w-full rounded-3xl bg-ink-card animate-pulse" />}>
+        <ProductSphereHero products={globeProducts} title="آلاف المنتجات" />
+      </Suspense>
+
+      {/* 4. AI search panel */}
+      <AiSearchPanel height={48} />
+
+      {/* 5. Trust strip */}
+      <Reveal as="div" className="defer-paint">
+        <TrustStrip variant="inline" />
+      </Reveal>
+
+      {/* 6. Categories */}
       <Reveal as="section" className="-mx-3.5 sm:-mx-4 lg:mx-0">
         <SnapRail className="px-3.5 sm:px-4 lg:px-0" itemGapClass="gap-2.5 lg:gap-4">
           {categories.slice(0, 6).map((c) => {
@@ -368,7 +405,7 @@ function HomePage() {
         </SnapRail>
       </Reveal>
 
-      {/* Best offers */}
+      {/* 7. Products */}
       <Reveal as="section">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-1.5 text-[15px] font-black">
@@ -397,12 +434,7 @@ function HomePage() {
         </div>
       </Reveal>
 
-      {/* Trust strip */}
-      <Reveal as="div" className="defer-paint">
-        <TrustStrip variant="inline" />
-      </Reveal>
-
-      {/* Loyalty program card */}
+      {/* 8. Loyalty program card */}
       <Reveal
         as="section"
         className="defer-paint relative overflow-hidden rounded-[24px] border border-neon/40 bg-linear-to-r from-neon-soft via-ink-card to-ink-card p-4 lg:h-[158px]"
