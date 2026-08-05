@@ -1,265 +1,198 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Search, ShoppingCart, Tag, User, Globe, Activity, Settings, HelpCircle, FileText } from "lucide-react";
+import {
+  motion,
+  useMotionTemplate,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import {
+  Bell,
+  Home,
+  Menu,
+  MessageCircle,
+  ScanLine,
+  Search,
+  ShoppingCart,
+  User,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useCart } from "@/lib/cart-store";
-import noqtaLogo from "@/assets/noqta-logo.png";
+import { MainMenu } from "@/components/main-menu";
 import { SiteFooter } from "@/components/site-footer";
-import { useAppearance } from "@/components/appearance-provider";
+import { whatsappLink } from "@/lib/whatsapp";
+import { SCROLL_SPRING } from "@/components/motion/motion-tokens";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/" || pathname === "/app" || pathname === "/app/";
-  const isShowcase = isHome || pathname.startsWith("/product/");
-  const { settings } = useAppearance();
-
   return (
-    <div
-      className={`min-h-screen flex flex-col transition-colors duration-300 ${isShowcase ? "bg-showcase text-showcase-foreground" : "bg-background text-foreground"
-        }`}
-    >
-      {settings.notifications?.announcementEnabled && (
-        <div
-          style={{ backgroundColor: settings.notifications.announcementBg }}
-          className="text-white text-xs font-bold py-2 px-4 text-center shrink-0"
-        >
-          {settings.notifications.announcementText}
-        </div>
-      )}
-      <TopBar isHome={isShowcase} />
-      <main className="mx-auto w-full max-w-md md:max-w-6xl lg:max-w-7xl px-4 md:px-6 pb-20 md:pb-12 flex-1">
+    <div dir="rtl" className="min-h-screen bg-ink text-ink-text">
+      <TopBar />
+      <main
+        className="mx-auto w-full max-w-md lg:max-w-[1024px]"
+        style={{ paddingBottom: "calc(110px + env(safe-area-inset-bottom))" }}
+      >
         {children}
-        <SiteFooter isHome={isShowcase} />
+        <SiteFooter />
       </main>
-      <BottomNav isHome={isShowcase} />
+      <BottomNav />
     </div>
   );
 }
 
-// Map string icon names to Lucide icons dynamically
-const ICON_MAP: Record<string, any> = {
-  Home,
-  Tag,
-  ShoppingCart,
-  User,
-  Globe,
-  Activity,
-  Settings,
-  HelpCircle,
-  FileText
-};
-
-function TopBar({ isHome }: { isHome: boolean }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+function useCartCount() {
   const [count, setCount] = useState(0);
   const items = useCart((s) => s.items);
-  const { settings } = useAppearance();
-
   useEffect(() => {
     setCount(items.reduce((a, i) => a + i.qty, 0));
   }, [items]);
+  return count;
+}
 
-  // Read header links from CMS navigation setting
-  const dbLinks = settings.navigation.headerLinks || [];
-  const navLinks = dbLinks
-    .filter((link) => link.visible)
-    .sort((a, b) => a.order - b.order)
-    .map((link) => {
-      const IconComp = ICON_MAP[link.icon] || HelpCircle;
-      return {
-        to: link.to,
-        label: link.label,
-        icon: IconComp,
-        badge: link.to === "/cart" ? count : undefined,
-        external: link.external,
-        target: link.target,
-      };
-    });
-
-  // Fallback if links are empty
-  const activeLinks = navLinks.length > 0 ? navLinks : [
-    { to: "/", label: "الرئيسية", icon: Home, badge: undefined, external: false, target: "_self" as const },
-    { to: "/offers", label: "العروض", icon: Tag, badge: undefined, external: false, target: "_self" as const },
-    { to: "/cart", label: "السلة", icon: ShoppingCart, badge: count, external: false, target: "_self" as const },
-    { to: "/account", label: "حسابي", icon: User, badge: undefined, external: false, target: "_self" as const },
-  ];
-
-  const storeLogo = settings.store_identity?.logoUrl || settings.navigation?.logoUrl || noqtaLogo;
-  const storeName = settings.navigation.storeName || "اندكس ستور";
-  const tagline = settings.navigation.tagline || "اختيارك الأفضل";
-  const searchPlaceholder = settings.navigation.searchPlaceholder || "ابحث عن منتج...";
+function TopBar() {
+  const count = useCartCount();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { scrollY } = useScroll();
+  const smooth = useSpring(scrollY, SCROLL_SPRING);
+  const bgAlpha = useTransform(smooth, [0, 80], [0.75, 0.96]);
+  const background = useMotionTemplate`color-mix(in oklab, var(--ink) calc(${bgAlpha} * 100%), transparent)`;
+  const borderAlpha = useTransform(smooth, [0, 80], [0, 1]);
+  const borderColor = useMotionTemplate`color-mix(in oklab, var(--ink-line) calc(${borderAlpha} * 100%), transparent)`;
 
   return (
-    <header
-      className={`sticky top-0 z-40 w-full border-b backdrop-blur transition-colors duration-300 ${isHome
-          ? "bg-showcase/90 border-showcase-border text-showcase-foreground"
-          : "bg-surface/90 border-border/60 text-foreground"
-        } py-3`}
+    <motion.header
+      dir="ltr"
+      style={{ background, borderColor }}
+      className="sticky top-0 z-40 mx-auto grid h-16 w-full max-w-md grid-cols-[44px_44px_1fr_44px_44px] items-center gap-2 border-b px-3.5 pt-2 backdrop-blur lg:h-[72px] lg:grid-cols-[58px_58px_1fr_58px_58px] lg:gap-3.5"
     >
-      <div className="mx-auto flex w-full max-w-md md:max-w-6xl lg:max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
-        {/* Logo and Name */}
-        <Link to="/" className="flex items-center gap-2">
-          <img src={storeLogo} alt={storeName} className="h-10 w-10 rounded-xl shadow-brand object-cover" />
-          <div className="leading-tight">
-            <div
-              className={`text-base font-black tracking-tight ${isHome ? "text-showcase-foreground" : "text-foreground"
-                }`}
-            >
-              {storeName}
-            </div>
-            {tagline && (
-              <div
-                className={`text-[10px] ${isHome ? "text-showcase-muted" : "text-muted-foreground"}`}
-              >
-                {tagline}
-              </div>
-            )}
-          </div>
-        </Link>
-
-        {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-5">
-          {activeLinks.map((tab) => {
-            const active = pathname === tab.to;
-            if (tab.external) {
-              return (
-                <a
-                  key={tab.to}
-                  href={tab.to}
-                  target={tab.target || "_blank"}
-                  rel="noopener noreferrer"
-                  className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${isHome
-                      ? "text-showcase-muted hover:text-showcase-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </a>
-              );
-            }
-            return (
-              <Link
-                key={tab.to}
-                to={tab.to}
-                className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${active
-                    ? isHome
-                      ? "bg-showcase-foreground/10 text-showcase-foreground"
-                      : "bg-primary/10 text-primary"
-                    : isHome
-                      ? "text-showcase-muted hover:text-showcase-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-                {tab.badge ? (
-                  <span className="absolute -top-1.5 -end-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Search Link */}
-        <Link
-          to="/search"
-          className={`flex flex-1 md:max-w-xs items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isHome
-              ? "bg-showcase-foreground/10 text-showcase-muted hover:bg-showcase-foreground/15"
-              : "bg-muted text-muted-foreground hover:bg-muted/70"
-            }`}
-        >
-          <Search className="h-4 w-4" />
-          <span>{searchPlaceholder}</span>
-        </Link>
-      </div>
-    </header>
+      <button
+        type="button"
+        aria-label="القائمة"
+        onClick={() => setMenuOpen(true)}
+        className="press grid h-11 w-11 place-items-center rounded-[14px] border border-ink-line bg-ink-card text-ink-text lg:h-[58px] lg:w-[58px]"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      <Link
+        to="/search"
+        search={{ q: "" }}
+        aria-label="المسح الضوئي"
+        className="press grid h-11 w-11 place-items-center rounded-[14px] border border-ink-line bg-ink-card text-ink-text lg:h-[58px] lg:w-[58px]"
+      >
+        <ScanLine className="h-5 w-5" />
+      </Link>
+      <Link
+        to="/search"
+        search={{ q: "" }}
+        className="press flex h-[46px] min-w-0 items-center gap-2 rounded-[23px] border border-ink-line bg-ink-card px-3.5 text-[11.5px] text-ink-muted lg:h-[62px] lg:rounded-[31px] lg:text-[15px]"
+      >
+        <Search className="h-4 w-4 shrink-0 lg:h-5 lg:w-5" />
+        <span dir="rtl" className="min-w-0 flex-1 truncate text-right">
+          ابحث عن منتج، قسم أو علامة تجارية...
+        </span>
+      </Link>
+      <Link
+        to="/account"
+        aria-label="الحساب"
+        className="press relative grid h-11 w-11 place-items-center text-ink-text lg:h-[58px] lg:w-[58px]"
+      >
+        <Bell className="h-[22px] w-[22px] lg:h-7 lg:w-7" />
+        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-neon" />
+      </Link>
+      <Link
+        to="/cart"
+        aria-label="السلة"
+        className="press relative grid h-11 w-11 place-items-center text-ink-text lg:h-[58px] lg:w-[58px]"
+      >
+        <ShoppingCart className="h-[22px] w-[22px] lg:h-7 lg:w-7" />
+        {count > 0 ? (
+          <span className="absolute -right-0.5 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-neon px-1 text-[10px] font-bold text-white">
+            {count}
+          </span>
+        ) : null}
+      </Link>
+      <MainMenu open={menuOpen} onOpenChange={setMenuOpen} />
+    </motion.header>
   );
 }
 
-function BottomNav({ isHome }: { isHome: boolean }) {
+function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [count, setCount] = useState(0);
-  const items = useCart((s) => s.items);
-  const { settings } = useAppearance();
+  const reduced = useReducedMotion();
+  const count = useCartCount();
 
-  useEffect(() => {
-    setCount(items.reduce((a, i) => a + i.qty, 0));
-  }, [items]);
-
-  // Read links from CMS
-  const dbLinks = settings.navigation.headerLinks || [];
-  const navLinks = dbLinks
-    .filter((link) => link.visible)
-    .sort((a, b) => a.order - b.order)
-    .map((link) => {
-      const IconComp = ICON_MAP[link.icon] || HelpCircle;
-      return {
-        to: link.to,
-        label: link.label,
-        icon: IconComp,
-        badge: link.to === "/cart" ? count : undefined,
-        external: link.external,
-      };
-    });
-
-  const tabs = navLinks.length > 0 ? navLinks : [
-    { to: "/", label: "الرئيسية", icon: Home, badge: undefined, external: false },
-    { to: "/offers", label: "العروض", icon: Tag, badge: undefined, external: false },
-    { to: "/cart", label: "السلة", icon: ShoppingCart, badge: count, external: false },
-    { to: "/account", label: "حسابي", icon: User, badge: undefined, external: false },
-  ];
+  const tabs = [
+    { to: "/cart", label: "السلة", icon: ShoppingCart, badge: count },
+    { to: "/search", label: "بحث", icon: Search },
+    { to: "/", label: "الرئيسية", icon: Home, center: true },
+    { to: null, label: "واتساب", icon: MessageCircle, dot: true },
+    { to: "/account", label: "حسابي", icon: User },
+  ] as const;
 
   return (
     <nav
-      className={`fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t backdrop-blur md:hidden transition-colors duration-300 ${isHome
-          ? "bg-showcase/95 border-showcase-border text-showcase-foreground"
-          : "bg-surface/95 border-border/60 text-foreground"
-        }`}
+      className="fixed inset-x-3.5 z-40 mx-auto h-[72px] w-auto max-w-[362px] rounded-[36px] border border-ink-line bg-ink-card/95 backdrop-blur sm:max-w-[398px] lg:h-[86px] lg:max-w-[964px]"
+      style={{ bottom: "calc(10px + env(safe-area-inset-bottom))" }}
     >
-      <ul className="grid grid-cols-4">
-        {tabs.slice(0, 4).map((t) => {
-          const active = pathname === t.to;
+      <ul className="grid h-full grid-cols-5 items-center px-2">
+        {tabs.map((t) => {
+          const active = t.to !== null && pathname === t.to;
           const Icon = t.icon;
-          if (t.external) {
+          const inner =
+            "center" in t && t.center ? (
+              <div className="flex flex-col items-center gap-1">
+                <div className="grid h-16 w-16 -translate-y-5 place-items-center rounded-full bg-neon text-white shadow-[0_10px_25px_-6px_var(--neon)] lg:h-[76px] lg:w-[76px]">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <span className="-mt-4 text-[10px] font-bold text-neon-2">{t.label}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <div className="relative">
+                  <Icon className={`h-5 w-5 ${active ? "text-neon-2" : "text-ink-muted"}`} />
+                  {"badge" in t && t.badge ? (
+                    <span className="absolute -end-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-neon px-1 text-[9px] font-bold text-white">
+                      {t.badge}
+                    </span>
+                  ) : null}
+                  {"dot" in t && t.dot ? (
+                    <span className="absolute -end-1 -top-1 h-2 w-2 rounded-full bg-neon-2" />
+                  ) : null}
+                </div>
+                <span
+                  className={`text-[10px] font-semibold ${active ? "text-neon-2" : "text-ink-muted"}`}
+                >
+                  {t.label}
+                </span>
+              </div>
+            );
+
+          if (t.to === null) {
             return (
-              <li key={t.to}>
+              <li key={t.label}>
                 <a
-                  href={t.to}
+                  href={whatsappLink("مرحباً، أريد الاستفسار عن منتج")}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${isHome
-                      ? "text-showcase-muted hover:text-showcase-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                    }`}
+                  className="press flex flex-col items-center"
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{t.label}</span>
+                  {inner}
                 </a>
               </li>
             );
           }
           return (
-            <li key={t.to}>
+            <li key={t.label}>
               <Link
                 to={t.to}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${active
-                    ? "text-primary"
-                    : isHome
-                      ? "text-showcase-muted hover:text-showcase-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                className="press flex flex-col items-center"
+                onClick={(e) => {
+                  if (pathname !== t.to) return;
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+                }}
               >
-                <div className="relative">
-                  <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
-                  {"badge" in t && t.badge ? (
-                    <span className="absolute -end-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
-                      {t.badge}
-                    </span>
-                  ) : null}
-                </div>
-                <span>{t.label}</span>
+                {inner}
               </Link>
             </li>
           );
