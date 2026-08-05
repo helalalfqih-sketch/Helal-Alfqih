@@ -53,19 +53,7 @@ export function PersistentShowcaseCanvas() {
       }`}
     >
       <Suspense fallback={null}>
-        <ProductSphereHero
-          products={products}
-          badgeText={settings.hero.badgeText}
-          title={settings.hero.title}
-          subtitle={settings.hero.subtitle}
-          maxProducts={settings.hero.sphereMaxProducts}
-          radius={settings.hero.sphereRadius}
-          tileScale={settings.hero.sphereTileScale}
-          cardShape={settings.hero.sphereCardShape}
-          showName={settings.hero.sphereShowName}
-          showPrice={settings.hero.sphereShowPrice}
-          showParticles={settings.hero.showParticles}
-        />
+        <ProductSphereHero products={products} />
       </Suspense>
     </div>
   );

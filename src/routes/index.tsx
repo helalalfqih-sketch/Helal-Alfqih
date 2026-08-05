@@ -12,7 +12,19 @@ import {
   allProductsQueryOptions,
 } from "@/lib/store.queries";
 import { ProductCard } from "@/components/product-card";
-// CategoryCard used on category pages; homepage uses inline circle icons
+import { NeonProductCard } from "@/components/home/neon-product-card";
+import { TrustStrip } from "@/components/home/trust-strip";
+import { SnapRail } from "@/components/motion/snap-rail";
+import { Reveal } from "@/components/motion/reveal";
+import { ScrollGlobeHero } from "@/components/home/scroll-globe-hero";
+import { CategoryRailSkeleton, ProductRailSkeleton } from "@/components/home/home-skeletons";
+import {
+  categoriesQuery,
+  bestSellersQuery,
+  offersQuery,
+  globePoolQuery,
+} from "@/lib/queries/catalog";
+import loyaltyGem from "@/assets/loyalty-gem.png";
 import { lazy, Suspense } from "react";
 import { ProductCardSkeleton, Skeleton } from "@/components/ui/skeleton";
 
@@ -676,18 +688,20 @@ function HomePage() {
               عرض الكل ←
             </Link>
           </div>
-          {/* Mobile horizontal scroll with scroll-padding */}
-          <div className="flex overflow-x-auto scrollbar-none gap-3 px-4 scroll-pl-4 scroll-pr-4 pb-2 md:hidden">
-            {allProducts
-              .slice(
-                0,
-                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
-              )
-              .map((p, i) => (
-                <div key={p.id} className="w-[160px] shrink-0">
-                  <ProductCard product={p} eager={i < 2} />
-                </div>
-              ))}
+          {/* Mobile horizontal snap rail */}
+          <div className="md:hidden">
+            <SnapRail className="px-4" itemGapClass="gap-3">
+              {allProducts
+                .slice(
+                  0,
+                  settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
+                )
+                .map((p, i) => (
+                  <Reveal key={p.id} index={i} className="shrink-0">
+                    <NeonProductCard product={p as any} />
+                  </Reveal>
+                ))}
+            </SnapRail>
           </div>
           {/* Desktop grid */}
           <div
@@ -699,7 +713,9 @@ function HomePage() {
                 settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
               )
               .map((p, i) => (
-                <ProductCard key={p.id} product={p} eager={i < 2} />
+                <Reveal key={p.id} index={i}>
+                  <NeonProductCard product={p as any} />
+                </Reveal>
               ))}
           </div>
         </motion.section>
@@ -726,8 +742,10 @@ function HomePage() {
                 0,
                 settings.products_layout.bestSellersLimit ?? settings.sections.recommended.limit,
               )
-              .map((p) => (
-                <ProductCard key={p.id} product={p} />
+              .map((p, i) => (
+                <Reveal key={p.id} index={i}>
+                  <NeonProductCard product={p as any} />
+                </Reveal>
               ))}
           </div>
         </motion.section>
@@ -751,50 +769,62 @@ function HomePage() {
           <div className={getGridClass(settings.products_layout)}>
             {dailyDeals
               .slice(0, settings.products_layout.dailyDealsLimit ?? settings.sections.deals.limit)
-              .map((p) => (
-                <ProductCard key={p.id} product={p} />
+              .map((p, i) => (
+                <Reveal key={p.id} index={i}>
+                  <NeonProductCard product={p as any} />
+                </Reveal>
               ))}
           </div>
         </motion.section>
       )}
 
-      {/* 7b. TRUST BADGES — only when explicitly enabled in CMS */}
-      {settings.sections.trustBadges?.enabled === true &&
-        (() => {
-          const tb = settings.sections.trustBadges;
-          const freeShipThreshold = settings.cart_config?.freeShippingThreshold;
-          const badges = [
-            tb.badge1 ? { icon: Icons.Truck, text: tb.badge1 } : null,
-            tb.badge2 ? { icon: Icons.ShieldCheck, text: tb.badge2 } : null,
-            tb.badge3 ? { icon: Icons.RotateCcw, text: tb.badge3 } : null,
-          ].filter(Boolean) as { icon: typeof Icons.Truck; text: string }[];
+      {/* 7b. TRUST STRIP */}
+      <Reveal as="div" className="px-4">
+        <TrustStrip variant="inline" />
+      </Reveal>
 
-          // Add free shipping badge only when a real threshold is configured
-          if (freeShipThreshold && freeShipThreshold > 0) {
-            badges.push({
-              icon: Icons.Package,
-              text: `شحن مجاني فوق ${freeShipThreshold.toLocaleString("ar-YE")} ريال`,
-            });
-          }
-
-          if (badges.length === 0) return null;
-
-          return (
-            <motion.section {...revealProps} className="relative z-10 px-4">
-              <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-                {badges.map((badge, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[180px] md:min-w-0"
-                  >
-                    <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
-                    <span className="text-xs font-bold text-white">{badge.text}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          );
-        })()}
+      {/* 7c. LOYALTY GEM SECTION */}
+      <Reveal
+        as="section"
+        className="mx-4 relative overflow-hidden rounded-[24px] border border-neon/40 bg-linear-to-r from-neon-soft via-ink-card to-ink-card p-4 md:h-[176px] md:px-5"
+      >
+        <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          <div className="flex min-w-0 items-center gap-3 md:order-2 md:flex-1 md:flex-row-reverse md:justify-end md:text-center">
+            <img
+              src={loyaltyGem}
+              alt="جوهرة برنامج الولاء"
+              loading="lazy"
+              width={128}
+              height={128}
+              className="h-[72px] w-[72px] shrink-0 object-contain drop-shadow-[0_0_18px_var(--neon)] md:h-[110px] md:w-[110px]"
+            />
+            <div className="min-w-0 flex-1 text-right">
+              <h3 className="text-[16px] font-black leading-tight md:text-[18px]">
+                برنامج <span className="text-neon-2">INDEXES</span> المميز
+              </h3>
+              <p className="mt-1 text-[12px] leading-snug text-ink-muted md:text-[13px]">
+                اكسب نقاط مع كل طلب واستبدلها بمكافآت حصرية
+              </p>
+              <Link
+                to="/account"
+                className="press mt-2.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neon px-4 py-2 text-[13px] font-bold text-white"
+              >
+                اكتشف المزايا
+                <Icons.ChevronLeft className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-ink-line bg-ink/60 p-3 text-center md:order-1 md:w-[38%] md:shrink-0">
+            <p className="flex items-center justify-center gap-1.5 text-[13px] font-bold text-neon-2">
+              <Icons.Sparkles className="h-4 w-4 shrink-0" />
+              برنامج المكافآت
+            </p>
+            <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
+              سجّل الدخول لمتابعة مكافآتك
+            </p>
+          </div>
+        </div>
+      </Reveal>
 
       {/* 8b. VIRTUAL SHOWROOM */}
       {settings.sections.showroom.enabled && (

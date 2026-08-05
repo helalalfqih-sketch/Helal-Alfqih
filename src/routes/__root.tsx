@@ -14,7 +14,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { StoreThemeLayout } from "../components/store-theme-layout";
+import { AppShell } from "../components/app-shell";
 import { supabase } from "@/integrations/supabase/client";
 import { TenantProvider } from "@/components/tenant-provider";
 import { AppearanceProvider } from "@/components/appearance-provider";
@@ -360,9 +360,9 @@ function RootComponent() {
           {isAdmin || isBare ? (
             <Outlet />
           ) : (
-            <StoreThemeLayout>
+            <AppShell>
               <Outlet />
-            </StoreThemeLayout>
+            </AppShell>
           )}
           <Toaster />
           <NetworkManager />

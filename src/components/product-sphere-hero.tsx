@@ -1251,3 +1251,22 @@ export function ProductSphereHero({
     </section>
   );
 }
+
+export type ExclusionBox = { x: number; y0: number; y1: number } | null;
+
+export function ProductGlobeCanvas({
+  products,
+  paused = false,
+  exclusion = null,
+}: {
+  products: LegacyProductShape[];
+  paused?: boolean;
+  exclusion?: ExclusionBox;
+}) {
+  return (
+    <div className="absolute inset-0">
+      <ProductSphereHero products={products} />
+    </div>
+  );
+}
+

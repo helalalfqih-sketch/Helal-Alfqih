@@ -14,9 +14,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className={`min-h-screen flex flex-col transition-colors duration-300 ${
-        isShowcase ? "bg-showcase text-showcase-foreground" : "bg-background text-foreground"
-      }`}
+      className={`min-h-screen flex flex-col transition-colors duration-300 ${isShowcase ? "bg-showcase text-showcase-foreground" : "bg-background text-foreground"
+        }`}
     >
       {settings.notifications?.announcementEnabled && (
         <div
@@ -91,11 +90,10 @@ function TopBar({ isHome }: { isHome: boolean }) {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full border-b backdrop-blur transition-colors duration-300 ${
-        isHome
+      className={`sticky top-0 z-40 w-full border-b backdrop-blur transition-colors duration-300 ${isHome
           ? "bg-showcase/90 border-showcase-border text-showcase-foreground"
           : "bg-surface/90 border-border/60 text-foreground"
-      } py-3`}
+        } py-3`}
     >
       <div className="mx-auto flex w-full max-w-md md:max-w-6xl lg:max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
         {/* Logo and Name */}
@@ -103,9 +101,8 @@ function TopBar({ isHome }: { isHome: boolean }) {
           <img src={storeLogo} alt={storeName} className="h-10 w-10 rounded-xl shadow-brand object-cover" />
           <div className="leading-tight">
             <div
-              className={`text-base font-black tracking-tight ${
-                isHome ? "text-showcase-foreground" : "text-foreground"
-              }`}
+              className={`text-base font-black tracking-tight ${isHome ? "text-showcase-foreground" : "text-foreground"
+                }`}
             >
               {storeName}
             </div>
@@ -130,11 +127,10 @@ function TopBar({ isHome }: { isHome: boolean }) {
                   href={tab.to}
                   target={tab.target || "_blank"}
                   rel="noopener noreferrer"
-                  className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${
-                    isHome
+                  className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${isHome
                       ? "text-showcase-muted hover:text-showcase-foreground"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   <tab.icon className="h-4 w-4" />
                   <span>{tab.label}</span>
@@ -145,15 +141,14 @@ function TopBar({ isHome }: { isHome: boolean }) {
               <Link
                 key={tab.to}
                 to={tab.to}
-                className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${
-                  active
+                className={`relative flex items-center gap-1.5 text-xs font-bold transition py-1.5 px-3 rounded-lg ${active
                     ? isHome
                       ? "bg-showcase-foreground/10 text-showcase-foreground"
                       : "bg-primary/10 text-primary"
                     : isHome
                       ? "text-showcase-muted hover:text-showcase-foreground"
                       : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 <tab.icon className="h-4 w-4" />
                 <span>{tab.label}</span>
@@ -170,11 +165,10 @@ function TopBar({ isHome }: { isHome: boolean }) {
         {/* Search Link */}
         <Link
           to="/search"
-          className={`flex flex-1 md:max-w-xs items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${
-            isHome
+          className={`flex flex-1 md:max-w-xs items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isHome
               ? "bg-showcase-foreground/10 text-showcase-muted hover:bg-showcase-foreground/15"
               : "bg-muted text-muted-foreground hover:bg-muted/70"
-          }`}
+            }`}
         >
           <Search className="h-4 w-4" />
           <span>{searchPlaceholder}</span>
@@ -219,11 +213,10 @@ function BottomNav({ isHome }: { isHome: boolean }) {
 
   return (
     <nav
-      className={`fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t backdrop-blur md:hidden transition-colors duration-300 ${
-        isHome
+      className={`fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t backdrop-blur md:hidden transition-colors duration-300 ${isHome
           ? "bg-showcase/95 border-showcase-border text-showcase-foreground"
           : "bg-surface/95 border-border/60 text-foreground"
-      }`}
+        }`}
     >
       <ul className="grid grid-cols-4">
         {tabs.slice(0, 4).map((t) => {
@@ -236,11 +229,10 @@ function BottomNav({ isHome }: { isHome: boolean }) {
                   href={t.to}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
-                    isHome
+                  className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${isHome
                       ? "text-showcase-muted hover:text-showcase-foreground"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span>{t.label}</span>
@@ -252,13 +244,12 @@ function BottomNav({ isHome }: { isHome: boolean }) {
             <li key={t.to}>
               <Link
                 to={t.to}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
-                  active
+                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${active
                     ? "text-primary"
                     : isHome
                       ? "text-showcase-muted hover:text-showcase-foreground"
                       : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 <div className="relative">
                   <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
