@@ -32,14 +32,12 @@ export async function reportLiveError(opts: CapturerOptions): Promise<void> {
     const loc = opts.location || (typeof window !== "undefined" ? window.location.pathname : "System/Server");
     const dedupeKey = `${opts.errorName}:${opts.cause}:${loc}`;
 
-    if (opts.level !== "info" && recentlyLoggedErrors.has(dedupeKey)) {
+    if (recentlyLoggedErrors.has(dedupeKey)) {
       return; // Skip duplicate error flooding
     }
 
-    if (opts.level !== "info") {
-      recentlyLoggedErrors.add(dedupeKey);
-      setTimeout(() => recentlyLoggedErrors.delete(dedupeKey), 1500);
-    }
+    recentlyLoggedErrors.add(dedupeKey);
+    setTimeout(() => recentlyLoggedErrors.delete(dedupeKey), 30000); // 30s deduplication window
 
     const isStorefront = typeof window !== "undefined" && !window.location.pathname.startsWith("/admin");
     const defaultType = isStorefront ? "Storefront UI" : "Admin UI";
@@ -132,6 +130,9 @@ export function initGlobalLiveErrorListeners(): void {
   globalWin.__LIVE_LOGS_INITIALIZED__ = true;
 
   window.addEventListener("error", (event) => {
+    // Ignore element resource load errors (e.g. <img>, <script>, <link> failing to load)
+    if (event.target && event.target !== window) return;
+
     const loc = window.location.pathname;
     const isStorefront = !loc.startsWith("/admin");
     const errorType = isStorefront ? "Storefront UI" : "Admin UI";

@@ -169,7 +169,7 @@ export async function fetchOffers(): Promise<LegacyProductShape[]> {
   }));
 }
 
-export async function fetchBestSellers(limit = 4): Promise<LegacyProductShape[]> {
-  const all = await fetchProducts({ limit });
+export async function fetchBestSellers(limit = 20): Promise<LegacyProductShape[]> {
+  const all = await fetchProducts({ limit: 100 });
   return [...all].sort((a, b) => b.rating * b.reviews - a.rating * a.reviews).slice(0, limit);
 }

@@ -40,9 +40,9 @@ export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(categoriesQuery()),
-      context.queryClient.ensureQueryData(bestSellersQuery(4)),
-      context.queryClient.ensureQueryData(offersQuery(6)),
-      context.queryClient.ensureQueryData(globePoolQuery()),
+      context.queryClient.ensureQueryData(bestSellersQuery(20)),
+      context.queryClient.ensureQueryData(offersQuery(20)),
+      context.queryClient.ensureQueryData(globePoolQuery(100)),
     ]);
   },
   errorComponent: ({ error }) => (
@@ -70,9 +70,9 @@ function HomeSkeleton() {
 
 function HomePage() {
   const { data: categories } = useSuspenseQuery(categoriesQuery());
-  const { data: bestSellers } = useSuspenseQuery(bestSellersQuery(4));
-  const { data: dailyDeals } = useSuspenseQuery(offersQuery(6));
-  const { data: allProducts } = useSuspenseQuery(globePoolQuery());
+  const { data: bestSellers } = useSuspenseQuery(bestSellersQuery(20));
+  const { data: dailyDeals } = useSuspenseQuery(offersQuery(20));
+  const { data: allProducts } = useSuspenseQuery(globePoolQuery(100));
 
   const settingsQ = useQuery({
     queryKey: ["storefront-settings"],
