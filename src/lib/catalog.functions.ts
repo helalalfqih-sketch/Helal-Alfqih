@@ -356,41 +356,64 @@ export const listProducts = createServerFn({ method: "GET" })
     const db = publicClient();
     const tenantId = await resolvePublicTenant(db, data.tenantId ?? null);
 
-    // Query database products table
-    const list = await productsRepo.list(db, {
-      tenantId,
-      categoryId: data.categoryId,
-      search: data.search,
-      limit: data.limit,
-      offset: data.offset,
-    });
-
-    // If DB is empty, fall back to CSV catalog feed
-    if (list.length === 0) {
-      let csvList = await fetchCsvProducts();
-      if (data.categoryId) {
-        csvList = csvList.filter((p) => p.category_id === data.categoryId);
-      }
-      if (data.search) {
-        const s = data.search.toLowerCase();
-        csvList = csvList.filter(
-          (p) =>
-            p.name.toLowerCase().includes(s) ||
-            (p.description ?? "").toLowerCase().includes(s) ||
-            (p.sku ?? "").toLowerCase().includes(s) ||
-            (p.brand ?? "").toLowerCase().includes(s) ||
-            (p.category_name ?? "").toLowerCase().includes(s),
-        );
-      }
-      if (data.offset != null && data.limit) {
-        csvList = csvList.slice(data.offset, data.offset + data.limit);
-      } else if (data.limit) {
-        csvList = csvList.slice(0, data.limit);
-      }
-      return csvList as unknown as ProductDTO[];
+    // Fetch Supabase DB products
+    let dbProducts: ProductDTO[] = [];
+    try {
+      dbProducts = await productsRepo.list(db, {
+        tenantId,
+        categoryId: data.categoryId,
+        search: data.search,
+      });
+    } catch (e) {
+      console.warn("DB products list error:", e);
     }
 
-    return list;
+    // Fetch CSV catalog feed
+    let csvList: CsvProduct[] = [];
+    try {
+      csvList = await fetchCsvProducts();
+    } catch (e) {
+      console.warn("CSV catalog fetch error:", e);
+    }
+
+    // Merge: DB products take precedence over CSV
+    const dbProductMap = new Map<string, ProductDTO>();
+    const dbSlugSet = new Set<string>();
+    for (const p of dbProducts) {
+      dbProductMap.set(p.id, p);
+      if (p.slug) dbSlugSet.add(p.slug);
+    }
+
+    const mergedList: ProductDTO[] = [...dbProducts];
+    for (const csv of csvList) {
+      const alreadyInDb = dbProductMap.has(csv.id) || dbSlugSet.has(csv.slug);
+      if (!alreadyInDb) {
+        mergedList.push(csv as unknown as ProductDTO);
+      }
+    }
+
+    let filtered = mergedList;
+    if (data.categoryId) {
+      filtered = filtered.filter((p) => p.category_id === data.categoryId);
+    }
+    if (data.search) {
+      const s = data.search.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(s) ||
+          (p.description ?? "").toLowerCase().includes(s) ||
+          (p.sku ?? "").toLowerCase().includes(s) ||
+          (p.brand ?? "").toLowerCase().includes(s),
+      );
+    }
+
+    if (data.offset != null && data.limit) {
+      filtered = filtered.slice(data.offset, data.offset + data.limit);
+    } else if (data.limit) {
+      filtered = filtered.slice(0, data.limit);
+    }
+
+    return filtered;
   });
 
 export const getProductBySlug = createServerFn({ method: "GET" })
@@ -546,38 +569,45 @@ export const listCategories = createServerFn({ method: "GET" })
     const db = publicClient();
     const tenantId = await resolvePublicTenant(db, data.tenantId);
 
+    const categoriesMap = new Map<string, any>();
+
     try {
       const dbCategories = await categoriesRepo.list(db, { tenantId, includeInactive: false });
-      if (dbCategories && dbCategories.length > 0) {
-        return dbCategories;
-      }
-    } catch (err) {
-      console.warn("Error fetching Supabase categories, using CSV fallback:", err);
-    }
-
-    const products = await fetchCsvProducts();
-    const categoriesMap = new Map<string, CsvCategory>();
-
-    products.forEach((p) => {
-      if (p.category_name && p.category_id) {
-        if (!categoriesMap.has(p.category_id)) {
-          categoriesMap.set(p.category_id, {
-            id: p.category_id,
-            slug: p.category_id,
-            name: p.category_name,
-            description: "",
-            image_url: p.images[0] || null,
-            parent_id: null,
-            sort: 0,
-            icon: "shopping-bag",
-            color: null,
-            is_active: true,
-          });
+      if (dbCategories) {
+        for (const c of dbCategories) {
+          categoriesMap.set(c.id, c);
+          if (c.slug) categoriesMap.set(c.slug, c);
         }
       }
-    });
+    } catch (err) {
+      console.warn("Error fetching Supabase categories:", err);
+    }
 
-    return Array.from(categoriesMap.values());
+    try {
+      const products = await fetchCsvProducts();
+      products.forEach((p) => {
+        if (p.category_name && p.category_id) {
+          if (!categoriesMap.has(p.category_id)) {
+            categoriesMap.set(p.category_id, {
+              id: p.category_id,
+              slug: p.category_id,
+              name: p.category_name,
+              description: "",
+              image_url: p.images[0] || null,
+              parent_id: null,
+              sort: 0,
+              icon: "shopping-bag",
+              color: null,
+              is_active: true,
+            });
+          }
+        }
+      });
+    } catch (err) {
+      console.warn("Error deriving CSV categories:", err);
+    }
+
+    return Array.from(new Set(categoriesMap.values()));
   });
 
 export const getCategoryBySlug = createServerFn({ method: "GET" })

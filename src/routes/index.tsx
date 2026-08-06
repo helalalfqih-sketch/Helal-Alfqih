@@ -119,7 +119,7 @@ function HomePage() {
               المزيد
             </span>
           </Link>
-          {categories.slice(0, 5).map((c) => {
+          {categories.map((c) => {
             const Icon =
               (Icons as unknown as Record<string, Icons.LucideIcon>)[c.icon] ?? Icons.Package;
             return (

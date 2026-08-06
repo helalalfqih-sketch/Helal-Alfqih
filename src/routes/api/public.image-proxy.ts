@@ -168,9 +168,14 @@ export const Route = createFileRoute("/api/public/image-proxy")({
 
           if (!upstream.ok) {
             console.warn(`[ImageProxy] Upstream returned HTTP ${upstream.status} for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
-            return new Response("Image not available", {
-              status: upstream.status || 502,
-              headers: CORS_HEADERS,
+            const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none"><rect width="300" height="300" rx="24" fill="#0c0a1a"/><rect x="2" y="2" width="296" height="296" rx="22" stroke="#7C3AED" stroke-opacity="0.3" stroke-width="2"/><circle cx="150" cy="135" r="50" fill="#7C3AED" fill-opacity="0.15" stroke="#A855F7" stroke-width="3"/><path d="M132 135L145 148L168 122" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="220" text-anchor="middle" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="14" font-weight="700">INDEXES</text></svg>`;
+            return new Response(FALLBACK_SVG, {
+              status: 200,
+              headers: {
+                ...CORS_HEADERS,
+                "content-type": "image/svg+xml",
+                "cache-control": "public, max-age=3600",
+              },
             });
           }
 
@@ -271,9 +276,14 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           }).catch(() => {});
           // ────────────────────────────────────────────────────────────────
 
-          return new Response("Image proxy processing failed", {
-            status: 502,
-            headers: CORS_HEADERS,
+          const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none"><rect width="300" height="300" rx="24" fill="#0c0a1a"/><rect x="2" y="2" width="296" height="296" rx="22" stroke="#7C3AED" stroke-opacity="0.3" stroke-width="2"/><circle cx="150" cy="135" r="50" fill="#7C3AED" fill-opacity="0.15" stroke="#A855F7" stroke-width="3"/><path d="M132 135L145 148L168 122" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="220" text-anchor="middle" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="14" font-weight="700">INDEXES</text></svg>`;
+          return new Response(FALLBACK_SVG, {
+            status: 200,
+            headers: {
+              ...CORS_HEADERS,
+              "content-type": "image/svg+xml",
+              "cache-control": "public, max-age=3600",
+            },
           });
         } finally {
           clearTimeout(timeout);
