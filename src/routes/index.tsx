@@ -1,983 +1,269 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import * as Icons from "lucide-react";
-import { useEffect, useRef, useState, useMemo } from "react";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { formatPrice, type Product } from "@/lib/store-data";
-import type { LegacyProductShape, LegacyCategoryShape } from "@/lib/data-adapter";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import type { LegacyProductShape } from "@/lib/data-adapter";
+import type { Product } from "@/lib/store-data";
 import {
-  categoriesQueryOptions,
-  bestSellersQueryOptions,
-  offersQueryOptions,
-  allProductsQueryOptions,
-} from "@/lib/store.queries";
-import { ProductCard } from "@/components/product-card";
-// CategoryCard used on category pages; homepage uses inline circle icons
-import { lazy, Suspense } from "react";
-import { ProductCardSkeleton, Skeleton } from "@/components/ui/skeleton";
-
-// Chunk reload guard: after a Vercel redeploy the browser may still have
-// old HTML referencing old chunk hashes. On a dynamic import failure we do ONE
-// hard reload (guarded by sessionStorage to avoid infinite loops).
-// The helper preserves each lazy component's exact prop type; `any` is required
-// here because React.ComponentType is intentionally generic over arbitrary props.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function lazyWithRetry<T extends React.ComponentType<any>>(
-  factory: () => Promise<{ default: T }>,
-): React.LazyExoticComponent<T> {
-  return lazy(() =>
-    factory().catch((err) => {
-      const reloadKey = "chunk_reload_attempted";
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, "1");
-        window.location.reload();
-        // Return a never-resolving promise so React stays on the reload path
-        return new Promise(() => {}) as never;
-      }
-      throw err;
-    }),
-  );
-}
-
-const ImmersiveProductExperience = lazyWithRetry(() =>
-  import("@/components/immersive/ImmersiveProductExperience").then((module) => ({
-    default: module.ImmersiveProductExperience,
-  })),
-);
-import { quickOrderLink } from "@/lib/whatsapp";
-import { useAppearance } from "@/components/appearance-provider";
-import { type ProductsLayoutConfig } from "@/lib/domain/appearance";
-import type { HeroConfig, HeroSlide } from "@/lib/domain/appearance";
-
-const ProductSphereHero = lazyWithRetry(() =>
-  import("@/components/product-sphere-hero").then((module) => ({
-    default: module.ProductSphereHero,
-  })),
-);
-
-function HeroSkeleton() {
-  return (
-    <Skeleton className="mx-2 h-[52vh] min-h-[380px] rounded-[28px] sm:mx-4 sm:h-[88vh] sm:min-h-[580px]" />
-  );
-}
-
-function BannerHero({ hero }: { hero: HeroConfig }) {
-  return (
-    <div
-      data-testid="hero-banner"
-      className="relative mx-2 my-2 min-h-[350px] overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl sm:mx-4"
-    >
-      {hero.bannerImageUrl ? (
-        <img
-          src={hero.bannerImageUrl}
-          alt={hero.title || "البنر الرئيسي"}
-          className="h-[50vh] min-h-[350px] w-full object-cover"
-        />
-      ) : (
-        <div className="h-[50vh] min-h-[350px] w-full bg-gradient-to-r from-primary/30 to-secondary/30" />
-      )}
-      <HeroContent hero={hero} />
-    </div>
-  );
-}
-
-function HeroContent({
-  hero,
-}: {
-  hero: Pick<HeroConfig, "badgeText" | "title" | "subtitle" | "ctaText" | "ctaLink">;
-}) {
-  return (
-    <div className="absolute inset-0 flex flex-col justify-end space-y-3 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-6 text-start sm:p-10">
-      {hero.badgeText && (
-        <span className="inline-block self-start rounded-full border border-primary/40 bg-primary/30 px-3.5 py-1 text-xs font-bold text-primary">
-          {hero.badgeText}
-        </span>
-      )}
-      <h1 className="text-2xl font-black leading-tight text-white sm:text-4xl">{hero.title}</h1>
-      <p className="max-w-xl text-xs text-gray-200 sm:text-sm">{hero.subtitle}</p>
-      {hero.ctaText && (
-        <a
-          href={hero.ctaLink || "/offers"}
-          className="inline-flex self-start items-center gap-2 rounded-full bg-primary px-6 py-3 text-xs font-bold text-white shadow-brand transition hover:bg-primary/90"
-        >
-          {hero.ctaText}
-        </a>
-      )}
-    </div>
-  );
-}
-
-function VideoHero({ hero }: { hero: HeroConfig }) {
-  return (
-    <div
-      data-testid="hero-video"
-      className="relative mx-2 my-2 min-h-[400px] overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl sm:mx-4"
-    >
-      {hero.bannerVideoUrl ? (
-        <video
-          src={hero.bannerVideoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover opacity-60"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/40 to-blue-900/40" />
-      )}
-      <div className="relative z-10 flex min-h-[400px] flex-col items-center justify-center space-y-4 p-8 text-center sm:p-14">
-        {hero.badgeText && (
-          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/20 px-4 py-1 text-xs font-bold text-cyan-400">
-            {hero.badgeText}
-          </span>
-        )}
-        <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">{hero.title}</h1>
-        <p className="max-w-lg text-sm text-gray-300 sm:text-base">{hero.subtitle}</p>
-        {hero.ctaText && (
-          <a
-            href={hero.ctaLink || "/offers"}
-            className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-7 py-3 text-xs font-black text-black shadow-lg transition hover:bg-cyan-300"
-          >
-            {hero.ctaText}
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SlideshowHero({ hero }: { hero: HeroConfig }) {
-  const slides = useMemo(
-    () => [...hero.slides].filter((slide) => slide.mediaUrl).sort((a, b) => a.order - b.order),
-    [hero.slides],
-  );
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setActiveIndex(0);
-    if (slides.length < 2) return;
-    const timer = window.setInterval(
-      () => setActiveIndex((current) => (current + 1) % slides.length),
-      6000,
-    );
-    return () => window.clearInterval(timer);
-  }, [slides]);
-
-  if (slides.length === 0) {
-    return (
-      <div data-testid="hero-slideshow">
-        <BannerHero hero={hero} />
-      </div>
-    );
-  }
-
-  const slide: HeroSlide = slides[activeIndex] ?? slides[0];
-  const content = {
-    badgeText: slide.badgeText || hero.badgeText,
-    title: slide.title || hero.title,
-    subtitle: slide.subtitle || hero.subtitle,
-    ctaText: slide.ctaText || hero.ctaText,
-    ctaLink: slide.ctaLink || hero.ctaLink,
-  };
-
-  return (
-    <div
-      data-testid="hero-slideshow"
-      className="relative mx-3 my-2 overflow-hidden rounded-[24px] sm:mx-4 sm:rounded-[32px]"
-      style={{ minHeight: "220px" }}
-    >
-      {/* Background media */}
-      {slide.mediaType === "video" ? (
-        <video
-          key={slide.id}
-          src={slide.mediaUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <img
-          key={slide.id}
-          src={slide.mediaUrl}
-          alt={content.title || "الشريحة الرئيسية"}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      )}
-
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-l from-transparent via-black/40 to-black/80" />
-
-      {/* Content overlay */}
-      <div className="relative z-10 flex min-h-[220px] flex-col justify-center p-6 text-start sm:min-h-[280px] sm:p-8 md:min-h-[340px]">
-        {content.badgeText && (
-          <span className="mb-2 inline-block self-start rounded-lg bg-white/15 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
-            {content.badgeText}
-          </span>
-        )}
-        <h1 className="text-xl font-black leading-tight text-white sm:text-3xl md:text-4xl">
-          {content.title}
-        </h1>
-        {content.subtitle && (
-          <p className="mt-1 max-w-xs text-xs text-white/70 sm:text-sm">{content.subtitle}</p>
-        )}
-        {content.ctaText && (
-          <a
-            href={content.ctaLink || "/offers"}
-            className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-xs font-black text-slate-900 shadow-lg transition hover:bg-slate-100 sm:px-6 sm:py-3"
-          >
-            {content.ctaText}
-            <Icons.ChevronLeft className="h-3.5 w-3.5" />
-          </a>
-        )}
-      </div>
-
-      {/* Dot indicators */}
-      {slides.length > 1 && (
-        <div className="absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setActiveIndex(i)}
-              aria-label={`الشريحة ${i + 1}`}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                i === activeIndex ? "w-5 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function StorefrontHero({
-  hero,
-  products,
-}: {
-  hero: HeroConfig;
-  products: LegacyProductShape[];
-}) {
-  if (hero.enabled === false) return null;
-
-  switch (hero.type) {
-    case "sphere_3d":
-      return (
-        <div data-testid="hero-sphere-3d">
-          <Suspense fallback={<HeroSkeleton />}>
-            <ProductSphereHero
-              products={products}
-              badgeText={hero.badgeText}
-              title={hero.title}
-              subtitle={hero.subtitle}
-              maxProducts={hero.sphereMaxProducts}
-              radius={hero.sphereRadius}
-              tileScale={hero.sphereTileScale}
-              cardShape={hero.sphereCardShape}
-              showName={hero.sphereShowName}
-              showPrice={hero.sphereShowPrice}
-              showParticles={hero.showParticles}
-            />
-          </Suspense>
-        </div>
-      );
-    case "cinematic":
-      return (
-        <div data-testid="hero-cinematic">
-          <Suspense fallback={<HeroSkeleton />}>
-            <ImmersiveProductExperience products={products} />
-          </Suspense>
-        </div>
-      );
-    case "banner_image":
-      return <BannerHero hero={hero} />;
-    case "video":
-      return <VideoHero hero={hero} />;
-    case "slideshow":
-      return <SlideshowHero hero={hero} />;
-    default:
-      return (
-        <div data-testid="hero-cinematic">
-          <Suspense fallback={<HeroSkeleton />}>
-            <ImmersiveProductExperience products={products} />
-          </Suspense>
-        </div>
-      );
-  }
-}
+  categoriesQuery,
+  bestSellersQuery,
+  offersQuery,
+  globePoolQuery,
+} from "@/lib/queries/catalog";
+import { CategoryRailSkeleton, ProductRailSkeleton } from "@/components/home/home-skeletons";
+import { NeonProductCard } from "@/components/home/neon-product-card";
+import { ScrollGlobeHero } from "@/components/home/scroll-globe-hero";
+import { TrustStrip } from "@/components/home/trust-strip";
+import loyaltyGem from "@/assets/loyalty-gem.png";
+import { Reveal } from "@/components/motion/reveal";
+import { SnapRail } from "@/components/motion/snap-rail";
+import { useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/")({
-  head: ({ loaderData }) => {
-    const seo = (
-      loaderData as
-        | {
-            settings?: {
-              seo?: { metaTitle?: string; metaDescription?: string; ogImage?: string };
-            };
-          }
-        | undefined
-    )?.settings?.seo;
-    const baseUrl = (
-      process.env.SITE_URL ||
-      import.meta.env.VITE_PUBLIC_URL ||
-      process.env.VITE_PUBLIC_URL ||
-      ""
-    ).replace(/\/$/, "");
-    const title = seo?.metaTitle || "اندكس ستور — الرئيسية | تسوّق أونلاين في اليمن";
-    const description =
-      seo?.metaDescription ||
-      "اكتشف أحدث المنتجات والعروض في اندكس ستور: إلكترونيات، أزياء، أدوات منزلية، والمزيد.";
-    const ogImage =
-      seo?.ogImage ||
-      "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da426993-5f26-4733-b40c-c0f1f8e814c7/id-preview-7d22af97--80f7d5cf-5026-49dd-8137-91bdaa674a1a.lovable.app-1783204904911.png";
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        {
-          name: "robots",
-          content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
-        },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:url", content: baseUrl },
-        { property: "og:image", content: ogImage },
-        { property: "og:type", content: "website" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: description },
-        { name: "twitter:image", content: ogImage },
-      ],
-      links: [
-        { rel: "canonical", href: baseUrl },
-        { rel: "alternate", hrefLang: "ar", href: baseUrl },
-        { rel: "alternate", hrefLang: "x-default", href: baseUrl },
-      ],
-    };
-  },
-  loader: async ({ context: { queryClient } }) => {
+  head: () => ({
+    meta: [
+      { title: "اندكس ستور — الرئيسية | تسوّق أونلاين في اليمن" },
+      {
+        name: "description",
+        content:
+          "اكتشف أحدث المنتجات والعروض في اندكس ستور: إلكترونيات، أزياء، عطور، والمزيد.",
+      },
+      { property: "og:title", content: "اندكس ستور — تسوّق أونلاين في اليمن" },
+      {
+        property: "og:description",
+        content: "عروض حصرية تصل إلى 50% وشحن مجاني للطلبات فوق 30,000 ريال.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  loader: async ({ context }) => {
     await Promise.all([
-      queryClient.ensureQueryData(categoriesQueryOptions()),
-      queryClient.ensureQueryData(bestSellersQueryOptions(4)),
-      queryClient.ensureQueryData(offersQueryOptions()),
-      queryClient.ensureQueryData(allProductsQueryOptions()),
+      context.queryClient.ensureQueryData(categoriesQuery()),
+      context.queryClient.ensureQueryData(bestSellersQuery(4)),
+      context.queryClient.ensureQueryData(offersQuery(6)),
+      context.queryClient.ensureQueryData(globePoolQuery()),
     ]);
   },
-  pendingComponent: () => (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 pt-12 md:max-w-6xl md:px-6 lg:max-w-7xl">
-      <Skeleton className="h-[50vh] w-full rounded-3xl" />
-      <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <ProductCardSkeleton />
-        <ProductCardSkeleton />
-        <ProductCardSkeleton />
-        <ProductCardSkeleton />
-      </div>
-    </div>
-  ),
   errorComponent: ({ error }) => (
     <div className="p-8 text-center text-destructive">حدث خطأ: {error.message}</div>
   ),
+  pendingComponent: HomeSkeleton,
   component: HomePage,
 });
 
-const DARK = "var(--showcase)";
-const LIGHT = "var(--showcase-foreground)";
-const LIGHT_MUTED = "var(--showcase-muted)";
-const LIGHT_BORDER = "var(--showcase-border)";
-
-const revealProps = {
-  initial: { opacity: 0, y: 15 },
-  whileInView: { opacity: 1, y: 0 },
-  // once:true prevents sections from disappearing on scroll-back (fixes blank gaps on mobile)
-  // amount:0.05 triggers reveal as soon as 5% of the element is visible
-  viewport: { once: true, amount: 0.05 },
-  transition: { duration: 0.5, ease: "easeOut" as const },
-};
+function HomeSkeleton() {
+  return (
+    <div
+      dir="rtl"
+      className="flex flex-col gap-3.5 bg-ink px-3.5 pt-3 text-ink-text sm:px-4 md:px-0"
+    >
+      <div className="h-11 rounded-[14px] border border-ink-line bg-ink-card md:h-[50px]" />
+      <div className="h-[228px] rounded-[24px] border border-ink-line bg-[#0A1020]" />
+      <CategoryRailSkeleton />
+      <ProductRailSkeleton />
+      <div className="h-24 rounded-2xl border border-ink-line bg-[#0A1020] md:h-[84px]" />
+      <div className="min-h-[170px] rounded-[24px] border border-ink-line bg-[#0A1020]" />
+    </div>
+  );
+}
 
 function HomePage() {
-  const { data: categoriesRaw } = useSuspenseQuery(categoriesQueryOptions());
-  const { data: bestSellersRaw } = useSuspenseQuery(bestSellersQueryOptions(4));
-  const { data: dailyDealsRaw } = useSuspenseQuery(offersQueryOptions());
-  const { data: allProductsRaw } = useSuspenseQuery(allProductsQueryOptions());
-  const diagQueryClient = useQueryClient();
+  const { data: categories } = useSuspenseQuery(categoriesQuery());
+  const { data: bestSellers } = useSuspenseQuery(bestSellersQuery(4));
+  const { data: dailyDeals } = useSuspenseQuery(offersQuery(6));
+  const { data: allProducts } = useSuspenseQuery(globePoolQuery());
 
-  // TEMPORARY DIAGNOSTICS (dev-only): proves whether a Home mount was served
-  // from memory (CACHE_HIT) or triggered a network fetch (NETWORK_FETCH logs
-  // from the queryFn in store.queries.ts).
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const state = diagQueryClient.getQueryState(["allProducts"]);
-    const isStale = !state?.dataUpdatedAt || Date.now() - state.dataUpdatedAt > 5 * 60 * 1000;
-    console.info("[PERF] PRODUCT_QUERY_MOUNT", {
-      status: state?.status,
-      fetchStatus: state?.fetchStatus,
-      dataUpdatedAt: state?.dataUpdatedAt,
-      isStale,
-    });
-    if (state?.data && state.fetchStatus === "idle") {
-      console.info("[PERF] PRODUCT_QUERY_CACHE_HIT — rendered from memory, no fetch");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const settingsQ = useQuery({
+    queryKey: ["storefront-settings"],
+    queryFn: async () => {
+      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
+      return getStorefrontAppearance();
+    },
+    staleTime: 5000,
+  });
 
-  const categories = categoriesRaw as LegacyCategoryShape[];
-  const bestSellers = bestSellersRaw as LegacyProductShape[];
-  const dailyDeals = (dailyDealsRaw as LegacyProductShape[]).slice(0, 4);
-  const allProducts = allProductsRaw as LegacyProductShape[];
+  const { user } = useSession();
+  const deals = (dailyDeals.length ? dailyDeals : bestSellers) as unknown as Product[];
+  const globeProducts = (allProducts.length ? allProducts : dailyDeals) as LegacyProductShape[];
 
-  const pageRef = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll();
-  const smoothY = useSpring(scrollY, { stiffness: 60, damping: 20, mass: 0.4 });
-
-  // Parallax: background layers scroll slower (0.2x) than foreground (1x)
-  const bgYSlow = useTransform(smoothY, (v) => v * 0.15);
-  const bgYMid = useTransform(smoothY, (v) => v * 0.35);
-  const bgRotate = useTransform(smoothY, (v) => v * 0.02);
-
-  // Sticky WA — track most-centered product card
-  const [focusedProduct, setFocusedProduct] = useState<Product | null>(null);
-  useEffect(() => {
-    const cards = document.querySelectorAll<HTMLElement>("[data-product-id]");
-    if (!cards.length) return;
-    const viewportCenter = () => window.innerHeight / 2;
-    const pick = () => {
-      let best: { el: HTMLElement; dist: number } | null = null;
-      const c = viewportCenter();
-      cards.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > window.innerHeight) return;
-        const mid = r.top + r.height / 2;
-        const dist = Math.abs(mid - c);
-        if (!best || dist < best.dist) best = { el, dist };
-      });
-      if (best) {
-        const id = (best as { el: HTMLElement }).el.dataset.productId;
-        const found = (allProducts.find((p) => p.id === id) as Product | undefined) ?? null;
-        setFocusedProduct((prev) => (prev?.id === found?.id ? prev : found));
-      }
-    };
-    pick();
-    const onScroll = () => requestAnimationFrame(pick);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [allProducts]);
-
-  const { settings } = useAppearance();
-
-  const sphereProducts = useMemo(() => {
-    let list = [...allProducts];
-    const source = settings.hero.sphereProductSource || "all";
-    if (source === "bestsellers") {
-      list = [...bestSellers];
-    } else if (source === "offers") {
-      list = [...dailyDeals];
-    } else if (source === "custom" && settings.hero.sphereCustomProductIds?.length) {
-      const idMap = new Map(settings.hero.sphereCustomProductIds.map((id, idx) => [id, idx]));
-      list = allProducts
-        .filter((p) => idMap.has(p.id))
-        .sort((a, b) => idMap.get(a.id)! - idMap.get(b.id)!);
-    }
-    return list;
-  }, [
-    allProducts,
-    bestSellers,
-    dailyDeals,
-    settings.hero.sphereProductSource,
-    settings.hero.sphereCustomProductIds,
-  ]);
-
-  const getGridClass = (layout: ProductsLayoutConfig) => {
-    const m = layout.columnsMobile === 1 ? "grid-cols-1" : "grid-cols-2";
-    const t =
-      layout.columnsTablet === 1
-        ? "sm:grid-cols-1"
-        : layout.columnsTablet === 2
-          ? "sm:grid-cols-2"
-          : layout.columnsTablet === 4
-            ? "sm:grid-cols-4"
-            : "sm:grid-cols-3";
-    const d =
-      layout.columnsDesktop === 2
-        ? "md:grid-cols-2"
-        : layout.columnsDesktop === 3
-          ? "md:grid-cols-3"
-          : layout.columnsDesktop === 5
-            ? "md:grid-cols-5"
-            : layout.columnsDesktop === 6
-              ? "md:grid-cols-6"
-              : "md:grid-cols-4";
-    return `grid ${m} ${t} ${d} gap-4`;
-  };
+  const nav = settingsQ.data?.navigation;
 
   return (
     <div
-      ref={pageRef}
-      data-home-root="true"
-      className="relative flex flex-col gap-6 md:gap-10 overflow-hidden pt-2 pb-6"
-      style={{ background: DARK, color: LIGHT, fontFamily: "Tajawal, system-ui, sans-serif" }}
+      dir="rtl"
+      className="flex flex-col gap-3.5 bg-ink px-3.5 pt-3 text-ink-text sm:px-4 md:px-0"
     >
-      <div className="pointer-events-none absolute inset-0 -z-0 overflow-hidden">
-        <motion.div style={{ y: bgYSlow }} className="absolute inset-0 opacity-[0.12]">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(color-mix(in oklab, var(--showcase-foreground) 40%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--showcase-foreground) 40%, transparent) 1px, transparent 1px)",
-              backgroundSize: "42px 42px",
-              maskImage: "radial-gradient(ellipse at 50% 30%, black 30%, transparent 75%)",
-            }}
-          />
-        </motion.div>
-        <motion.div
-          style={{ y: bgYMid, rotate: bgRotate }}
-          className="absolute -start-24 top-[20vh] h-[60vh] w-[60vh] rounded-full opacity-40 blur-3xl"
-        >
-          <div
-            className="h-full w-full"
-            style={{
-              background:
-                "radial-gradient(circle, color-mix(in oklab, var(--primary) 55%, transparent) 0%, transparent 65%)",
-            }}
-          />
-        </motion.div>
-        <motion.div
-          style={{ y: bgYSlow }}
-          className="absolute -end-32 top-[80vh] h-[70vh] w-[70vh] rounded-full opacity-40 blur-3xl"
-        >
-          <div
-            className="h-full w-full"
-            style={{
-              background:
-                "radial-gradient(circle, color-mix(in oklab, var(--primary-light) 45%, transparent) 0%, transparent 65%)",
-            }}
-          />
-        </motion.div>
+      {/* Shipping strip — two info badges matching target image */}
+      <div className="flex h-10 items-center justify-between gap-2 rounded-[14px] border border-ink-line/60 bg-ink-card px-3 text-[11px] font-semibold leading-4 md:h-[46px] md:rounded-2xl md:px-[24px] md:text-[13px]">
+        <div className="flex items-center gap-1.5 text-ink-muted">
+          <span className="text-amber-400 text-xs">⚡</span> {nav?.shippingBarDeliveryText ?? "توصيل سريع خلال 24 - 48 ساعة"}
+        </div>
+        <div className="flex items-center gap-1.5 text-ink-muted">
+          <span>🚀</span> {nav?.shippingBarFreeText ?? "شحن مجاني للطلبات فوق"}{" "}
+          <span className="text-neon-2 font-bold">{(nav?.shippingBarThreshold ?? 30000).toLocaleString("en-US")}</span>{" "}
+          {nav?.shippingBarCurrency ?? "ريال"} <span className="text-amber-400 text-xs">🚚</span>
+        </div>
       </div>
 
-      {/* 1. DYNAMIC STOREFRONT CMS HERO STAGE */}
-      <StorefrontHero hero={settings.hero} products={sphereProducts} />
+      {/* Hero Globe */}
+      <ScrollGlobeHero products={globeProducts} />
 
-      {/* 2. AI SEARCH */}
-      <motion.section {...revealProps} className="relative z-10 px-4 mt-2">
-        <div className="rounded-[32px] glass-dark glass-shimmer p-5 shadow-lg text-center space-y-3">
-          <div className="text-center">
-            <h3 className="text-xs font-black text-showcase-foreground flex items-center justify-center gap-1.5">
-              <Icons.Sparkles className="h-3.5 w-3.5 text-neon animate-pulse" />
-              البحث الذكي بالذكاء الاصطناعي
-            </h3>
-            <p className="text-[10px] text-showcase-foreground/60 mt-0.5">
-              اكتب مواصفات ما تبحث عنه، وسيقوم محرك البحث بإيجاده لك
-            </p>
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const input = (e.currentTarget.elements.namedItem("search") as HTMLInputElement)
-                .value;
-              if (input.trim()) {
-                window.location.href = `/search?q=${encodeURIComponent(input)}`;
-              }
-            }}
-            className="relative flex items-center gap-2"
+      {/* Categories */}
+      <Reveal as="section" className="-mx-3.5 sm:-mx-4 md:mx-0">
+        <SnapRail className="px-3.5 sm:px-4 md:px-0" itemGapClass="gap-2 md:gap-3">
+          <Link
+            to="/search"
+            search={{ q: "" }}
+            className="press card-lift flex h-[64px] w-[58px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-[13px] border border-ink-line bg-ink-card px-1.5 sm:w-[63px] md:h-[78px] md:w-[120px]"
           >
-            <div className="relative flex-1">
-              <input
-                name="search"
-                type="text"
-                placeholder={
-                  settings.navigation.searchPlaceholder || "ابحث بالاسم، اللون، المواصفات..."
-                }
-                className="w-full rounded-full border border-white/10 bg-black/40 py-2.5 pr-9 pl-4 text-xs text-showcase-foreground placeholder-showcase-muted focus:border-neon/50 focus:outline-none transition-all"
-              />
-              <Icons.Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-showcase-muted" />
-            </div>
-            <button
-              type="submit"
-              className="rounded-full bg-neon px-5 py-2.5 text-xs font-black text-[#04121d] glow-neon hover:brightness-110 transition"
-            >
-              ابحث
-            </button>
-          </form>
-          <div className="flex flex-wrap items-center justify-center gap-1 pt-0.5">
-            <span className="text-[9px] text-showcase-foreground/50">شائع:</span>
-            {["إلكترونيات", "أحدث الهواتف", "عروض اليوم"].map((tag) => (
+            <Icons.LayoutGrid className="h-[19px] w-[19px] text-neon-2 md:h-6 md:w-6" strokeWidth={1.6} />
+            <span className="line-clamp-2 w-full text-center text-[9px] font-semibold leading-tight text-ink-text md:text-[11px]">
+              المزيد
+            </span>
+          </Link>
+          {categories.slice(0, 5).map((c) => {
+            const Icon =
+              (Icons as unknown as Record<string, Icons.LucideIcon>)[c.icon] ?? Icons.Package;
+            return (
               <Link
-                key={tag}
-                to="/search"
-                search={{ q: tag }}
-                className="rounded-full bg-showcase-foreground/5 border border-showcase-border/40 px-2 py-0.5 text-[9px] text-showcase-foreground/75 hover:bg-showcase-foreground/10 transition"
+                key={c.id}
+                to="/category/$id"
+                params={{ id: c.id }}
+                className="press card-lift flex h-[64px] w-[58px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-[13px] border border-ink-line bg-ink-card px-1.5 sm:w-[63px] md:h-[78px] md:w-full md:flex-1"
               >
-                #{tag}
+                <Icon className="h-[19px] w-[19px] text-neon-2 md:h-6 md:w-6" strokeWidth={1.6} />
+                <span className="line-clamp-2 w-full text-center text-[9px] font-semibold leading-tight text-ink-text md:text-[11px]">
+                  {c.name}
+                </span>
               </Link>
+            );
+          })}
+        </SnapRail>
+      </Reveal>
+
+      {/* Best offers */}
+      <Reveal as="section">
+        <div className="mb-2.5 flex h-[22px] items-center justify-between md:h-[26px]">
+          <h2 className="flex items-center gap-1.5 text-[14px] font-bold md:text-[18px]">
+            أفضل العروض
+            <span className="text-[14px] md:text-[18px]">🔥</span>
+          </h2>
+          <Link to="/offers" className="flex items-center gap-1 text-[11px] font-bold text-neon-2 md:text-[14px]">
+            عرض الكل
+            <Icons.ChevronLeft className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="relative">
+          <SnapRail
+            className="-mx-3.5 px-3.5 sm:-mx-4 sm:px-4 md:hidden"
+            itemGapClass="gap-3"
+          >
+            {deals.map((p, i) => (
+              <Reveal key={p.id} index={i} className="shrink-0">
+                <NeonProductCard product={p} />
+              </Reveal>
+            ))}
+          </SnapRail>
+          {/* Desktop grid */}
+          <div className="hidden gap-3 md:grid md:grid-cols-4 md:justify-items-center">
+            {deals.slice(0, 4).map((p, i) => (
+              <Reveal key={p.id} index={i} className="w-full">
+                <NeonProductCard product={p} />
+              </Reveal>
             ))}
           </div>
         </div>
-      </motion.section>
+      </Reveal>
 
-      {/* 4. SMART CATEGORIES — 2 visible rows of circular category icons on mobile */}
-      {settings.sections.categories.enabled && (
-        <motion.section key="categories" {...revealProps} className="relative z-10 px-4">
-          <div className="grid grid-rows-2 grid-flow-col auto-cols-[72px] gap-x-3 gap-y-3.5 overflow-x-auto scrollbar-none pb-2 md:grid-rows-1 md:grid-cols-6 md:auto-cols-auto md:overflow-visible md:gap-5">
-            {categories.slice(0, settings.sections.categories.limit ?? 12).map((c) => {
-              const categoryObj = c as Record<string, unknown>;
-              const imageUrl =
-                typeof categoryObj.imageUrl === "string"
-                  ? categoryObj.imageUrl
-                  : typeof categoryObj.image_url === "string"
-                    ? categoryObj.image_url
-                    : "";
-              return (
-                <Link
-                  key={c.id}
-                  to="/category/$id"
-                  params={{ id: c.id }}
-                  className="group flex flex-col items-center gap-1.5 shrink-0"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-all group-hover:border-purple-500/40 group-hover:bg-purple-500/10 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] sm:h-16 sm:w-16">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={c.name}
-                        className="h-7 w-7 object-contain sm:h-8 sm:w-8"
-                      />
-                    ) : (
-                      <Icons.Package className="h-5 w-5 text-slate-400 group-hover:text-purple-400 transition-colors" />
-                    )}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-300 text-center leading-tight max-w-[72px] truncate group-hover:text-white transition-colors">
-                    {c.name}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </motion.section>
-      )}
+      {/* Trust strip */}
+      <Reveal as="div" className="defer-paint">
+        <TrustStrip variant="inline" />
+      </Reveal>
 
-      {/* 5. BEST OFFERS — horizontal scroll on mobile, grid on desktop */}
-      {settings.sections.latest.enabled && (
-        <motion.section key="latest" {...revealProps} className="relative z-10 pt-2">
-          <div className="mb-4 flex items-center justify-between px-4">
-            <h2
-              className="text-base font-black leading-tight sm:text-xl flex items-center gap-1.5"
-              style={{ color: LIGHT }}
-            >
-              🔥 {settings.sections.latest.title || "أفضل العروض"}
-            </h2>
-            <Link
-              to="/search"
-              className="text-xs font-bold text-purple-400 hover:text-purple-300 transition"
-            >
-              عرض الكل ←
-            </Link>
-          </div>
-          {/* Mobile horizontal scroll with scroll-padding */}
-          <div className="flex overflow-x-auto scrollbar-none gap-3 px-4 scroll-pl-4 scroll-pr-4 pb-2 md:hidden">
-            {allProducts
-              .slice(
-                0,
-                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
-              )
-              .map((p, i) => (
-                <div key={p.id} className="w-[160px] shrink-0">
-                  <ProductCard product={p} eager={i < 2} />
-                </div>
-              ))}
-          </div>
-          {/* Desktop grid */}
-          <div
-            className={`hidden md:grid px-4 ${getGridClass(settings.products_layout).replace("grid ", "")}`}
-          >
-            {allProducts
-              .slice(
-                0,
-                settings.products_layout.latestProductsLimit ?? settings.sections.latest.limit,
-              )
-              .map((p, i) => (
-                <ProductCard key={p.id} product={p} eager={i < 2} />
-              ))}
-          </div>
-        </motion.section>
-      )}
-
-      {/* 6. AI RECOMMENDED */}
-      {settings.sections.recommended.enabled && (
-        <motion.section key="recommended" {...revealProps} className="relative z-10 px-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-black" style={{ color: LIGHT }}>
-              {settings.sections.recommended.title || "مقترحات الذكاء الاصطناعي"}
-            </h3>
-            <Link
-              to="/search"
-              className="text-xs font-bold"
-              style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}
-            >
-              الكل
-            </Link>
-          </div>
-          <div className={getGridClass(settings.products_layout)}>
-            {bestSellers
-              .slice(
-                0,
-                settings.products_layout.bestSellersLimit ?? settings.sections.recommended.limit,
-              )
-              .map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-          </div>
-        </motion.section>
-      )}
-
-      {/* 7. OFFERS */}
-      {settings.sections.deals.enabled && (
-        <motion.section key="deals" {...revealProps} className="relative z-10 px-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-black" style={{ color: LIGHT }}>
-              {settings.sections.deals.title || "أقوى العروض والخصومات 🔥"}
-            </h3>
-            <Link
-              to="/offers"
-              className="text-xs font-bold"
-              style={{ color: "color-mix(in oklab, var(--showcase-foreground) 65%, transparent)" }}
-            >
-              الكل
-            </Link>
-          </div>
-          <div className={getGridClass(settings.products_layout)}>
-            {dailyDeals
-              .slice(0, settings.products_layout.dailyDealsLimit ?? settings.sections.deals.limit)
-              .map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-          </div>
-        </motion.section>
-      )}
-
-      {/* 7b. TRUST BADGES — only when explicitly enabled in CMS */}
-      {settings.sections.trustBadges?.enabled === true &&
-        (() => {
-          const tb = settings.sections.trustBadges;
-          const freeShipThreshold = settings.cart_config?.freeShippingThreshold;
-          const badges = [
-            tb.badge1 ? { icon: Icons.Truck, text: tb.badge1 } : null,
-            tb.badge2 ? { icon: Icons.ShieldCheck, text: tb.badge2 } : null,
-            tb.badge3 ? { icon: Icons.RotateCcw, text: tb.badge3 } : null,
-          ].filter(Boolean) as { icon: typeof Icons.Truck; text: string }[];
-
-          // Add free shipping badge only when a real threshold is configured
-          if (freeShipThreshold && freeShipThreshold > 0) {
-            badges.push({
-              icon: Icons.Package,
-              text: `شحن مجاني فوق ${freeShipThreshold.toLocaleString("ar-YE")} ريال`,
-            });
-          }
-
-          if (badges.length === 0) return null;
-
-          return (
-            <motion.section {...revealProps} className="relative z-10 px-4">
-              <div className="flex overflow-x-auto scrollbar-none gap-3 pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-                {badges.map((badge, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 min-w-[180px] md:min-w-0"
-                  >
-                    <badge.icon className="h-5 w-5 text-purple-400 shrink-0" />
-                    <span className="text-xs font-bold text-white">{badge.text}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          );
-        })()}
-
-      {/* 8b. VIRTUAL SHOWROOM */}
-      {settings.sections.showroom.enabled && (
-        <motion.section key="showroom" {...revealProps} className="relative z-10 px-4">
-          <Link
-            to="/immersive-store"
-            className="group relative flex items-center justify-between gap-3 overflow-hidden rounded-3xl border p-4 shadow-2xl"
-            style={{
-              borderColor: LIGHT_BORDER,
-              background:
-                "linear-gradient(120deg, color-mix(in oklab, var(--showcase) 90%, transparent) 0%, color-mix(in oklab, var(--primary) 55%, transparent) 55%, color-mix(in oklab, var(--primary-light) 40%, transparent) 100%)",
-              color: LIGHT,
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-40 mix-blend-overlay"
-              style={{
-                background:
-                  "radial-gradient(circle at 20% 20%, color-mix(in oklab, var(--showcase-foreground) 60%, transparent), transparent 40%), radial-gradient(circle at 80% 80%, color-mix(in oklab, var(--primary-light) 70%, transparent), transparent 45%)",
-              }}
+      {/* Loyalty Card */}
+      <Reveal
+        as="section"
+        className="defer-paint relative overflow-hidden rounded-[24px] border border-neon/40 bg-linear-to-r from-neon-soft via-ink-card to-ink-card p-4 md:h-[176px] md:px-5"
+      >
+        <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          <div className="flex min-w-0 items-center gap-3 md:order-2 md:flex-1 md:flex-row-reverse md:justify-end md:text-center">
+            <img
+              src={loyaltyGem}
+              alt="جوهرة برنامج الولاء"
+              loading="lazy"
+              width={512}
+              height={512}
+              className="h-[62px] w-[62px] shrink-0 object-contain drop-shadow-[0_0_18px_var(--neon)] md:h-[110px] md:w-[110px]"
             />
-            <div className="relative">
-              <span className="inline-block rounded-full bg-showcase-foreground/20 px-2.5 py-0.5 text-[10px] font-bold">
-                {settings.sections.showroom.badge || "جديد · تجربة ثلاثية الأبعاد"}
-              </span>
-              <h3 className="mt-1.5 text-lg font-black leading-tight">
-                {settings.sections.showroom.title || "المعرض الافتراضي"}
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[15px] font-bold leading-tight md:text-[17px]">
+                {nav?.loyaltyTitle ?? "برنامج INDEXES المميز"}
               </h3>
-              <p className="text-[11px] text-showcase-foreground/85">
-                {settings.sections.showroom.subtitle || "تجوّل داخل اندكس ستور الفاخر"}
+              <p className="mt-1 text-[12px] leading-snug text-ink-muted md:text-[13px]">
+                {nav?.loyaltySubtitle ?? "اكسب نقاط مع كل طلب واستبدلها بمكافآت حصرية"}
               </p>
-            </div>
-            <div className="relative grid h-12 w-12 place-items-center rounded-2xl bg-showcase-foreground/15 ring-1 ring-showcase-foreground/30 backdrop-blur-md transition group-hover:scale-110">
-              <Icons.Sparkles className="h-5 w-5" />
-            </div>
-          </Link>
-        </motion.section>
-      )}
-
-      {/* 9. SOCIAL PROOF & TESTIMONIALS */}
-      {settings.sections.testimonials.enabled !== false && (
-        <motion.section
-          {...revealProps}
-          className="relative z-10 px-4 mt-4 pb-4 border-t border-showcase-border/40 pt-6"
-        >
-          <div className="mb-4 text-center">
-            <span className="mb-1 inline-block text-[10px] font-bold tracking-[0.3em] text-primary">
-              تقييمات العملاء
-            </span>
-            <h3 className="text-base font-black text-showcase-foreground">
-              {settings.sections.testimonials.title || "ماذا يقول عملاؤنا؟ ❤️"}
-            </h3>
-            {settings.sections.testimonials.subtitle && (
-              <p className="text-[11px] text-showcase-foreground/60 mt-0.5">
-                {settings.sections.testimonials.subtitle}
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(settings.sections.testimonials.items?.length
-              ? settings.sections.testimonials.items
-              : [
-                  {
-                    name: "أحمد الحميري",
-                    city: "صنعاء",
-                    comment:
-                      "تجربة شراء رائعة جداً، المنتج وصل مغلف تماماً والمعاينة ثلاثية الأبعاد ساعدتني أقرر بسرعة.",
-                    rating: 5,
-                  },
-                  {
-                    name: "جميل الشرعبي",
-                    city: "تعز",
-                    comment:
-                      "أفضل خدمة توصيل وتعامل محترم من الدعم الفني، الجودة ممتازة والأسعار منافسة.",
-                    rating: 5,
-                  },
-                  {
-                    name: "سامي الذبحاني",
-                    city: "عدن",
-                    comment:
-                      "الطلب عبر الواتساب سهل وسريع، والكرة ثلاثية الأبعاد فكرة مبتكرة جداً في متجر يمني.",
-                    rating: 5,
-                  },
-                ]
-            ).map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-2xl border border-showcase-border bg-surface/50 p-4 space-y-2 text-start"
+              <Link
+                to={user ? "/account" : "/auth"}
+                className="press mt-2.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neon px-3.5 py-1.5 text-[12px] font-bold text-white"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-black text-showcase-foreground">{item.name}</h4>
-                    <p className="text-[9px] text-showcase-foreground/50">{item.city}</p>
-                  </div>
-                  <div className="flex gap-0.5 text-amber-400">
-                    {Array.from({ length: item.rating || 5 }).map((_, i) => (
-                      <Icons.Star key={i} className="h-3 w-3 fill-amber-400" />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-showcase-foreground/80 leading-relaxed italic">
-                  "{item.comment}"
-                </p>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-      )}
-
-      {/* 10. WHATSAPP CTA BANNER */}
-      {settings.sections.whatsappCta?.enabled !== false && (
-        <motion.section {...revealProps} className="relative z-10 px-4">
-          <div className="rounded-[32px] glass-dark p-6 text-center space-y-3 border border-success/30 bg-gradient-to-r from-success/10 via-surface/40 to-primary/10">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-success/20 text-success border border-success/30">
-              <Icons.MessageCircle className="h-6 w-6" />
+                {nav?.loyaltyButtonText ?? "اكتشف المزايا"}
+                <Icons.ChevronLeft className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <h3 className="text-base font-black text-showcase-foreground">
-              {settings.sections.whatsappCta?.title || "هل تحتاج مساعدة في الطلب؟"}
-            </h3>
-            <p className="text-xs text-showcase-foreground/70 max-w-md mx-auto">
-              {settings.sections.whatsappCta?.subtitle ||
-                "فريق خدمة العملاء متواجد على مدار الساعة على واتساب"}
+          </div>
+
+          <div className="rounded-2xl border border-ink-line bg-ink/60 p-3 text-center md:order-1 md:w-[38%] md:shrink-0">
+            <p className="text-[11px] font-semibold text-ink-muted mb-0.5">نقاطك الحالية</p>
+            <p className="flex items-center justify-center gap-1 text-[20px] font-black text-neon-2">
+              <Icons.Sparkles className="h-5 w-5 shrink-0 fill-neon-2 text-neon-2" />
+              {nav?.loyaltyPointsText ?? "2,560"}
             </p>
-            <a
-              href={`https://wa.me/${settings.sections.whatsappCta?.phone || settings.navigation.whatsappPhone || "967771370740"}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-success px-6 py-2.5 text-xs font-black text-success-foreground hover:bg-success/90 transition shadow-lg"
-            >
-              <Icons.MessageCircle className="h-4 w-4" />
-              {settings.sections.whatsappCta?.buttonText || "تواصل معنا عبر واتساب 💬"}
-            </a>
+            <p className="mt-1 text-[11px] font-bold text-amber-400">
+              {nav?.loyaltyLevelText ?? "المستوى ذهبي 👑"}
+            </p>
           </div>
-        </motion.section>
-      )}
+        </div>
+      </Reveal>
 
-      {/* ============= STICKY MOBILE CHECKOUT ============= */}
-      {settings.cart_config.floatingBarEnabled && (
-        <motion.div
-          initial={false}
-          animate={{ y: focusedProduct ? 0 : 120, opacity: focusedProduct ? 1 : 0 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-none fixed inset-x-0 z-30 mx-auto w-full max-w-md px-3 sm:inset-x-auto sm:end-4 sm:mx-0 sm:max-w-sm"
-          style={{
-            // Above the mobile bottom nav + notch-safe (env safe-area).
-            bottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
-          {focusedProduct && (
-            <a
-              href={quickOrderLink(focusedProduct)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pointer-events-auto flex items-center justify-between gap-3 rounded-full border p-2 ps-4 shadow-2xl"
-              style={{
-                borderColor: LIGHT_BORDER,
-                background: "color-mix(in oklab, var(--showcase) 72%, transparent)",
-                backdropFilter: "blur(24px) saturate(160%)",
-                color: LIGHT,
-              }}
-            >
-              <div className="min-w-0 flex-1 ps-2 text-start">
-                <p className="truncate text-xs font-bold">{focusedProduct.name}</p>
-                <p
-                  className="text-[11px] font-black"
-                  style={{
-                    color: "color-mix(in oklab, var(--showcase-foreground) 70%, transparent)",
-                  }}
-                >
-                  {formatPrice(focusedProduct.price)}
-                </p>
-              </div>
-              <span
-                className="flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-black"
-                style={{ background: LIGHT, color: DARK }}
-              >
-                <Icons.MessageCircle className="h-3.5 w-3.5" />
-                اطلب عبر واتساب
-              </span>
-            </a>
-          )}
-        </motion.div>
-      )}
+      {/* Footer */}
+      <footer className="mt-6 border-t border-ink-line pt-8 pb-24">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 text-right text-[13px] text-ink-muted">
+            <div className="flex items-center justify-start gap-2">
+              <Icons.MessageSquare className="h-5 w-5 text-emerald-500 shrink-0" />
+              <span>لطلب والاستفسار (واتساب): <a href={`https://wa.me/${nav?.whatsappPhone ?? "967771370740"}`} target="_blank" rel="noreferrer" className="font-bold text-ink-text hover:text-emerald-400">{nav?.whatsappPhone ?? "967771370740"}</a></span>
+            </div>
+            <div className="flex items-center justify-start gap-2">
+              <Icons.MapPin className="h-5 w-5 text-neon-2 shrink-0" />
+              <span>العنوان: {nav?.addressText ?? "صنعاء - شارع بينون - مقابل صيدلية الرعاية الصحية"}</span>
+            </div>
+            <div className="flex items-center justify-start gap-2">
+              <span className="text-base shrink-0">🇾🇪</span>
+              <span>{nav?.deliveryInfoText ?? "متوفر لدينا خدمة التوصيل لجميع المحافظات"}</span>
+            </div>
+            <div className="flex items-center justify-start gap-2">
+              <Icons.PackageCheck className="h-5 w-5 text-blue-400 shrink-0" />
+              <span><strong className="text-ink-text">تتبع طلبك</strong> - برقم الطلب وآخر 4 أرقام من هاتفك</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between gap-4 border-t border-ink-line pt-4 md:border-t-0 md:pt-0">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-ink-text">تواصل معنا الآن</span>
+              <a href={`https://wa.me/${nav?.whatsappPhone ?? "967771370740"}`} target="_blank" rel="noreferrer" className="grid h-10 w-10 place-items-center rounded-full border border-ink-line bg-ink-card text-emerald-400 transition hover:bg-emerald-500 hover:text-white">
+                <Icons.MessageSquare className="h-5 w-5" />
+              </a>
+            </div>
+            
+            <div className="relative flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-2 border-dashed border-amber-400 text-center p-2">
+              <Icons.ShoppingCart className="h-6 w-6 text-ink-text mb-0.5" />
+              <span className="text-[11px] font-black leading-none text-ink-text">{nav?.stampLogoTitle ?? "INDEXES STORE"}</span>
+              <span className="text-[7px] font-bold tracking-widest text-amber-400 mt-1">{nav?.stampLogoSubtitle ?? "PREMIUM QUALITY"}</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

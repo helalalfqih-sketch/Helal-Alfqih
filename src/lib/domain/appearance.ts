@@ -38,6 +38,12 @@ export const HeroConfigSchema = z.object({
   sphereCardShape: z.enum(["rectangle", "circle"]).catch("circle"),
   sphereShowName: z.boolean().catch(true),
   sphereShowPrice: z.boolean().catch(true),
+  // Globe Overlay Texts & Font Sizes
+  globeBadgeText: z.string().catch("INDEXES · LIVE SHOWCASE"),
+  globeTitleText: z.string().catch("آلاف المنتجات"),
+  globeSubtitleText: z.string().catch("اسحب الكرة — كل وجه منتج، اضغط لتفتحه"),
+  globeTitleFontSize: z.number().catch(28),
+  globeSubtitleFontSize: z.number().catch(12),
 });
 export type HeroConfig = z.infer<typeof HeroConfigSchema>;
 export type HeroSlide = z.infer<typeof HeroSlideSchema>;
@@ -82,6 +88,16 @@ export const ProductsLayoutConfigSchema = z.object({
   latestProductsLimit: z.number().min(4).max(24).catch(12),
   bestSellersLimit: z.number().min(2).max(12).catch(6),
   dailyDealsLimit: z.number().min(2).max(12).catch(6),
+  // Granular Product Card Dimensions & Fonts
+  cardWidthMobile: z.number().min(90).max(300).catch(130),
+  cardHeightMobile: z.number().min(150).max(450).catch(234),
+  cardWidthDesktop: z.number().min(120).max(400).catch(168),
+  cardHeightDesktop: z.number().min(200).max(500).catch(286),
+  imageHeightMobile: z.number().min(60).max(300).catch(96),
+  imageHeightDesktop: z.number().min(80).max(350).catch(122),
+  titleFontSizeMobile: z.number().min(8).max(20).catch(10),
+  priceFontSizeMobile: z.number().min(9).max(24).catch(12),
+  cardBorderRadius: z.number().min(0).max(40).catch(13),
 });
 export type ProductsLayoutConfig = z.infer<typeof ProductsLayoutConfigSchema>;
 
@@ -167,6 +183,22 @@ export const NavigationConfigSchema = z.object({
     .string()
     .catch("المتجر اليمني الإلكتروني الرائد للتسوق الفاخر والتجربة ثلاثية الأبعاد."),
   copyrightText: z.string().catch("جميع الحقوق محفوظة"),
+  // Additional Storefront Elements Control
+  shippingBarDeliveryText: z.string().catch("توصيل سريع خلال 24 - 48 ساعة ⚡"),
+  shippingBarFreeText: z.string().catch("شحن مجاني للطلبات فوق"),
+  shippingBarThreshold: z.number().catch(30000),
+  shippingBarCurrency: z.string().catch("ريال"),
+  aiSearchTitle: z.string().catch("البحث الذكي بالذكاء الاصطناعي ✨"),
+  aiSearchSubtitle: z.string().catch("اكتب مواصفات ما تبحث عنه وسنعثر على أفضل النتائج"),
+  aiSearchPlaceholder: z.string().catch("ابحث عن منتج..."),
+  aiSearchBtnText: z.string().catch("بحث"),
+  loyaltyTitle: z.string().catch("برنامج INDEXES المميز"),
+  loyaltySubtitle: z.string().catch("اكسب نقاط مع كل طلب واستبدلها بمكافآت حصرية"),
+  loyaltyButtonText: z.string().catch("اكتشف المزايا"),
+  loyaltyPointsText: z.string().catch("2,560"),
+  loyaltyLevelText: z.string().catch("المستوى ذهبي 👑"),
+  stampLogoTitle: z.string().catch("INDEXES STORE"),
+  stampLogoSubtitle: z.string().catch("PREMIUM QUALITY"),
   socialLinks: z
     .object({
       facebook: z.string().catch("https://facebook.com"),

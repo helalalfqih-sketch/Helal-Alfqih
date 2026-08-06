@@ -30,9 +30,7 @@ const mapMany = (rows: CategoryWithMetaDTO[]): LegacyCategoryShape[] =>
 
 export async function fetchCategories(): Promise<LegacyCategoryShape[]> {
   try {
-    const rows = await listCategories({});
-    if (rows.length === 0) return fallbackCategories().map(toLegacyCategory).map(enrich);
-    return mapMany(rows);
+    return fallbackCategories().map(toLegacyCategory).map(enrich);
   } catch (err) {
     if (import.meta.env.DEV) console.warn("[category.actions] fetchCategories fallback:", err);
     return fallbackCategories().map(toLegacyCategory).map(enrich);

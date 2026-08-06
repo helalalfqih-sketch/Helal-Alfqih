@@ -5,71 +5,29 @@ import {
   useRef,
   useState,
   useEffect,
-  useCallback,
-  Component,
   type ReactNode,
-  type ErrorInfo,
 } from "react";
-import { createPortal } from "react-dom";
-import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Float } from "@react-three/drei";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import * as THREE from "three";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import type { LegacyProductShape } from "@/lib/data-adapter";
-import { formatPrice, STORE_CONTACT } from "@/lib/store-data";
-import { toast } from "sonner";
-import { Play, X } from "lucide-react";
-import MuxPlayer from "@mux/mux-player-react";
-import { OptimizedImage } from "@/components/optimized-image";
-import { ProductCard } from "@/components/product-card";
+import { formatPrice } from "@/lib/store-data";
+import { useWebglQuality, type WebglQuality } from "@/lib/use-webgl-quality";
+import { useLoadableProducts } from "@/lib/use-loadable-products";
 
-function supportsWebGL(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(
-      window.WebGLRenderingContext &&
-      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")),
-    );
-  } catch {
-    return false;
-  }
-}
 
-function deterministicUnit(index: number, salt = 0): number {
-  const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
-  return value - Math.floor(value);
-}
+const DARK = "#000209";
+const LIGHT = "#EEEEEE";
+const RADIUS = 2.1;
+/** Tile height; width is 4:5 of it. */
+const TILE = 0.74;
+const TILE_W = TILE * 0.8;
 
-function getValidMuxId(id?: string | null): string | null {
-  if (!id || typeof id !== "string") return null;
-  const trimmed = id.trim();
-  if (
-    trimmed.startsWith("demo-") ||
-    trimmed.startsWith("mux-playback-") ||
-    trimmed.startsWith("test-") ||
-    trimmed.includes("http") ||
-    trimmed.includes("/")
-  ) {
-    return null;
-  }
-  return /^[A-Za-z0-9_-]{10,40}$/.test(trimmed) ? trimmed : null;
-}
+const PALETTE = ["#7C2CFF", "#A855F7", "#2563FF", "#22D3EE"];
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-const BG_TOP = "#040818"; // deep navy top
-const BG_MID = "#06091f"; // midnight center
-const BG_BOT = "#000209"; // pure dark bottom
-const ACCENT = "#4f8cff"; // electric blue
-const ACCENT2 = "#a259ff"; // violet
-const LIGHT = "#eeeeff";
-const RING_CLR = "#3a6bdb";
-const RADIUS = 2.2; // sphere radius
-const TILE = 0.7; // card size
-
-// ─── Image proxy ─────────────────────────────────────────────────────────────
-function proxiedTextureUrl(value: string): string {
+function proxiedTextureUrl(value: string) {
   try {
     const url = new URL(value.trim());
     if (url.protocol !== "https:") return value;
@@ -79,95 +37,83 @@ function proxiedTextureUrl(value: string): string {
   }
 }
 
-// ─── Error Boundary ──────────────────────────────────────────────────────────
-class TileErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.warn("[TileErrorBoundary]", error, info);
-  }
-  render() {
-    return this.state.hasError ? this.props.fallback : this.props.children;
-  }
+/**
+ * Process-wide texture cache keyed by the final normalized URL. Textures are
+ * never disposed while the app lives, so scrolling / re-rendering the hero can
+ * never trigger a reload or a white flash.
+ */
+const textureCache = new Map<string, Promise<THREE.Texture>>();
+
+function loadTexture(url: string): Promise<THREE.Texture> {
+  const hit = textureCache.get(url);
+  if (hit) return hit;
+  const pending = new Promise<THREE.Texture>((resolve, reject) => {
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin("anonymous");
+    loader.load(
+      url,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.flipY = true;
+        tex.anisotropy = 8;
+        tex.needsUpdate = true;
+        resolve(tex);
+      },
+      undefined,
+      () => reject(new Error("texture decode failed")),
+    );
+  });
+  pending.catch(() => textureCache.delete(url));
+  textureCache.set(url, pending);
+  return pending;
 }
 
-class WebGLErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode; onError: () => void },
-  { failed: boolean }
-> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.error("[ProductSphereHero] WebGL renderer failed", error, info);
-    this.props.onError();
-  }
-
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
-
-function ProductSphereFallback({ products }: { products: LegacyProductShape[] }) {
-  return (
-    <section
-      data-testid="hero-sphere-fallback"
-      aria-label="معرض المنتجات"
-      className="grid grid-cols-2 gap-4 p-6 md:grid-cols-4"
-    >
-      {products.slice(0, 8).map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
-    </section>
-  );
-}
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 type TileData = {
   product: LegacyProductShape;
   position: THREE.Vector3;
+  normal: THREE.Vector3;
   quaternion: THREE.Quaternion;
 };
 
 type R3FProps = Record<string, unknown> & { children?: ReactNode };
 
 function cleanR3FProps(props: R3FProps) {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) {
-    if (!k.startsWith("data-")) out[k] = v;
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith("data-")) continue;
+    clean[key] = value;
   }
-  return out;
+  return clean;
 }
+
 function r3f(type: string, props: R3FProps) {
   const { children, ...rest } = props;
   return createElement(type, cleanR3FProps(rest), children);
 }
-const RMesh = (p: R3FProps) => r3f("mesh", p);
-const RGroup = (p: R3FProps) => r3f("group", p);
-const RPlaneGeometry = (p: R3FProps) => r3f("planeGeometry", p);
-const RSphereGeometry = (p: R3FProps) => r3f("sphereGeometry", p);
-const RTorusGeometry = (p: R3FProps) => r3f("torusGeometry", p);
-const RCircleGeometry = (p: R3FProps) => r3f("circleGeometry", p);
-const RMeshBasicMaterial = (p: R3FProps) => r3f("meshBasicMaterial", p);
-const RMeshStandardMaterial = (p: R3FProps) => r3f("meshStandardMaterial", p);
-const RColor = (p: R3FProps) => r3f("color", p);
-const RFog = (p: R3FProps) => r3f("fog", p);
-const RAmbientLight = (p: R3FProps) => r3f("ambientLight", p);
-const RDirectionalLight = (p: R3FProps) => r3f("directionalLight", p);
-const RPointLight = (p: R3FProps) => r3f("pointLight", p);
 
-// ─── Fibonacci sphere distribution ───────────────────────────────────────────
+const RMesh = (props: R3FProps) => r3f("mesh", props);
+const RGroup = (props: R3FProps) => r3f("group", props);
+const RPlaneGeometry = (props: R3FProps) => r3f("planeGeometry", props);
+const RSphereGeometry = (props: R3FProps) => r3f("sphereGeometry", props);
+const RMeshBasicMaterial = (props: R3FProps) => r3f("meshBasicMaterial", props);
+const RMeshStandardMaterial = (props: R3FProps) => r3f("meshStandardMaterial", props);
+const RColor = (props: R3FProps) => r3f("color", props);
+const RFog = (props: R3FProps) => r3f("fog", props);
+const RAmbientLight = (props: R3FProps) => r3f("ambientLight", props);
+const RDirectionalLight = (props: R3FProps) => r3f("directionalLight", props);
+const RPointLight = (props: R3FProps) => r3f("pointLight", props);
+const RTorusGeometry = (props: R3FProps) => r3f("torusGeometry", props);
+const RPoints = (props: R3FProps) => r3f("points", props);
+const RPointsMaterial = (props: R3FProps) => r3f("pointsMaterial", props);
+
+/** Distribute N points on a sphere (Fibonacci lattice) — even coverage, no clusters. */
 function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
-  if (count <= 1) return [new THREE.Vector3(0, 0, radius)];
   const pts: THREE.Vector3[] = [];
+  if (count <= 1) return [new THREE.Vector3(0, 0, radius)];
   const phi = Math.PI * (Math.sqrt(5) - 1);
   for (let i = 0; i < count; i++) {
     const y = 1 - (i / (count - 1)) * 2;
@@ -178,282 +124,220 @@ function fibonacciSphere(count: number, radius: number): THREE.Vector3[] {
   return pts;
 }
 
-// ─── Glowing orbital ring ────────────────────────────────────────────────────
-function OrbitalRing() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.x += delta * 0.08;
-    meshRef.current.rotation.z += delta * 0.04;
-  });
-  return (
-    <RMesh ref={meshRef} rotation={[Math.PI / 2.5, 0.2, 0]}>
-      <RTorusGeometry args={[RADIUS + 0.55, 0.018, 16, 120]} />
-      <RMeshBasicMaterial color={RING_CLR} transparent opacity={0.55} />
-    </RMesh>
-  );
+/**
+ * Placement used when only a few product images are reachable: tiles sit in
+ * high-latitude bands, so while the globe spins they orbit the upper and lower
+ * limb instead of crowding (and being culled behind) the centred hero copy.
+ */
+function polarBandRing(count: number, radius: number): THREE.Vector3[] {
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i < count; i++) {
+    const az = (i / count) * Math.PI * 2 + (i % 2 === 0 ? 0 : Math.PI / count);
+    const el = (i % 2 === 0 ? 1 : -1) * (8 + ((i * 9) % 18)) * (Math.PI / 180);
+    const y = Math.sin(el);
+    const r = Math.cos(el);
+    pts.push(new THREE.Vector3(Math.sin(az) * r, y, Math.cos(az) * r).multiplyScalar(radius));
+  }
+  return pts;
 }
 
-// Second ring — slightly different angle & speed
-function OrbitalRing2() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.y += delta * 0.06;
-    meshRef.current.rotation.z -= delta * 0.03;
-  });
-  return (
-    <RMesh ref={meshRef} rotation={[0.8, 1.2, 0.4]}>
-      <RTorusGeometry args={[RADIUS + 0.9, 0.01, 12, 100]} />
-      <RMeshBasicMaterial color={ACCENT2} transparent opacity={0.3} />
-    </RMesh>
-  );
-}
+/**
+ * Screen-space (NDC) box that product tiles must never cover. Tiles entering it
+ * fade their material opacity directly inside useFrame — no React state.
+ */
+export type ExclusionBox = { x: number; y0: number; y1: number } | null;
 
-// ─── Ambient floating particles (3D dots) ────────────────────────────────────
-function AmbientParticles({ count = 60 }: { count?: number }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const positions = useMemo(() => {
-    const arr: THREE.Vector3[] = [];
-    for (let i = 0; i < count; i++) {
-      arr.push(
-        new THREE.Vector3(
-          (deterministicUnit(i, 1) - 0.5) * 14,
-          (deterministicUnit(i, 2) - 0.5) * 10,
-          (deterministicUnit(i, 3) - 0.5) * 10 - 3,
-        ),
-      );
-    }
-    return arr;
-  }, [count]);
-
-  useEffect(() => {
-    if (!meshRef.current) return;
-    const dummy = new THREE.Object3D();
-    positions.forEach((p, i) => {
-      dummy.position.copy(p);
-      const s = 0.015 + deterministicUnit(i, 4) * 0.025;
-      dummy.scale.setScalar(s);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  }, [positions]);
-
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return;
-    const dummy = new THREE.Object3D();
-    const t = clock.elapsedTime;
-    positions.forEach((p, i) => {
-      dummy.position.set(
-        p.x + Math.sin(t * 0.3 + i) * 0.12,
-        p.y + Math.cos(t * 0.25 + i * 1.3) * 0.1,
-        p.z,
-      );
-      const s = 0.015 + Math.abs(Math.sin(t * 0.5 + i)) * 0.018;
-      dummy.scale.setScalar(s);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <RCircleGeometry args={[1, 6]} />
-      <RMeshBasicMaterial color={ACCENT} transparent opacity={0.35} />
-    </instancedMesh>
-  );
-}
-
-// ─── Product Card Tile ────────────────────────────────────────────────────────
 function ProductTile({
   data,
   onHover,
   onLeave,
   onSelect,
   isHovered,
-  cardShape = "rectangle",
-  tileScale = TILE,
+  exclusion,
+  billboard = true,
 }: {
   data: TileData;
   onHover: (p: LegacyProductShape) => void;
   onLeave: () => void;
   onSelect: (p: LegacyProductShape) => void;
   isHovered: boolean;
-  cardShape?: "rectangle" | "circle";
-  tileScale?: number;
+  exclusion?: ExclusionBox;
+  billboard?: boolean;
 }) {
-  const rawUrl = data.product.image;
-  const hasVideo = !!data.product.videoPlaybackId;
-  const targetUrl = hasVideo
-    ? `https://image.mux.com/${data.product.videoPlaybackId}/thumbnail.jpg?time=2`
-    : rawUrl;
-  const url = proxiedTextureUrl(targetUrl);
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  // A tile whose image cannot be fetched must disappear completely — a dark
+  // placeholder rectangle would read as a clipped/broken product tile.
+  const [failed, setFailed] = useState(false);
 
-  const texture = useLoader(THREE.TextureLoader, url, (loader) => {
-    loader.setCrossOrigin("anonymous");
-  });
-
-  if (texture) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.flipY = true;
-    texture.anisotropy = 4;
-  }
-
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-
-  useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    const target = isHovered ? 1.28 : 1.0;
-    const cur = meshRef.current.scale.x;
-    const next = cur + (target - cur) * Math.min(1, delta * 10);
-    meshRef.current.scale.setScalar(next);
-
-    // Glow ring around hovered tile
-    if (glowRef.current) {
-      const mat = glowRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity += ((isHovered ? 0.6 : 0) - mat.opacity) * Math.min(1, delta * 8);
+  useEffect(() => {
+    const raw = data.product.image;
+    if (!raw || typeof raw !== "string" || !raw.trim()) {
+      setFailed(true);
+      return;
     }
+    let alive = true;
+    setFailed(false);
+    loadTexture(proxiedTextureUrl(raw))
+      .then((tex) => {
+        if (alive) setTexture(tex);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [data.product.image]);
+
+
+  const groupRef = useRef<THREE.Group>(null);
+  const imageMat = useRef<THREE.MeshBasicMaterial>(null);
+  const backMat = useRef<THREE.MeshBasicMaterial>(null);
+  const rimMat = useRef<THREE.MeshBasicMaterial>(null);
+  const opacity = useRef(0);
+
+  const world = useRef(new THREE.Vector3()).current;
+  const outward = useRef(new THREE.Vector3()).current;
+  const camDir = useRef(new THREE.Vector3()).current;
+  const parentQ = useRef(new THREE.Quaternion()).current;
+  const ndc = useRef(new THREE.Vector3()).current;
+
+  useFrame(({ camera }, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+    if (failed) {
+      group.visible = false;
+      return;
+    }
+
+
+    group.getWorldPosition(world);
+    group.parent?.getWorldQuaternion(parentQ);
+    outward.copy(data.normal).applyQuaternion(parentQ);
+    camDir.copy(camera.position).sub(world).normalize();
+    const facing = outward.dot(camDir);
+
+    // Back-side tiles fade completely instead of rendering through the sphere.
+    let target = THREE.MathUtils.clamp((facing - 0.02) / 0.28, 0, 1);
+
+    if (target > 0) {
+      ndc.copy(world).project(camera);
+      // Never let a tile touch the canvas edge — a half-cut tile reads broken.
+      if (Math.abs(ndc.x) > 0.78 || ndc.y > 0.66 || ndc.y < -0.52) target = 0;
+      else if (
+        exclusion &&
+        Math.abs(ndc.x) < exclusion.x &&
+        ndc.y > exclusion.y0 &&
+        ndc.y < exclusion.y1
+      )
+        target = 0;
+    }
+
+    const next = opacity.current + (target - opacity.current) * Math.min(1, delta * 9);
+    opacity.current = next;
+    const shown = next > 0.02;
+    group.visible = shown;
+    if (!shown) return;
+
+    if (imageMat.current) imageMat.current.opacity = next;
+    if (backMat.current) backMat.current.opacity = next * 0.92;
+    if (rimMat.current) rimMat.current.opacity = next * 0.55;
+
+    // Billboard: tiles always face the camera, so they never go edge-on.
+    if (billboard) group.lookAt(camera.position);
+    // Depth scaling: tiles near the sphere's silhouette read smaller than the
+    // ones facing the camera, which gives the orbit real perspective.
+    const depth = 0.74 + 0.34 * THREE.MathUtils.clamp(facing, 0, 1);
+    const s = (isHovered ? 1.16 : 1) * depth;
+    group.scale.setScalar(group.scale.x + (s - group.scale.x) * Math.min(1, delta * 8));
   });
 
   return (
-    <RGroup position={data.position} quaternion={data.quaternion}>
-      {/* Glow backing ring */}
-      <RMesh ref={glowRef}>
-        {cardShape === "circle" ? (
-          <RCircleGeometry args={[(tileScale * 1.18) / 2, 32]} />
-        ) : (
-          <RPlaneGeometry args={[tileScale * 1.18, tileScale * 1.18]} />
-        )}
-        <RMeshBasicMaterial color={ACCENT} transparent opacity={0} side={THREE.DoubleSide} />
+    <RGroup
+      ref={groupRef}
+      position={data.position}
+      quaternion={billboard ? undefined : data.quaternion}
+      visible={false}
+      onPointerOver={(e: { stopPropagation: () => void }) => {
+        e.stopPropagation();
+        document.body.style.cursor = "pointer";
+        onHover(data.product);
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "";
+        onLeave();
+      }}
+      onClick={(e: { stopPropagation: () => void }) => {
+        e.stopPropagation();
+        onSelect(data.product);
+      }}
+    >
+      {/* neon rim */}
+      <RMesh position={[0, 0, -0.02]}>
+        <RPlaneGeometry args={[TILE_W * 1.1, TILE * 1.08]} />
+        <RMeshBasicMaterial
+          ref={rimMat}
+          color={"#a78bfa"}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
       </RMesh>
-      {/* Main card */}
-      <RMesh
-        ref={meshRef}
-        onPointerOver={(e: { stopPropagation: () => void }) => {
-          e.stopPropagation();
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = "";
-        }}
-        onClick={(e: { stopPropagation: () => void }) => {
-          e.stopPropagation();
-          onSelect(data.product);
-        }}
-      >
-        {cardShape === "circle" ? (
-          <RCircleGeometry args={[tileScale / 2, 32]} />
-        ) : (
-          <RPlaneGeometry args={[tileScale, tileScale]} />
-        )}
-        <RMeshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
+      {/* dark glass backing — the placeholder while the texture decodes */}
+      <RMesh position={[0, 0, -0.01]}>
+        <RPlaneGeometry args={[TILE_W * 1.04, TILE * 1.03]} />
+        <RMeshBasicMaterial
+          ref={backMat}
+          color={"#0A1020"}
+          transparent
+          opacity={0}
+          depthWrite={false}
+        />
       </RMesh>
+      {texture ? (
+        <RMesh>
+          <RPlaneGeometry args={[TILE_W, TILE]} />
+          <RMeshBasicMaterial
+            ref={imageMat}
+            key={texture.uuid}
+            map={texture}
+            toneMapped={false}
+            transparent
+            opacity={0}
+            depthWrite={false}
+          />
+        </RMesh>
+      ) : null}
     </RGroup>
   );
 }
 
-// ─── Drag-to-rotate controller ────────────────────────────────────────────────
-function useDragRotation(groupRef: React.RefObject<THREE.Group>) {
-  const isDragging = useRef(false);
-  const lastPos = useRef({ x: 0, y: 0 });
-  const velocity = useRef({ x: 0, y: 0 });
-  const autoRotate = useRef(true);
-  const { gl } = useThree();
-
-  useEffect(() => {
-    const el = gl.domElement;
-
-    const onDown = (x: number, y: number) => {
-      isDragging.current = true;
-      lastPos.current = { x, y };
-      autoRotate.current = false;
-      velocity.current = { x: 0, y: 0 };
-    };
-    const onMove = (x: number, y: number) => {
-      if (!isDragging.current || !groupRef.current) return;
-      const dx = x - lastPos.current.x;
-      const dy = y - lastPos.current.y;
-      groupRef.current.rotation.y += dx * 0.008;
-      groupRef.current.rotation.x += dy * 0.008;
-      velocity.current = { x: dy * 0.008, y: dx * 0.008 };
-      lastPos.current = { x, y };
-    };
-    const onUp = () => {
-      isDragging.current = false;
-      // Resume auto-rotate after 2.5 s of inactivity
-      setTimeout(() => {
-        autoRotate.current = true;
-      }, 2500);
-    };
-
-    const mouseDown = (e: MouseEvent) => onDown(e.clientX, e.clientY);
-    const mouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
-    const touchStart = (e: TouchEvent) => {
-      const t = e.touches[0];
-      onDown(t.clientX, t.clientY);
-    };
-    const touchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      onMove(t.clientX, t.clientY);
-    };
-
-    el.addEventListener("mousedown", mouseDown);
-    el.addEventListener("mousemove", mouseMove);
-    el.addEventListener("mouseup", onUp);
-    el.addEventListener("touchstart", touchStart, { passive: true });
-    el.addEventListener("touchmove", touchMove, { passive: false });
-    el.addEventListener("touchend", onUp);
-
-    return () => {
-      el.removeEventListener("mousedown", mouseDown);
-      el.removeEventListener("mousemove", mouseMove);
-      el.removeEventListener("mouseup", onUp);
-      el.removeEventListener("touchstart", touchStart);
-      el.removeEventListener("touchmove", touchMove);
-      el.removeEventListener("touchend", onUp);
-    };
-  }, [gl, groupRef]);
-
-  return { isDragging, autoRotate, velocity };
-}
-
-// ─── Product Sphere ───────────────────────────────────────────────────────────
 function ProductSphere({
   products,
   onHoverAny,
   onSelect,
-  hoveredId,
-  radius = 2.2,
-  tileScale = 0.8,
-  cardShape = "rectangle",
-  showParticles = true,
+  exclusion = null,
+  showCore = true,
+  billboard = true,
+  spin = true,
 }: {
   products: LegacyProductShape[];
   onHoverAny: (p: LegacyProductShape | null) => void;
   onSelect: (p: LegacyProductShape) => void;
-  hoveredId: string | null;
-  radius?: number;
-  tileScale?: number;
-  cardShape?: "rectangle" | "circle";
-  showParticles?: boolean;
+  exclusion?: ExclusionBox;
+  showCore?: boolean;
+  billboard?: boolean;
+  spin?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const { isDragging, autoRotate, velocity } = useDragRotation(
-    groupRef as React.RefObject<THREE.Group>,
-  );
-
-  const rotationPausedUntil = useRef<number>(0);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const tiles = useMemo<TileData[]>(() => {
-    const positions = fibonacciSphere(products.length, radius);
+    const positions =
+      products.length <= 10
+        ? polarBandRing(products.length, RADIUS * 1.02)
+        : fibonacciSphere(products.length, RADIUS * 1.02);
     const up = new THREE.Vector3(0, 1, 0);
     return products.map((p, i) => {
       const pos = positions[i];
@@ -465,789 +349,448 @@ function ProductSphere({
         const m = new THREE.Matrix4().makeBasis(right, tileUp, normal);
         q.setFromRotationMatrix(m);
       }
-      return { product: p, position: pos, quaternion: q };
+      return { product: p, position: pos, normal, quaternion: q };
     });
-  }, [products, radius]);
+  }, [products]);
 
   useFrame((_, delta) => {
-    if (!groupRef.current) return;
-    const isPaused = Date.now() < rotationPausedUntil.current;
-    if (!isDragging.current && autoRotate.current && !isPaused) {
-      // Gentle, slow auto-rotation — never dizzying
-      groupRef.current.rotation.y += delta * (hoveredId ? 0.015 : 0.09);
-      groupRef.current.rotation.x += delta * 0.012;
-    } else if (!isDragging.current) {
-      // Inertia decay
-      velocity.current.x *= 0.92;
-      velocity.current.y *= 0.92;
-      groupRef.current.rotation.x += velocity.current.x;
-      groupRef.current.rotation.y += velocity.current.y;
-    }
+    if (!spin || !groupRef.current) return;
+    const speed = hoveredId ? 0.02 : 0.11;
+    groupRef.current.rotation.y += delta * speed;
   });
-
-  const fallbackMat = <RMeshBasicMaterial color="#1e2a4a" side={THREE.DoubleSide} />;
 
   return (
     <RGroup ref={groupRef}>
-      {/* Core glow sphere — scales with radius prop */}
-      <RMesh>
-        <RSphereGeometry args={[radius * 0.78, 40, 40]} />
-        <RMeshStandardMaterial
-          color={"#0a0e2a"}
-          emissive={ACCENT}
-          emissiveIntensity={0.12}
-          metalness={0.85}
-          roughness={0.25}
-          transparent
-          opacity={0.45}
+      {showCore ? (
+        <RMesh>
+          <RSphereGeometry args={[RADIUS * 0.82, 32, 32]} />
+          <RMeshStandardMaterial
+            color={DARK}
+            emissive={"#1f5eff"}
+            emissiveIntensity={0.08}
+            metalness={0.6}
+            roughness={0.4}
+            transparent
+            opacity={0.55}
+          />
+        </RMesh>
+      ) : null}
+      {tiles.map((t, i) => (
+        <ProductTile
+          key={`${t.product.id}-${i}`}
+          data={t}
+          exclusion={exclusion}
+          billboard={billboard}
+          isHovered={hoveredId === t.product.id}
+          onHover={(p) => {
+            setHoveredId(p.id);
+            onHoverAny(p);
+          }}
+          onLeave={() => {
+            setHoveredId(null);
+            onHoverAny(null);
+          }}
+          onSelect={onSelect}
         />
-      </RMesh>
-
-      {/* Orbital rings */}
-      <OrbitalRing />
-      <OrbitalRing2 />
-
-      {/* Ambient particles — only if enabled */}
-      {showParticles && <AmbientParticles count={60} />}
-
-      {/* Product tiles */}
-      {tiles.map((t) => {
-        const fb = (
-          <RMesh key={t.product.id} position={t.position} quaternion={t.quaternion}>
-            {cardShape === "circle" ? (
-              <RCircleGeometry args={[tileScale / 2, 32]} />
-            ) : (
-              <RPlaneGeometry args={[tileScale, tileScale]} />
-            )}
-            {fallbackMat}
-          </RMesh>
-        );
-        return (
-          <TileErrorBoundary key={t.product.id} fallback={fb}>
-            <Suspense fallback={fb}>
-              <ProductTile
-                data={t}
-                isHovered={hoveredId === t.product.id}
-                cardShape={cardShape}
-                tileScale={tileScale}
-                onHover={() => {}}
-                onLeave={() => {}}
-                onSelect={(p) => {
-                  onHoverAny(p);
-                  rotationPausedUntil.current = Date.now() + 5000;
-                }}
-              />
-            </Suspense>
-          </TileErrorBoundary>
-        );
-      })}
+      ))}
     </RGroup>
   );
 }
 
-// ─── Scene ────────────────────────────────────────────────────────────────────
 function Scene({
   products,
   onHoverAny,
   onSelect,
-  hoveredId,
-  radius = 2.2,
-  tileScale = 0.8,
-  cardShape = "rectangle",
-  showParticles = true,
 }: {
   products: LegacyProductShape[];
   onHoverAny: (p: LegacyProductShape | null) => void;
   onSelect: (p: LegacyProductShape) => void;
-  hoveredId: string | null;
-  radius?: number;
-  tileScale?: number;
-  cardShape?: "rectangle" | "circle";
-  showParticles?: boolean;
 }) {
-  const { size, camera } = useThree();
-
-  // Dynamically adjust camera positioning based on viewport aspect ratio
-  useEffect(() => {
-    const aspect = size.width / size.height;
-    if (aspect < 1) {
-      // Narrow portrait layout (mobile viewports e.g. 390x844)
-      camera.position.z = 6.4;
-      camera.position.y = 0.2;
-    } else {
-      // Normal landscape layout
-      camera.position.z = 5.6;
-      camera.position.y = 0.25;
-    }
-    camera.lookAt(0, -0.1, 0);
-    camera.updateProjectionMatrix();
-  }, [size.width, size.height, camera]);
-
   return (
     <>
-      <RColor attach="background" args={[BG_MID]} />
-      <RFog attach="fog" args={[BG_BOT, 10, 26]} />
-
-      {/* Soft fill */}
-      <RAmbientLight intensity={1.8} />
-
-      {/* Key light — warm top */}
-      <RDirectionalLight position={[2, 4, 6]} intensity={2.8} color={"#c8d4ff"} />
-
-      {/* Accent rim — blue left */}
-      <RDirectionalLight position={[-5, 2, -3]} intensity={2.0} color={ACCENT} />
-
-      {/* Violet back */}
-      <RDirectionalLight position={[0, -4, -5]} intensity={1.4} color={ACCENT2} />
-
-      {/* Warm point fill */}
-      <RPointLight position={[3, 2, 4]} intensity={30} color={"#d0e0ff"} distance={14} decay={2} />
-      <RPointLight position={[-3, -2, -3]} intensity={18} color={ACCENT2} distance={12} decay={2} />
-
+      <RColor attach="background" args={[DARK]} />
+      <RFog attach="fog" args={[DARK, 9, 22]} />
+      <RAmbientLight intensity={3} />
+      <RDirectionalLight position={[0, 1.5, 6]} intensity={3.4} color={LIGHT} />
+      <RDirectionalLight position={[5, 6, 5]} intensity={2.6} color={LIGHT} />
+      <RDirectionalLight position={[-6, -3, -4]} intensity={1.8} color={"#9cc2ff"} />
+      <RPointLight position={[4, 3, 4]} intensity={44} color={LIGHT} distance={16} decay={2} />
+      <RPointLight
+        position={[-4, -2, -3]}
+        intensity={28}
+        color={"#66a6ff"}
+        distance={14}
+        decay={2}
+      />
       {createElement(
         Float,
-        { speed: 0.6, rotationIntensity: 0.08, floatIntensity: 0.18 },
-        <ProductSphere
-          products={products}
-          onHoverAny={onHoverAny}
-          onSelect={onSelect}
-          hoveredId={hoveredId}
-          radius={radius}
-          tileScale={tileScale}
-          cardShape={cardShape}
-          showParticles={showParticles}
-        />,
+        { speed: 1, rotationIntensity: 0.2, floatIntensity: 0.4 },
+        <ProductSphere products={products} onHoverAny={onHoverAny} onSelect={onSelect} />,
       )}
+      {createElement(Environment, { preset: "night" })}
     </>
   );
 }
 
-// ─── Loading state ────────────────────────────────────────────────────────────
 function Fallback() {
   return (
     <div className="absolute inset-0 grid place-items-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative h-12 w-12">
-          <span
-            className="absolute inset-0 animate-spin rounded-full border-2"
-            style={{ borderColor: `${ACCENT} transparent transparent transparent` }}
-          />
-          <span
-            className="absolute inset-2 animate-ping rounded-full"
-            style={{ background: ACCENT, opacity: 0.3 }}
-          />
-        </div>
-        <span
-          className="text-[10px] font-medium tracking-[0.35em]"
-          style={{ color: "rgba(200,210,255,0.45)", fontFamily: "Tajawal, system-ui, sans-serif" }}
-        >
-          جاري تحميل المعرض…
-        </span>
+      <div className="flex items-center gap-2 text-[11px] font-medium tracking-widest text-white/40">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60" />
+        LOADING SHOWCASE
       </div>
     </div>
   );
 }
 
-// ─── 2D Starfield background (CSS-only, zero JS cost) ────────────────────────
-function StarField() {
-  const stars = useMemo(() => {
-    const arr: { x: number; y: number; r: number; op: number; dur: number }[] = [];
-    for (let i = 0; i < 80; i++) {
-      arr.push({
-        x: deterministicUnit(i, 5) * 100,
-        y: deterministicUnit(i, 6) * 100,
-        r: 0.5 + deterministicUnit(i, 7) * 1.2,
-        op: 0.15 + deterministicUnit(i, 8) * 0.45,
-        dur: 2 + deterministicUnit(i, 9) * 4,
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {stars.map((s, i) => (
-        <span
-          key={i}
-          className="absolute rounded-full animate-pulse"
-          style={{
-            left: `${s.x}%`,
-            top: `${s.y}%`,
-            width: `${s.r * 2}px`,
-            height: `${s.r * 2}px`,
-            background: "white",
-            opacity: s.op,
-            animationDuration: `${s.dur}s`,
-            animationDelay: `${((i * 37) % 40) / 10}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Main Export ──────────────────────────────────────────────────────────────
-export function ProductSphereHero({
-  products,
-  badgeText = "INDEXES · LIVE SHOWCASE",
-  title = "معرض المنتجات الذكي",
-  subtitle = "اسحب الكرة — كل وجه منتج، اضغط لتفتحه",
-  maxProducts = 16,
-  radius = 1.85,
-  tileScale = 0.65,
-  cardShape = "rectangle",
-  showName = true,
-  showPrice = true,
-  showParticles = true,
-}: {
-  products: LegacyProductShape[];
-  badgeText?: string;
-  title?: string;
-  subtitle?: string;
-  maxProducts?: number;
-  radius?: number;
-  tileScale?: number;
-  cardShape?: "rectangle" | "circle";
-  showName?: boolean;
-  showPrice?: boolean;
-  showParticles?: boolean;
-}) {
+export function ProductSphereHero({ products }: { products: LegacyProductShape[] }) {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
-  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
-  const [renderFailed, setRenderFailed] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [hovered, setHovered] = useState<LegacyProductShape | null>(null);
-  const [showHint, setShowHint] = useState(true);
-  const [showVideo, setShowVideo] = useState(false);
-  const [activeSpecsProduct, setActiveSpecsProduct] = useState<LegacyProductShape | null>(null);
 
-  useEffect(() => {
-    setWebglSupported(supportsWebGL());
-    // Defer WebGL Canvas mount slightly to allow main thread DOM paint first
-    const timer = setTimeout(() => setMounted(true), 60);
-    const t = setTimeout(() => setShowHint(false), 4000);
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(t);
-    };
-  }, []);
-
-  const dismissHint = useCallback(() => setShowHint(false), []);
-
-  const pool = useMemo(
-    () => products.filter((p) => !!p.image).slice(0, maxProducts),
-    [products, maxProducts],
-  );
-
-  const hoveredId = hovered?.id ?? null;
-
-  const handleSelect = useCallback(
-    (p: LegacyProductShape) => navigate({ to: "/product/$slug", params: { slug: p.slug } }),
-    [navigate],
-  );
-
-  if (webglSupported === false || renderFailed) {
-    return <ProductSphereFallback products={pool} />;
-  }
+  const pool = useMemo(() => products.filter((p) => !!p.image).slice(0, 24), [products]);
 
   return (
     <section
       dir="rtl"
-      className="relative mx-0 overflow-hidden rounded-3xl h-[340px] sm:h-[450px] md:h-[520px]"
-      style={{
-        background: `radial-gradient(ellipse at 50% 30%, #0d1435 0%, #06091f 55%, ${BG_BOT} 100%)`,
-      }}
-      onPointerDown={dismissHint}
-      onTouchStart={dismissHint}
+      className="relative -mx-4 h-[85vh] min-h-[560px] overflow-hidden rounded-3xl"
+      style={{ background: DARK }}
     >
-      {/* Starfield (pure CSS) */}
-      <StarField />
+      <div className="absolute inset-0">
+        <Suspense fallback={<Fallback />}>
+          {mounted && pool.length > 0 ? (
+            <Canvas
+              dpr={[1, 1.5]}
+              camera={{ position: [0, 0.2, 5.6], fov: 45 }}
+              gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+            >
+              <Suspense fallback={null}>
+                <Scene
+                  products={pool}
+                  onHoverAny={setHovered}
+                  onSelect={(p) => navigate({ to: "/product/$slug", params: { slug: p.slug } })}
+                />
+              </Suspense>
+            </Canvas>
+          ) : (
+            <Fallback />
+          )}
+        </Suspense>
+      </div>
 
-      {/* Edge glow gradients */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: [
-            "radial-gradient(ellipse 60% 40% at 20% 80%, rgba(79,140,255,0.08) 0%, transparent 70%)",
-            "radial-gradient(ellipse 50% 35% at 80% 20%, rgba(162,89,255,0.07) 0%, transparent 70%)",
-          ].join(", "),
+          background: "radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0,2,9,0.85) 100%)",
         }}
       />
 
-      {/* WebGL Canvas */}
-      <div className="absolute inset-0" style={{ touchAction: "pan-y" }}>
-        <WebGLErrorBoundary
-          fallback={<ProductSphereFallback products={pool} />}
-          onError={() => setRenderFailed(true)}
-        >
-          <Suspense fallback={<Fallback />}>
-            {mounted && webglSupported === true && pool.length > 0 ? (
-              <Canvas
-                dpr={[1, 1.5]}
-                camera={{ position: [0, 0.3, 5.8], fov: 44 }}
-                gl={{
-                  antialias: true,
-                  alpha: false,
-                  powerPreference: "high-performance",
-                  stencil: false,
-                  depth: true,
-                }}
-              >
-                <Suspense fallback={null}>
-                  <Scene
-                    products={pool}
-                    onHoverAny={setHovered}
-                    onSelect={handleSelect}
-                    hoveredId={hoveredId}
-                    radius={radius}
-                    tileScale={tileScale}
-                    cardShape={cardShape}
-                    showParticles={showParticles}
-                  />
-                </Suspense>
-              </Canvas>
-            ) : (
-              <Fallback />
-            )}
-          </Suspense>
-        </WebGLErrorBoundary>
-      </div>
-
-      {/* Top vignette */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-32"
-        style={{
-          background: `linear-gradient(to bottom, ${BG_TOP}ee 0%, transparent 100%)`,
-        }}
-      />
-
-      {/* Bottom vignette */}
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-40"
-        style={{
-          background: `linear-gradient(to top, ${BG_BOT}f5 0%, transparent 100%)`,
-        }}
-      />
-
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-6 pt-7 text-center"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-6 pt-8 text-center"
         style={{ fontFamily: "Tajawal, system-ui, sans-serif" }}
       >
-        {/* Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-          className="mb-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1"
-          style={{
-            border: "1px solid rgba(79,140,255,0.35)",
-            background: "rgba(79,140,255,0.10)",
-            backdropFilter: "blur(8px)",
-          }}
+        <span
+          className="mb-3 inline-block rounded-full border px-3 py-1 text-[10px] font-bold tracking-[0.3em]"
+          style={{ color: LIGHT, borderColor: "rgba(238,238,238,0.25)" }}
         >
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: ACCENT }} />
-          <span
-            className="text-[9px] font-bold tracking-[0.35em]"
-            style={{ color: "rgba(200,220,255,0.85)" }}
-          >
-            {badgeText}
-          </span>
-        </motion.div>
-
-        {/* Title */}
-        <motion.h1
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.7 }}
-          className="text-3xl font-black leading-tight sm:text-5xl"
-          style={{
-            color: LIGHT,
-            textShadow: `0 0 40px ${ACCENT}55, 0 2px 12px rgba(0,0,0,0.8)`,
-            letterSpacing: "-0.01em",
-          }}
+          INDEXES · SHOWCASE
+        </span>
+        <h1 className="text-2xl font-black leading-tight sm:text-4xl" style={{ color: LIGHT }}>
+          كوكب المنتجات
+        </h1>
+        <p
+          className="mt-2 max-w-xs text-[11px] leading-relaxed sm:text-sm"
+          style={{ color: "rgba(238,238,238,0.65)" }}
         >
-          {title}
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7, duration: 0.8 }}
-          className="mt-2 text-[11px] leading-relaxed sm:text-sm"
-          style={{ color: "rgba(180,200,255,0.60)" }}
-        >
-          {subtitle}
-        </motion.p>
+          مرّر واستكشف — كل وجه منتج، اضغط لتفتحه.
+        </p>
       </div>
 
-      {/* ── Drag hint ────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showHint && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.85 }}
-            transition={{ delay: 1.2, duration: 0.5 }}
-            className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-          >
-            <motion.div
-              animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="flex flex-col items-center gap-1"
-            >
-              <span className="text-2xl">✦</span>
-              <span
-                className="text-[9px] font-bold tracking-[0.4em]"
-                style={{ color: "rgba(180,200,255,0.55)", fontFamily: "Tajawal, system-ui" }}
-              >
-                اسحب
-              </span>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Backdrop blur overlay when product is selected/hovered ────────────────── */}
-      {hovered && (
-        <div className="pointer-events-none absolute inset-0 z-10 bg-slate-950/20 backdrop-blur-[2px] transition-all duration-300" />
-      )}
-
-      {/* ── Interactive Bottom Sheet (بطاقة التفاعل المنبثقة) ─────────────────── */}
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            key={hovered.id}
-            initial={{ y: 60, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 60, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="absolute inset-x-0 bottom-0 z-30 mx-auto w-full max-w-lg p-2 sm:p-4"
-          >
-            <div className="relative rounded-t-3xl border border-slate-800/90 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-xl space-y-3 text-right">
-              {/* Drag Handle Bar */}
-              <div className="w-10 h-1 bg-slate-700/80 rounded-full mx-auto mb-1" />
-
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={() => setHovered(null)}
-                className="absolute top-3 end-3 rounded-full bg-slate-800/80 p-1 text-slate-400 hover:text-white transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              {/* Product Info Card */}
-              <div className="flex gap-3 items-center bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0 border border-slate-700/50">
-                  <OptimizedImage
-                    src={hovered.image}
-                    alt={hovered.name}
-                    size="thumbnail"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-bold text-slate-100 truncate">{hovered.name}</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    الماركة: {hovered.brand || "ماركة متميزة"} | {hovered.badge || "ضمان سنة"}
-                  </p>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <div className="flex items-center gap-1 text-[10px] text-amber-400">
-                      <span>⭐ 4.8 (25 تقييم)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-blue-400">
-                        {formatPrice(hovered.price)}
-                      </span>
-                      {hovered.oldPrice && (
-                        <span className="text-[10px] text-slate-500 line-through">
-                          {formatPrice(hovered.oldPrice)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Action Buttons Grid */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => navigate({ to: "/product/$slug", params: { slug: hovered.slug } })}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition hover:bg-blue-500 active:scale-95 shadow-md"
-                >
-                  🛒 أطلب الآن
-                </button>
-                <a
-                  href={`https://wa.me/${STORE_CONTACT}?text=${encodeURIComponent(`مرحباً، أريد طلب منتج: ${hovered.name}\nالسعر: ${formatPrice(hovered.price)}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-500 active:scale-95 shadow-md"
-                >
-                  💬 طلب عبر واتساب
-                </a>
-              </div>
-
-              {/* Next/Prev Product Navigation in Sphere */}
-              {pool.length > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-800/80 pt-2 text-[11px] text-slate-400">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const curIdx = pool.findIndex((p) => p.id === hovered.id);
-                      const nextIdx = (curIdx + 1) % pool.length;
-                      setHovered(pool[nextIdx]);
-                    }}
-                    className="w-full flex items-center justify-center gap-1 hover:text-slate-100 transition py-1"
-                  >
-                    <span>الانتقال للمنتج التالي في الكرة الذكية</span>
-                    <span className="text-blue-400">←</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Product count badge (bottom-right corner) ─────────────────────── */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5 }}
-        className="pointer-events-none absolute bottom-5 left-5 z-10 hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1"
+        initial={false}
+        animate={{ y: hovered ? 0 : 30, opacity: hovered ? 1 : 0 }}
+        transition={{ duration: 0.3 }}
+        className="pointer-events-none absolute inset-x-0 bottom-6 z-10 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl border px-4 py-3"
         style={{
-          background: "rgba(6,9,31,0.70)",
-          border: "1px solid rgba(79,140,255,0.18)",
-          backdropFilter: "blur(10px)",
+          borderColor: "rgba(238,238,238,0.12)",
+          background: "rgba(0,2,9,0.72)",
+          backdropFilter: "blur(20px)",
+          color: LIGHT,
           fontFamily: "Tajawal, system-ui, sans-serif",
         }}
       >
-        <span
-          className="h-1.5 w-1.5 rounded-full animate-pulse"
-          style={{ background: "#4ade80" }}
-        />
-        <span className="text-[9px] font-bold" style={{ color: "rgba(180,210,255,0.65)" }}>
-          {pool.length} منتج
-        </span>
-      </motion.div>
-
-      {/* Video Modal Overlay */}
-      {showVideo &&
-        hovered &&
-        hovered.videoPlaybackId &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
-            <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-surface/90 shadow-2xl p-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowVideo(false);
-                }}
-                className="absolute top-4 end-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-                {getValidMuxId(hovered.videoPlaybackId) ? (
-                  <MuxPlayer
-                    playbackId={getValidMuxId(hovered.videoPlaybackId)!}
-                    autoPlay={true}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                ) : (
-                  <video
-                    src={hovered.videoPlaybackId}
-                    controls
-                    autoPlay
-                    className="h-full w-full object-contain"
-                  />
-                )}
-              </div>
-              <div className="p-4 text-start">
-                <h4 className="text-sm font-black text-foreground">{hovered.name}</h4>
-                <p className="text-xs text-muted-foreground mt-1">فيديو توضيحي للمنتج</p>
-              </div>
+        {hovered && (
+          <>
+            <div className="min-w-0 flex-1 text-start">
+              <p className="truncate text-xs font-bold">{hovered.name}</p>
+              <p className="text-[11px] font-black" style={{ color: "rgba(238,238,238,0.7)" }}>
+                {formatPrice(hovered.price)}
+              </p>
             </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Product Specs & Details Modal */}
-      <AnimatePresence>
-        {activeSpecsProduct &&
-          typeof document !== "undefined" &&
-          createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
-              onClick={() => setActiveSpecsProduct(null)}
+            <span
+              className="text-[10px] tracking-[0.3em]"
+              style={{ color: "rgba(238,238,238,0.6)" }}
             >
-              <motion.div
-                initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.9, y: 20, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="relative w-full max-w-lg overflow-y-auto max-h-[85vh] rounded-3xl glass-dark p-6 shadow-2xl space-y-6 text-start"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-primary tracking-widest uppercase">
-                      تفاصيل ومواصفات المنتج
-                    </span>
-                    <h3 className="text-base font-black text-white mt-0.5">
-                      {activeSpecsProduct.name}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSpecsProduct(null)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Media Preview */}
-                <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center">
-                  <OptimizedImage
-                    src={activeSpecsProduct.image}
-                    alt={activeSpecsProduct.name}
-                    size="large"
-                    className="h-full w-full object-contain p-2"
-                  />
-                  {activeSpecsProduct.badge && (
-                    <span className="absolute end-3 top-3 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg">
-                      {activeSpecsProduct.badge}
-                    </span>
-                  )}
-                </div>
-
-                {/* Specifications List */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                    <span className="text-white/40 block">السعر الحالي</span>
-                    <span className="text-sm font-black text-primary mt-0.5 block">
-                      {formatPrice(activeSpecsProduct.price)}
-                    </span>
-                  </div>
-                  {activeSpecsProduct.oldPrice && (
-                    <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                      <span className="text-white/40 block">السعر السابق</span>
-                      <span className="text-sm font-black text-white/40 line-through mt-0.5 block">
-                        {formatPrice(activeSpecsProduct.oldPrice)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                    <span className="text-white/40 block">الفئة</span>
-                    <span className="text-sm font-bold text-white mt-0.5 block">
-                      {activeSpecsProduct.categoryId === "electronics"
-                        ? "إلكترونيات"
-                        : activeSpecsProduct.categoryId === "kitchen"
-                          ? "المطبخ"
-                          : "متنوعات"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 p-3 border border-white/5 text-right">
-                    <span className="text-white/40 block">حالة التوفر</span>
-                    <span className="text-sm font-bold text-emerald-400 mt-0.5 block">
-                      متوفر في المتجر
-                    </span>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5 text-right">
-                  <h4 className="text-xs font-bold text-white/60">وصف المنتج ومميزاته:</h4>
-                  <p className="text-xs text-white/80 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 whitespace-pre-wrap">
-                    {activeSpecsProduct.description || "لا يوجد وصف متوفر لهذا المنتج حالياً."}
-                  </p>
-                </div>
-
-                {/* Video Section */}
-                <div className="space-y-2 border-t border-white/5 pt-4 text-right">
-                  <h4 className="text-xs font-bold text-white/60">الفيديو التوضيحي:</h4>
-                  {getValidMuxId(activeSpecsProduct.videoPlaybackId) ? (
-                    <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
-                      <MuxPlayer
-                        playbackId={getValidMuxId(activeSpecsProduct.videoPlaybackId)!}
-                        autoPlay={false}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    </div>
-                  ) : activeSpecsProduct.videoPlaybackId ? (
-                    <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/60 border border-white/5">
-                      <video
-                        src={activeSpecsProduct.videoPlaybackId}
-                        controls
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-5 text-center flex flex-col items-center gap-3">
-                      <span className="text-[10px] text-white/50">
-                        لا يتوفر فيديو توضيحي لهذا المنتج في الوقت الحالي
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          try {
-                            const { supabase } = await import("@/integrations/supabase/client");
-                            await (
-                              supabase as unknown as {
-                                from: (t: string) => {
-                                  insert: (d: Record<string, unknown>) => Promise<unknown>;
-                                };
-                              }
-                            )
-                              .from("product_video_requests")
-                              .insert({
-                                product_id: activeSpecsProduct.id,
-                                product_name: activeSpecsProduct.name,
-                              });
-                          } catch (err) {
-                            console.error("Failed to request video:", err);
-                          }
-                          toast.success("تم إرسال طلب توفير فيديو للمنتج بنجاح إلى المدير! 👍");
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white hover:bg-primary/95 transition cursor-pointer shadow-brand"
-                      >
-                        طلب توفير فيديو للمنتج 🎥
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer Actions */}
-                <div className="flex gap-3 border-t border-white/10 pt-4">
-                  <a
-                    href={`https://wa.me/${STORE_CONTACT}?text=${encodeURIComponent(`مرحباً، أريد طلب منتج: ${activeSpecsProduct.name}\nالسعر: ${formatPrice(activeSpecsProduct.price)}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 px-5 py-3.5 text-xs font-black text-white transition shadow-lg"
-                  >
-                    اطلب الآن عبر واتساب 💬
-                  </a>
-                  <Link
-                    to="/product/$slug"
-                    params={{ slug: activeSpecsProduct.slug }}
-                    className="inline-flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/15 px-5 py-3.5 text-xs font-bold text-white transition"
-                  >
-                    صفحة المنتج الكاملة
-                  </Link>
-                </div>
-              </motion.div>
-            </div>,
-            document.body,
-          )}
-      </AnimatePresence>
+              اضغط للفتح
+            </span>
+          </>
+        )}
+      </motion.div>
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Storefront globe. Exactly one Canvas / one ProductSphere is
+ * mounted for the whole scroll transition — never remounted, so
+ * textures never reload and the material never switches.
+ * ───────────────────────────────────────────────────────────── */
+
+/** Layer 2 — world/data point layer. */
+function GlobePoints({ count }: { count: number }) {
+  const geometry = useMemo(() => {
+    const pts = fibonacciSphere(count, RADIUS * 0.995);
+    const position = new Float32Array(count * 3);
+    const color = new Float32Array(count * 3);
+    const colors = PALETTE.map((c) => new THREE.Color(c));
+    for (let i = 0; i < count; i++) {
+      const p = pts[i];
+      position[i * 3] = p.x;
+      position[i * 3 + 1] = p.y;
+      position[i * 3 + 2] = p.z;
+      const c = colors[i % colors.length];
+      color[i * 3] = c.r;
+      color[i * 3 + 1] = c.g;
+      color[i * 3 + 2] = c.b;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(position, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(color, 3));
+    return g;
+  }, [count]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  return (
+    <RPoints geometry={geometry}>
+      <RPointsMaterial
+        size={0.03}
+        vertexColors
+        transparent
+        opacity={0.9}
+        depthWrite={false}
+        sizeAttenuation
+        blending={THREE.AdditiveBlending}
+      />
+    </RPoints>
+  );
+}
+
+function GlobeShell({ quality }: { quality: WebglQuality }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (ref.current) ref.current.rotation.y += delta * 0.05;
+  });
+  // Same five layers in every tier — only the tessellation budget changes.
+  const seg = Math.round(quality.segments / 6);
+  const hSeg = Math.round(seg * 0.66);
+
+  return (
+    <RGroup ref={ref}>
+      {/* Layer 1 — solid dark planet body */}
+      <RMesh>
+        <RSphereGeometry args={[RADIUS * 0.985, seg, hSeg]} />
+        <RMeshStandardMaterial
+          color={"#070C22"}
+          roughness={0.9}
+          metalness={0.1}
+          emissive={"#170C42"}
+          emissiveIntensity={0.7}
+        />
+      </RMesh>
+      {/* Layer 2 — dotted world-map data layer */}
+      <GlobePoints count={quality.points} />
+      {/* Layer 3 — subtle wireframe */}
+      <RMesh>
+        <RSphereGeometry args={[RADIUS, seg, hSeg]} />
+        <RMeshBasicMaterial
+          color={"#7C3AED"}
+          wireframe
+          transparent
+          opacity={0.2}
+          depthWrite={false}
+        />
+      </RMesh>
+
+      {/* Layer 4 — atmosphere (back-side rim halo, never a surface fill) */}
+      <RMesh>
+        <RSphereGeometry args={[RADIUS * 1.1, seg, hSeg]} />
+        <RMeshBasicMaterial
+          color={"#6D28D9"}
+          transparent
+          opacity={0.4}
+          side={THREE.BackSide}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </RMesh>
+      {/* Layer 5 — cyan rim */}
+      <RMesh>
+        <RSphereGeometry args={[RADIUS * 1.19, seg, hSeg]} />
+        <RMeshBasicMaterial
+          color={"#22D3EE"}
+          transparent
+          opacity={0.3}
+          side={THREE.BackSide}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </RMesh>
+    </RGroup>
+  );
+}
+
+/** Exactly three additive orbit rings: purple, blue, cyan. */
+function OrbitTrails({ segments }: { segments: number }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (!ref.current) return;
+    ref.current.rotation.y += delta * 0.14;
+    ref.current.rotation.z += delta * 0.04;
+  });
+  const rings = [
+    { r: RADIUS * 1.1, rot: [1.2, 0, 0.35] as const, color: "#A855F7", opacity: 0.42 },
+    { r: RADIUS * 1.2, rot: [1.5, 0.5, -0.25] as const, color: "#2563FF", opacity: 0.34 },
+    { r: RADIUS * 1.3, rot: [1.05, -0.4, 0.7] as const, color: "#22D3EE", opacity: 0.3 },
+  ];
+
+  return (
+    <RGroup ref={ref}>
+      {rings.map((ring, i) => (
+        <RMesh key={i} rotation={ring.rot}>
+          <RTorusGeometry args={[ring.r, 0.009, 6, segments]} />
+          <RMeshBasicMaterial
+            color={ring.color}
+            transparent
+            opacity={ring.opacity}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </RMesh>
+      ))}
+    </RGroup>
+  );
+}
+
+export function ProductGlobeCanvas({
+  products,
+  paused = false,
+  exclusion = null,
+}: {
+  products: LegacyProductShape[];
+  paused?: boolean;
+  exclusion?: ExclusionBox;
+}) {
+  const navigate = useNavigate();
+  const [mounted, setMounted] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const quality = useWebglQuality();
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVis = () => setHidden(document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  // Oversampled pool → only images proven to decode become tiles, so the globe
+  // never shows a black placeholder and never depends on a specific host.
+  const { items: loadable } = useLoadableProducts(products, quality.tiles);
+  // Many catalog rows currently point at an unreachable image host, which left
+  // the globe almost empty. The proven-loadable set is cycled so every tile
+  // slot carries a real product image instead of a dark gap.
+  const pool = useMemo(() => {
+    if (!loadable.length) return loadable;
+    return Array.from({ length: quality.tiles }, (_, i) => loadable[i % loadable.length]);
+  }, [loadable, quality.tiles]);
+
+
+
+
+  // The globe shell (core, wireframe, atmosphere, orbits) renders as soon as
+  // WebGL is available — it never waits for products or textures.
+  if (!mounted || !quality.supported) {
+    return (
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="relative h-[86%] w-[86%] rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(124,58,237,0.55),rgba(5,3,15,0.9)_70%)] shadow-[0_0_80px_-10px_var(--neon)]">
+          {pool.slice(0, 8).map((p, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            return (
+              <img
+                key={`${p.id}-${i}`}
+                src={p.image}
+                alt={p.name}
+                loading="lazy"
+                className="absolute h-10 w-10 rounded-lg border border-ink-line bg-ink-card/80 object-contain p-1"
+                style={{
+                  left: `${50 + Math.cos(a) * 36 - 6}%`,
+                  top: `${50 + Math.sin(a) * 36 - 6}%`,
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0">
+      <Canvas
+        dpr={quality.dpr}
+        frameloop={paused || hidden ? "never" : "always"}
+        camera={{ position: [0, 0, 5.81], fov: 45 }}
+        gl={{ antialias: quality.tier !== "low", alpha: true, powerPreference: "high-performance" }}
+      >
+        <Suspense fallback={null}>
+          <RAmbientLight intensity={1.35} />
+          <RDirectionalLight position={[0, 1.5, 6]} intensity={1.6} color={LIGHT} />
+          {/* rim lighting: purple one side, cyan the other, blue behind */}
+          <RPointLight
+            position={[4.2, 2.4, 2.2]}
+            intensity={68}
+            color={"#A855F7"}
+            distance={18}
+            decay={2}
+          />
+          <RPointLight
+            position={[-4.2, -1.8, 2.4]}
+            intensity={60}
+            color={"#22D3EE"}
+            distance={18}
+            decay={2}
+          />
+          <RPointLight
+            position={[0, 0, -5]}
+            intensity={46}
+            color={"#2563FF"}
+            distance={16}
+            decay={2}
+          />
+          <GlobeShell quality={quality} />
+          <OrbitTrails segments={quality.segments} />
+          <ProductSphere
+            products={pool}
+            showCore={false}
+            exclusion={exclusion}
+            spin={!quality.reduced}
+            onHoverAny={() => {}}
+            onSelect={(p) => navigate({ to: "/product/$slug", params: { slug: p.slug } })}
+          />
+        </Suspense>
+      </Canvas>
+    </div>
   );
 }

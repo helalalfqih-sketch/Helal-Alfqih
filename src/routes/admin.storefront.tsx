@@ -45,6 +45,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { listAdminProducts } from "@/lib/actions/admin.actions";
+import { products as seedProducts, categories as seedCategories } from "@/lib/store-data";
 import {
   getStorefrontAppearance,
   getStorefrontDraftPreview,
@@ -466,12 +467,7 @@ function LivePreviewDevice({
                     >
                       {(realProducts.length > 0
                         ? realProducts.slice(0, columns * 2)
-                        : [
-                            { id: "1", name: "سماعة فاخرة 3D", price: 24000, images: [] },
-                            { id: "2", name: "ساعة ذكية عصرية", price: 18000, images: [] },
-                            { id: "3", name: "كاميرا احترافية", price: 120000, images: [] },
-                            { id: "4", name: "مظلة حماية ذكية", price: 35000, images: [] },
-                          ]
+                        : seedProducts.slice(0, columns * 2)
                       ).map((prod: any) => (
                         <div
                           key={prod.id}
@@ -487,9 +483,9 @@ function LivePreviewDevice({
                         >
                           {layout.showImage && (
                             <div className="h-16 w-full rounded bg-primary/10 overflow-hidden flex items-center justify-center text-[10px] font-bold text-primary/40 mb-1.5">
-                              {prod.images?.[0] ? (
+                              {prod.images?.[0] || prod.image ? (
                                 <img
-                                  src={prod.images[0]}
+                                  src={prod.images?.[0] || prod.image}
                                   alt={prod.name}
                                   className="h-full w-full object-cover"
                                 />
@@ -501,13 +497,13 @@ function LivePreviewDevice({
                           <div>
                             <h4 className="text-[10px] font-bold truncate">{prod.name}</h4>
                             {layout.showRating && (
-                              <span className="text-[8px] text-yellow-400">★ 4.8</span>
+                              <span className="text-[8px] text-yellow-400">★ {prod.rating || 4.8} ({prod.reviews || 12})</span>
                             )}
                           </div>
                           <div className="flex items-center justify-between mt-1">
                             {layout.showPrice && (
                               <span className="text-[9px] font-black text-primary">
-                                {prod.price} ر.ي
+                                {prod.price} ريال
                               </span>
                             )}
                             {layout.showAddToCartButton && (
@@ -532,12 +528,12 @@ function LivePreviewDevice({
                       {local.sections.categories.title || "التصنيفات"}
                     </h3>
                     <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                      {["إلكترونيات", "سماعات", "شواحن", "كاميرات", "ساعات"].map((cat, i) => (
+                      {seedCategories.slice(0, 6).map((cat, i) => (
                         <span
-                          key={i}
+                          key={cat.id || i}
                           className="text-[9px] bg-[var(--surface)] border border-[var(--border)] px-3 py-1 rounded-full shrink-0"
                         >
-                          {cat}
+                          {cat.name}
                         </span>
                       ))}
                     </div>
@@ -877,6 +873,58 @@ function HomepageTab({ hero, sections, onHeroChange, onSectionsChange }: Homepag
               <option value="offers">🔥 منتجات قسم العروض والخصومات</option>
             </select>
           </Field>
+
+          {/* Globe Overlay Texts & Font Sizes */}
+          <div className="space-y-3 pt-3 border-t border-border/40">
+            <h4 className="text-xs font-bold text-primary">نصوص وأحجام الخطوط فوق الكرة (Globe Overlay)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="نص الشارة فوق الكرة">
+                <input
+                  value={hero.globeBadgeText ?? "INDEXES · LIVE SHOWCASE"}
+                  onChange={(e) => setHero("globeBadgeText", e.target.value)}
+                  className={fieldCls}
+                />
+              </Field>
+              <Field label="العنوان الرئيسي فوق الكرة">
+                <input
+                  value={hero.globeTitleText ?? "آلاف المنتجات"}
+                  onChange={(e) => setHero("globeTitleText", e.target.value)}
+                  className={fieldCls}
+                />
+              </Field>
+            </div>
+            <Field label="العنوان الفرعي فوق الكرة">
+              <input
+                value={hero.globeSubtitleText ?? "اسحب الكرة — كل وجه منتج، اضغط لتفتحه"}
+                onChange={(e) => setHero("globeSubtitleText", e.target.value)}
+                className={fieldCls}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="حجم خط العنوان الرئيسي (px)">
+                <input
+                  type="number"
+                  min={14}
+                  max={60}
+                  value={hero.globeTitleFontSize ?? 28}
+                  onChange={(e) => setHero("globeTitleFontSize", Number(e.target.value))}
+                  className={fieldCls}
+                  dir="ltr"
+                />
+              </Field>
+              <Field label="حجم خط العنوان الفرعي (px)">
+                <input
+                  type="number"
+                  min={9}
+                  max={24}
+                  value={hero.globeSubtitleFontSize ?? 12}
+                  onChange={(e) => setHero("globeSubtitleFontSize", Number(e.target.value))}
+                  className={fieldCls}
+                  dir="ltr"
+                />
+              </Field>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-4 mt-2 pt-2 border-t border-border/40">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground font-bold font-sans">عرض الاسم</span>
@@ -1397,6 +1445,83 @@ function CatalogTab({ layout, page, onLayoutChange, onPageChange }: CatalogTabPr
               dir="ltr"
             />
           </Field>
+        </div>
+
+        {/* Product Card Dimensions Manager */}
+        <div className="space-y-3 pt-3 border-t border-border/40">
+          <h4 className="text-xs font-bold text-primary">التحكم الدقيق في أبعاد ومقاسات الكروت والخطوط (Card Dimensions)</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="عرض البطاقة للهواتف (px)">
+              <input
+                type="number"
+                min={90}
+                max={300}
+                value={layout.cardWidthMobile ?? 130}
+                onChange={(e) => setLay("cardWidthMobile", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+            <Field label="ارتفاع البطاقة للهواتف (px)">
+              <input
+                type="number"
+                min={150}
+                max={450}
+                value={layout.cardHeightMobile ?? 234}
+                onChange={(e) => setLay("cardHeightMobile", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="ارتفاع منطقة الصورة (px)">
+              <input
+                type="number"
+                min={60}
+                max={300}
+                value={layout.imageHeightMobile ?? 96}
+                onChange={(e) => setLay("imageHeightMobile", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+            <Field label="حجم خط عنوان المنتج (px)">
+              <input
+                type="number"
+                min={8}
+                max={20}
+                value={layout.titleFontSizeMobile ?? 10}
+                onChange={(e) => setLay("titleFontSizeMobile", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="حجم خط السعر (px)">
+              <input
+                type="number"
+                min={9}
+                max={24}
+                value={layout.priceFontSizeMobile ?? 12}
+                onChange={(e) => setLay("priceFontSizeMobile", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+            <Field label="انحناء زوايا البطاقة (Border Radius)">
+              <input
+                type="number"
+                min={0}
+                max={40}
+                value={layout.cardBorderRadius ?? 13}
+                onChange={(e) => setLay("cardBorderRadius", Number(e.target.value))}
+                className={fieldCls}
+                dir="ltr"
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mt-2">
