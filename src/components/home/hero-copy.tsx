@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
+import { getPublishedStorefrontAppearance } from "@/lib/actions/appearance.actions";
 
 /**
  * Hero copy layer of the immersive globe: INDEXES pill, headline, subline and
@@ -10,11 +11,8 @@ import { Search } from "lucide-react";
 export function HeroCopy({ dots = 4 }: { dots?: number }) {
   const { data: settings } = useQuery({
     queryKey: ["storefront-settings"],
-    queryFn: async () => {
-      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
-      return getStorefrontAppearance();
-    },
-    staleTime: 5000,
+    queryFn: () => getPublishedStorefrontAppearance(),
+    staleTime: 60 * 1000,
   });
 
   const hero = settings?.hero;

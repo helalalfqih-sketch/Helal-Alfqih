@@ -17,6 +17,7 @@ import type { LegacyProductShape } from "@/lib/data-adapter";
 import { formatPrice } from "@/lib/store-data";
 import { useWebglQuality, type WebglQuality } from "@/lib/use-webgl-quality";
 import { useLoadableProducts } from "@/lib/use-loadable-products";
+import { getPublishedStorefrontAppearance } from "@/lib/actions/appearance.actions";
 
 
 const DARK = "#000209";
@@ -708,25 +709,20 @@ export function ProductGlobeCanvas({
 
   const { data: settings } = useQuery({
     queryKey: ["storefront-settings"],
-    queryFn: async () => {
-      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
-      return getStorefrontAppearance();
-    },
-    staleTime: 10000,
+    queryFn: () => getPublishedStorefrontAppearance(),
+    staleTime: 60 * 1000,
   });
 
   const requestedMax = settings?.hero?.sphereMaxProducts ?? 50;
-  const tileCount = Math.min(Math.max(quality.tiles, requestedMax), Math.max(products.length, 30));
 
-  // Oversampled pool → only images proven to decode become tiles, so the globe
-  // never shows a black placeholder and never depends on a specific host.
-  const { items: loadable } = useLoadableProducts(products, tileCount);
-  // Proven-loadable set is cycled so every tile slot carries a real product image
+  // Oversampled pool → only images proven to decode become tiles
+  const { items: loadable } = useLoadableProducts(products, requestedMax);
+
+  // Unique products pool — no artificial duplication
   const pool = useMemo(() => {
     const list = loadable.length > 0 ? loadable : products;
-    if (!list.length) return [];
-    return Array.from({ length: tileCount }, (_, i) => list[i % list.length]);
-  }, [loadable, products, tileCount]);
+    return list.slice(0, requestedMax);
+  }, [loadable, products, requestedMax]);
 
 
 

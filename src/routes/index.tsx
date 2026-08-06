@@ -17,6 +17,7 @@ import loyaltyGem from "@/assets/loyalty-gem.png";
 import { Reveal } from "@/components/motion/reveal";
 import { SnapRail } from "@/components/motion/snap-rail";
 import { useSession } from "@/hooks/use-session";
+import { getPublishedStorefrontAppearance } from "@/lib/actions/appearance.actions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,11 +76,8 @@ function HomePage() {
 
   const settingsQ = useQuery({
     queryKey: ["storefront-settings"],
-    queryFn: async () => {
-      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
-      return getStorefrontAppearance();
-    },
-    staleTime: 5000,
+    queryFn: () => getPublishedStorefrontAppearance(),
+    staleTime: 60 * 1000,
   });
 
   const { user } = useSession();
