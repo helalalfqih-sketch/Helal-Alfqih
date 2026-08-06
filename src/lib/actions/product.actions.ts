@@ -66,10 +66,6 @@ export async function fetchProducts(input: ListProductsInput = {}): Promise<Lega
   const data = listProductsInput.parse(input);
   try {
     const rows = await listProducts({ data });
-    if (rows.length > 0 && !data.search && !data.categoryId) {
-      // Prioritize seed products if available to maintain exact storefront showcase alignment
-      return fallbackProducts().map(toLegacyProduct).map(enrichLegacy);
-    }
     if (rows.length === 0) {
       return fallbackProducts().map(toLegacyProduct).map(enrichLegacy);
     }

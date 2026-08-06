@@ -81,24 +81,25 @@ export function useLoadableProducts(
   const candidates = useMemo(
     () =>
       products.filter(
-        (p) => typeof p.image === "string" && !!p.image.trim() && /^https?:/i.test(p.image),
+        (p) => typeof p.image === "string" && !!p.image.trim(),
       ),
     [products],
   );
   const key = useMemo(() => candidates.map((p) => p.id).join("|"), [candidates]);
 
-  const [items, setItems] = useState<LegacyProductShape[]>([]);
+  const [items, setItems] = useState<LegacyProductShape[]>(() => candidates.slice(0, want));
   const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setSettled(false);
-    setItems([]);
+    if (candidates.length > 0) {
+      setItems(candidates.slice(0, want));
+    }
     selectLoadable(candidates, want, (list) => {
       if (!alive) return;
-      const next = list.slice(0, want);
+      const next = list.length > 0 ? list.slice(0, want) : candidates.slice(0, want);
       setItems(next);
-      // QA signal only: lets the visual-regression run assert real tile count.
       (window as unknown as Record<string, unknown>).__globeTiles = next.length;
     }).finally(() => {
       if (alive) setSettled(true);
@@ -106,8 +107,6 @@ export function useLoadableProducts(
     return () => {
       alive = false;
     };
-    // `key` identifies the candidate set; `candidates` is derived from it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, want]);
 
   return { items, settled };

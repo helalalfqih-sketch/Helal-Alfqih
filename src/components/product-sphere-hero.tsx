@@ -12,6 +12,7 @@ import { Environment, Float } from "@react-three/drei";
 import { motion } from "framer-motion";
 import * as THREE from "three";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import { formatPrice } from "@/lib/store-data";
 import { useWebglQuality, type WebglQuality } from "@/lib/use-webgl-quality";
@@ -705,16 +706,27 @@ export function ProductGlobeCanvas({
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
+  const { data: settings } = useQuery({
+    queryKey: ["storefront-settings"],
+    queryFn: async () => {
+      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
+      return getStorefrontAppearance();
+    },
+    staleTime: 10000,
+  });
+
+  const requestedMax = settings?.hero?.sphereMaxProducts ?? 50;
+  const tileCount = Math.min(Math.max(quality.tiles, requestedMax), Math.max(products.length, 30));
+
   // Oversampled pool → only images proven to decode become tiles, so the globe
   // never shows a black placeholder and never depends on a specific host.
-  const { items: loadable } = useLoadableProducts(products, quality.tiles);
-  // Many catalog rows currently point at an unreachable image host, which left
-  // the globe almost empty. The proven-loadable set is cycled so every tile
-  // slot carries a real product image instead of a dark gap.
+  const { items: loadable } = useLoadableProducts(products, tileCount);
+  // Proven-loadable set is cycled so every tile slot carries a real product image
   const pool = useMemo(() => {
-    if (!loadable.length) return loadable;
-    return Array.from({ length: quality.tiles }, (_, i) => loadable[i % loadable.length]);
-  }, [loadable, quality.tiles]);
+    const list = loadable.length > 0 ? loadable : products;
+    if (!list.length) return [];
+    return Array.from({ length: tileCount }, (_, i) => list[i % list.length]);
+  }, [loadable, products, tileCount]);
 
 
 
