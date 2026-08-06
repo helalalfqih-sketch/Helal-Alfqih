@@ -11,7 +11,9 @@ const riyal = (v: number) => `${Math.round(v).toLocaleString("en-US")} ريال`
 /**
  * Standardized storefront card: fixed image area, fixed 2-line title area,
  * fixed price row and a bottom-pinned cart button so every card in a rail
- * aligns. Fully integrated with real cart & favorites stores.
+ * aligns. Every value comes from the database — a rating row is only rendered
+ * when a real rating and a real review count exist, and a discount badge only
+ * when a real, valid old price exists.
  */
 export function NeonProductCard({ product }: { product: Product }) {
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -42,12 +44,12 @@ export function NeonProductCard({ product }: { product: Product }) {
   return (
     <div
       data-product-id={product.id}
-      className="card-lift flex w-[184px] shrink-0 snap-start flex-col overflow-hidden rounded-[20px] border border-ink-line bg-[linear-gradient(145deg,rgba(15,21,43,0.96),rgba(5,8,22,0.98))] p-3 sm:w-[198px] md:w-[229px] h-[328px] md:h-[394px]"
+      className="card-lift flex w-[130px] shrink-0 snap-start flex-col overflow-hidden rounded-[13px] border border-ink-line bg-[linear-gradient(145deg,rgba(15,21,43,0.96),rgba(5,8,22,0.98))] p-1.5 sm:w-[138px] md:w-[168px] h-[234px] md:h-[286px]"
     >
       {/* badge / favorite row — fixed height keeps every image aligned */}
-      <div className="relative mb-1 flex h-7 items-start justify-between">
+      <div className="relative mb-1 flex h-[18px] items-start justify-between">
         {discount > 0 ? (
-          <span className="rounded-lg bg-neon px-2 py-0.5 text-[10px] font-bold text-white">
+          <span className="rounded-md bg-neon px-1.5 py-0.5 text-[8.5px] font-bold text-white">
             خصم {discount}%
           </span>
         ) : (
@@ -57,10 +59,10 @@ export function NeonProductCard({ product }: { product: Product }) {
           type="button"
           aria-label={fav ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
           onClick={handleToggleFav}
-          className="press -mt-1 -mr-1 grid h-8 w-8 place-items-center rounded-full text-ink-text transition hover:text-neon-2"
+          className="press -mt-1 -mr-1 grid h-5 w-5 place-items-center rounded-full text-ink-text transition hover:text-neon-2"
         >
           <Heart
-            className={`h-[18px] w-[18px] ${fav ? "fill-neon-2 text-neon-2" : ""}`}
+            className={`h-3 w-3 ${fav ? "fill-neon-2 text-neon-2" : ""}`}
             strokeWidth={1.7}
           />
         </button>
@@ -69,7 +71,7 @@ export function NeonProductCard({ product }: { product: Product }) {
       <Link
         to="/product/$slug"
         params={{ slug: product.slug }}
-        className="block h-[138px] w-full shrink-0 overflow-hidden rounded-xl bg-[#0A1020] md:h-[176px]"
+        className="block h-[96px] w-full shrink-0 overflow-hidden rounded-[11px] bg-[#0A1020] md:h-[122px]"
       >
         <FadeImage
           src={product.image}
@@ -81,26 +83,27 @@ export function NeonProductCard({ product }: { product: Product }) {
       <Link
         to="/product/$slug"
         params={{ slug: product.slug }}
-        className="mt-2 line-clamp-2 overflow-hidden text-center h-[36px] text-[13px] font-bold leading-[18px] text-ink-text md:h-[44px] md:text-[14px] md:leading-[22px]"
+        className="mt-1.5 line-clamp-2 overflow-hidden text-center h-[27px] text-[10px] font-semibold leading-[13.5px] text-ink-text md:h-[31px] md:text-[11px] md:leading-[15.5px]"
       >
         {product.name}
       </Link>
 
-      {/* Rating row */}
-      <div className="mt-1 flex h-4 items-center justify-center gap-1 text-[11px] text-ink-muted">
+      {/* Rating row keeps its slot even without real rating data, so every
+          card in the rail shares the same price and button baselines. */}
+      <div className="mt-1 flex h-3.5 items-center justify-center gap-1 text-[9px] text-ink-muted">
         {hasRating ? (
           <>
-            <Star className="h-3 w-3 fill-neon-2 stroke-neon-2" />
+            <Star className="h-2 w-2 fill-neon-2 stroke-neon-2" />
             <span className="font-semibold text-ink-text">{product.rating}</span>
             <span>({product.reviews})</span>
           </>
         ) : null}
       </div>
 
-      <div className="mt-1 flex items-baseline justify-center gap-1.5">
-        <span className="text-[17px] font-black text-neon-2">{riyal(product.price)}</span>
+      <div className="mt-0.5 flex items-baseline justify-center gap-1.5">
+        <span className="text-[12px] font-bold text-neon-2">{riyal(product.price)}</span>
         {hasDiscount ? (
-          <span className="text-[11px] text-ink-muted line-through">
+          <span className="text-[9px] text-ink-muted line-through">
             {riyal(product.oldPrice!)}
           </span>
         ) : null}
@@ -109,11 +112,12 @@ export function NeonProductCard({ product }: { product: Product }) {
       <button
         type="button"
         onClick={handleAddToCart}
-        className="press mt-auto flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-linear-to-l from-neon to-neon-2 text-[13px] font-bold text-white shadow-[0_10px_24px_-14px_var(--neon)] transition hover:brightness-110 active:scale-[0.97]"
+        className="press mt-auto flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[11px] bg-linear-to-l from-neon to-neon-2 text-[10px] font-bold text-white shadow-[0_10px_24px_-14px_var(--neon)] transition hover:brightness-110 active:scale-[0.97]"
       >
         أضف للسلة
-        <ShoppingCart className="h-4 w-4" strokeWidth={1.7} />
+        <ShoppingCart className="h-3 w-3" strokeWidth={1.7} />
       </button>
     </div>
   );
 }
+

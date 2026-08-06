@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 
 /**
@@ -7,6 +8,17 @@ import { Search } from "lucide-react";
  * z-layer with a soft scrim so globe tiles can never hurt legibility.
  */
 export function HeroCopy({ dots = 4 }: { dots?: number }) {
+  const { data: settings } = useQuery({
+    queryKey: ["storefront-settings"],
+    queryFn: async () => {
+      const { getStorefrontAppearance } = await import("@/lib/actions/appearance.actions");
+      return getStorefrontAppearance();
+    },
+    staleTime: 5000,
+  });
+
+  const hero = settings?.hero;
+
   return (
     <div className="relative px-4 text-center">
       <div
@@ -18,23 +30,23 @@ export function HeroCopy({ dots = 4 }: { dots?: number }) {
         }}
       />
       <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-line bg-ink-card/80 px-3 py-1 text-[12px] font-bold tracking-[4.5px] text-ink-text">
-        INDEXES
+        {hero?.globeBadgeText ?? hero?.badgeText ?? "INDEXES"}
         <span className="h-1.5 w-1.5 rounded-full bg-neon" />
       </span>
       <h1
         className="mt-2.5 font-bold leading-[1.16] drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
-        style={{ fontSize: "clamp(27px, 7.6vw, 44px)" }}
+        style={{ fontSize: hero?.globeTitleFontSize ? `${hero.globeTitleFontSize}px` : "clamp(27px, 7.6vw, 44px)" }}
       >
-        آلاف المنتجات
+        {hero?.globeTitleText ?? hero?.title ?? "آلاف المنتجات"}
       </h1>
       <p
         className="mt-1 font-medium text-ink-text/80 drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
-        style={{ fontSize: "clamp(12.5px, 3.5vw, 17px)" }}
+        style={{ fontSize: hero?.globeSubtitleFontSize ? `${hero.globeSubtitleFontSize}px` : "clamp(12.5px, 3.5vw, 17px)" }}
       >
-        جودة عالية • أسعار منافسة • توصيل سريع
+        {hero?.globeSubtitleText ?? hero?.subtitle ?? "جودة عالية • أسعار منافسة • توصيل سريع"}
       </p>
       <Link
-        to="/search"
+        to={hero?.ctaLink || "/search"}
         search={{ q: "" }}
         className="press pointer-events-auto mx-auto mt-4 flex items-center justify-center gap-2 rounded-full bg-linear-to-l from-neon to-neon-2 font-bold text-white shadow-[0_18px_54px_-10px_var(--neon)]"
         style={{
@@ -44,7 +56,7 @@ export function HeroCopy({ dots = 4 }: { dots?: number }) {
         }}
       >
         <Search className="h-[18px] w-[18px]" strokeWidth={1.7} />
-        استكشف المنتجات
+        {hero?.ctaText ?? "استكشف المنتجات"}
       </Link>
 
 

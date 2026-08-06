@@ -16,20 +16,20 @@ import { useIsDesktop } from "@/hooks/use-desktop";
 import { DesktopHero } from "@/components/home/desktop-hero";
 
 /** Sticky header height (mobile / >=1024px) — mirrors app-shell. */
-const HEADER_SM = 64;
-const HEADER_LG = 72;
+const HEADER_SM = 58;
+const HEADER_LG = 66;
 /** Fraction of the canvas box height taken by the projected sphere.
  *  Matches the reference: the planet reads ~87% of the viewport width. */
 const PROJECTION = 0.872;
-const IDENTITY_H = 56;
+const IDENTITY_H = 50;
 const GLOBE_GAP = 4;
 
 /** Fixed heights of the panels that close the initial state. */
-const AI_H = 152;
-const TRUST_H = 84;
+const AI_H = 134;
+const TRUST_H = 74;
 const PANEL_GAP = 8;
 /** Space reserved for the floating bottom navigation (nav height + gap). */
-const NAV_RESERVE = 86;
+const NAV_RESERVE = 76;
 
 
 type Geometry = {
@@ -122,8 +122,8 @@ function useStageGeometry(stageRef: React.RefObject<HTMLDivElement | null>): Geo
 
     // Commercial banner (Reference B): height = 39.3% of the banner width and
     // the globe artwork reads ~86% of the banner height on desktop.
-    const heroH = desktop ? 374 : large ? 242 : 228;
-    const compactDiameter = desktop ? 322 : large ? 192 : 182;
+    const heroH = desktop ? 340 : large ? 214 : 202;
+    const compactDiameter = desktop ? 292 : large ? 172 : 162;
     const scaleEnd = compactDiameter / PROJECTION / base;
 
     const globeCenterY = IDENTITY_H + GLOBE_GAP + diameter / 2;
