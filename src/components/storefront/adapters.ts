@@ -36,9 +36,7 @@ export function resolveProductImage(p: LegacyProductShape): string {
 
   if (validImageUrl(p.image)) return p.image;
 
-  const imageMedia = p.media?.find(
-    (media) => media.type === "image" && validImageUrl(media.url),
-  );
+  const imageMedia = p.media?.find((media) => media.type === "image" && validImageUrl(media.url));
   if (imageMedia?.url) return imageMedia.url;
 
   return resolveVideoPoster(p) ?? NEUTRAL_FALLBACK_IMAGE;
