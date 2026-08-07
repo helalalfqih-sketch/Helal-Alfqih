@@ -27,11 +27,16 @@ type JoinedProductMedia = {
   media_files: MediaFile;
 };
 
-type ProductSourceRow = ProductRow & {
+type ProductMediaSource = {
+  images?: string[] | null;
   image?: string | null;
   videos?: string[] | null;
   product_media?: JoinedProductMedia[];
+  video_playback_id?: string | null;
+  source_url?: string | null;
 };
+
+type ProductSourceRow = ProductRow & ProductMediaSource;
 
 type MediaDatabase = Database & {
   public: Database["public"] & {
@@ -89,7 +94,7 @@ export function extractMuxId(url?: string | null): string | null {
   return null;
 }
 
-export function buildProductMediaAndVideos(r: ProductSourceRow): {
+export function buildProductMediaAndVideos(r: ProductMediaSource): {
   images: string[];
   videos: string[];
   media: ProductMediaItem[];
@@ -233,11 +238,6 @@ const toDTO = (r: ProductSourceRow): ProductDTO => {
   };
 };
 
-/**
- * Production does not reliably expose product_media -> media_files as an embedded
- * PostgREST relation. Hydrate the verified product_id/media_id link explicitly so
- * media survives even when the embedded relation is absent from the schema cache.
- */
 async function hydrateProductMedia(db: DB, rows: ProductRow[]): Promise<ProductSourceRow[]> {
   if (rows.length === 0) return rows;
   const productIds = rows.map((row) => row.id).filter(Boolean);
