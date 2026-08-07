@@ -56,21 +56,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       onClick={() => onSelectProduct(product)}
       className={containerClasses}
     >
-      {/* 1. PRODUCT IMAGE AREA WITH BOTTOM BADGE & HEART */}
       <div className="relative w-full h-[110px] sm:h-[130px] bg-[#140E24]/80 p-2 flex items-center justify-center overflow-hidden">
-        {/* Product Image */}
         <img
           src={product.image}
           alt={product.name}
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&q=80";
-          }}
           className="max-h-full max-w-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.2)] group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
 
-        {/* Bottom Bar inside Image Frame (Discount Badge on Right, Heart on Left in RTL) */}
         <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between z-10 dir-rtl pointer-events-none">
           {badgeText ? (
             <div className="bg-gradient-to-r from-rose-600 to-amber-500 text-white text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md whitespace-nowrap pointer-events-auto">
@@ -100,18 +93,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </div>
 
-      {/* Divider line separating Image section and Content section */}
       <div className="w-full h-[1px] bg-gray-800/60" />
 
-      {/* 2. CONTENT AREA */}
       <div className="p-2.5 flex flex-col flex-1 justify-between space-y-2 text-right dir-rtl">
-        {/* Product Name */}
         <div>
           <h4 className="font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-[#7B3FFF] transition-colors leading-tight">
             {product.name}
           </h4>
 
-          {/* Rating & Reviews Row */}
           <div className="flex items-center gap-1.5 text-[11px] mt-1 text-gray-400">
             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
             <span className="text-white font-bold">{product.rating || "4.8"}</span>
@@ -119,7 +108,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         </div>
 
-        {/* Pricing Area */}
         <div className="space-y-0.5">
           <div className="text-white font-black text-xs sm:text-sm tracking-tight">
             {formatPrice(product.priceYER, currency)}
@@ -131,7 +119,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        {/* Action Button: Add to Cart */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.96 }}
