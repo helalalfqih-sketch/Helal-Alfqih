@@ -1,20 +1,9 @@
 /**
  * Data Adapter Layer
  * -------------------
- * Phase B safety guard: allows the UI to consume ProductDTO / CategoryDTO
- * shapes while transparently falling back to the legacy `store-data.ts`
- * seed when the DB is empty or unreachable. `store-data.ts` remains the
- * source of the mock catalog and is not deleted in this phase.
- *
- * Contract:
- *   - Callers depend on DTO shape only, never on the underlying source.
- *   - `dataAdapter.source` reports which backend served the request
- *     ("db" | "fallback"), useful for the compatibility report.
- *
- * When Phase C completes, the fallback branch is removed and this file
- * becomes a pure DTO mapper.
+ * Converts production ProductDTO / CategoryDTO records into the legacy UI shape.
  */
-import type { ProductDTO, CategoryDTO, ProductMediaItem } from "@/lib/domain/product";
+import type { ProductDTO, ProductMediaItem } from "@/lib/domain/product";
 export type { ProductMediaItem };
 
 import type { CategoryWithMetaDTO } from "@/lib/repositories/categories.repo";
@@ -24,8 +13,6 @@ import {
   type Product as SeedProduct,
   type Category as SeedCategory,
 } from "@/lib/store-data";
-
-// ---------- Fallback mapping ----------
 
 const seedToProductDTO = (p: SeedProduct): ProductDTO => ({
   id: p.id,
@@ -72,10 +59,7 @@ const seedToCategoryDTO = (c: SeedCategory): CategoryWithMetaDTO => ({
 export const fallbackProducts = (): ProductDTO[] => seedProducts.map(seedToProductDTO);
 export const fallbackCategories = (): CategoryWithMetaDTO[] => seedCategories.map(seedToCategoryDTO);
 
-// ---------- Adapter ----------
-
 type Source = "db" | "fallback";
-
 export type AdapterResult<T> = { data: T; source: Source };
 
 export async function withFallback<T>(
@@ -93,10 +77,6 @@ export async function withFallback<T>(
   }
 }
 
-/**
- * DTO → legacy UI-friendly Product shape used by existing components.
- * Kept identical to `store-data.ts.Product` for backward compatibility.
- */
 export type LegacyProductShape = {
   id: string;
   slug: string;
@@ -107,46 +87,36 @@ export type LegacyProductShape = {
   stock: number;
   image: string;
   images?: string[];
-  /** Direct video URLs (mp4/webm) — separate from Mux videoPlaybackId */
   videos?: string[] | null;
-  /** Complete media list (images + videos with posters) */
   media?: ProductMediaItem[] | null;
   rating: number;
   reviews: number;
   categoryId: string;
   badge?: string;
   videoPlaybackId?: string;
-  /** URL to the product's 3D GLB model — null/undefined means no custom model */
   modelUrl?: string | null;
-  // ── SEO / Merchant Center fields ──────────────────────────────────────────
-  /** Stock Keeping Unit — used in Google Merchant structured data */
   sku?: string | null;
-  /** Brand name — used in Google Merchant structured data */
   brand?: string | null;
-  /** Item condition: 'new' | 'used' | 'refurbished' */
   condition?: string | null;
-  /** Availability override: 'in_stock' | 'out_of_stock' | 'preorder' | 'backorder' */
   availability?: string | null;
-  /** Raw barcode / GTIN (length determines gtin8/12/13/14 variant) */
   barcode?: string | null;
-  /** Explicit GTIN-8 */
   gtin8?: string | null;
-  /** Explicit GTIN-12 (UPC) */
   gtin12?: string | null;
-  /** Explicit GTIN-13 (EAN) */
   gtin13?: string | null;
-  /** Explicit GTIN-14 */
   gtin14?: string | null;
-  /** Manufacturer Part Number */
   mpn?: string | null;
-  /** Featured Product Flag */
   featured?: boolean;
-  /** Deal Product Flag */
   isDeal?: boolean;
-  /** Deal start datetime ISO */
   dealStart?: string | null;
-  /** Deal end datetime ISO */
   dealEnd?: string | null;
+};
+
+const isMetadataTag = (tag: string): boolean =>
+  tag.startsWith("_") || /^(color|size|material|pattern|gender|age|gcat|fbcat)_?:/i.test(tag);
+
+const explicitBadge = (p: ProductDTO): string | undefined => {
+  if (p.badge?.trim() && !isMetadataTag(p.badge.trim())) return p.badge.trim();
+  return p.tags.find((tag) => tag?.trim() && !isMetadataTag(tag.trim()));
 };
 
 export const toLegacyProduct = (p: ProductDTO): LegacyProductShape => ({
@@ -155,20 +125,23 @@ export const toLegacyProduct = (p: ProductDTO): LegacyProductShape => ({
   name: p.name,
   description: p.description,
   price: p.price,
-  oldPrice: p.old_price != null ? p.old_price : (p.compare_at_price != null && p.compare_at_price > p.price ? p.compare_at_price : undefined),
+  oldPrice:
+    p.old_price != null
+      ? p.old_price
+      : p.compare_at_price != null && p.compare_at_price > p.price
+        ? p.compare_at_price
+        : undefined,
   stock: p.stock,
-  image: p.images[0] ?? "",
+  image: p.images.find(Boolean) ?? "",
   images: p.images,
   videos: p.videos ?? null,
   media: p.media ?? null,
   rating: p.rating,
   reviews: p.reviews_count,
   categoryId: p.category_id ?? "",
-  badge: p.badge ?? p.tags[0],
+  badge: explicitBadge(p),
   videoPlaybackId: p.video_playback_id ?? undefined,
-  // Prefer model_3d_url (AI-generated) over model_url (manual upload)
   modelUrl: p.model_3d_url ?? p.model_url ?? null,
-  // SEO / Merchant Center fields
   sku: p.sku ?? null,
   brand: p.brand ?? null,
   condition: p.condition ?? null,
@@ -190,7 +163,7 @@ export type LegacyCategoryShape = {
 };
 
 export const toLegacyCategory = (c: CategoryWithMetaDTO): LegacyCategoryShape => ({
-  id: c.slug, // legacy code uses slug as id
+  id: c.slug,
   name: c.name,
   icon: c.icon ?? "Package",
   color: c.color ?? "from-slate-500 to-slate-700",
