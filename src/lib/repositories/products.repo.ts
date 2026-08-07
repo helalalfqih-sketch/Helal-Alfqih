@@ -105,9 +105,7 @@ export function buildProductMediaAndVideos(r: ProductMediaSource): {
   const fallbackPoster = rawImages[0] || (typeof r.image === "string" ? r.image : null);
 
   if (Array.isArray(r.product_media) && r.product_media.length > 0) {
-    const sortedPM = [...r.product_media].sort(
-      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
-    );
+    const sortedPM = [...r.product_media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     for (const pm of sortedPM) {
       const file = pm.media_files;
       if (!file?.file_url) continue;
@@ -147,9 +145,7 @@ export function buildProductMediaAndVideos(r: ProductMediaSource): {
       const isUrl = isVideoUrl(vId) || vId.startsWith("http");
       const vUrl = isUrl ? vId : `https://stream.mux.com/${vId}.m3u8`;
       const muxId = extractMuxId(vId) || extractMuxId(vUrl) || (!isUrl ? vId : null);
-      const posterUrl = muxId
-        ? `https://image.mux.com/${muxId}/thumbnail.webp`
-        : fallbackPoster;
+      const posterUrl = muxId ? `https://image.mux.com/${muxId}/thumbnail.webp` : fallbackPoster;
       if (!seenUrls.has(vUrl)) {
         seenUrls.add(vUrl);
         mediaItems.push({ type: "video", url: vUrl, poster: posterUrl, playbackId: muxId });
