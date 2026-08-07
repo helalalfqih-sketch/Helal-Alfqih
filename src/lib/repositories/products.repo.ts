@@ -1,6 +1,5 @@
 /**
  * Products Repository — the ONLY module allowed to query `products` table.
- * All UI/services go through here. Never call supabase.from('products') from UI.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -29,9 +28,7 @@ export function extractMuxId(url?: string | null): string | null {
       trimmed.startsWith("mux-playback-") ||
       trimmed.startsWith("test-") ||
       trimmed.includes(" ")
-    ) {
-      return null;
-    }
+    ) return null;
     return trimmed;
   }
   return null;
@@ -44,22 +41,19 @@ export function buildProductMediaAndVideos(r: any): {
 } {
   const mediaItems: ProductMediaItem[] = [];
   const seenUrls = new Set<string>();
-
   const rawImages: string[] = Array.isArray(r.images) ? r.images.filter(Boolean) : [];
   const fallbackPoster = rawImages[0] || (typeof r.image === "string" ? r.image : null);
 
-  // 1. Process joined product_media records if present
   if (Array.isArray(r.product_media) && r.product_media.length > 0) {
     const sortedPM = [...r.product_media].sort(
-      (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
     );
     for (const pm of sortedPM) {
       const file = pm.media_files;
-      if (!file || !file.file_url) continue;
+      if (!file?.file_url) continue;
       const fileUrl: string = file.file_url;
       if (seenUrls.has(fileUrl)) continue;
       seenUrls.add(fileUrl);
-
       const isVid = file.file_type === "video" || isVideoUrl(fileUrl);
       if (isVid) {
         mediaItems.push({
@@ -69,29 +63,19 @@ export function buildProductMediaAndVideos(r: any): {
           playbackId: extractMuxId(fileUrl) || extractMuxId(r.video_playback_id),
         });
       } else {
-        mediaItems.push({
-          type: "image",
-          url: fileUrl,
-        });
+        mediaItems.push({ type: "image", url: fileUrl });
       }
     }
   }
 
-  // 2. Fallback / Supplement: Explicit videos array
   if (Array.isArray(r.videos)) {
     for (const vUrl of r.videos) {
       if (!vUrl || typeof vUrl !== "string" || seenUrls.has(vUrl)) continue;
       seenUrls.add(vUrl);
-      mediaItems.push({
-        type: "video",
-        url: vUrl,
-        poster: fallbackPoster,
-        playbackId: extractMuxId(vUrl),
-      });
+      mediaItems.push({ type: "video", url: vUrl, poster: fallbackPoster, playbackId: extractMuxId(vUrl) });
     }
   }
 
-  // 3. Fallback / Supplement: video_playback_id column
   if (r.video_playback_id && typeof r.video_playback_id === "string") {
     const vId = r.video_playback_id.trim();
     if (vId) {
@@ -99,64 +83,34 @@ export function buildProductMediaAndVideos(r: any): {
       const vUrl = isUrl ? vId : `https://stream.mux.com/${vId}.m3u8`;
       const muxId = extractMuxId(vId) || extractMuxId(vUrl) || (!isUrl ? vId : null);
       const posterUrl = muxId ? `https://image.mux.com/${muxId}/thumbnail.webp` : fallbackPoster;
-
       if (!seenUrls.has(vUrl)) {
         seenUrls.add(vUrl);
-        mediaItems.push({
-          type: "video",
-          url: vUrl,
-          poster: posterUrl,
-          playbackId: muxId,
-        });
+        mediaItems.push({ type: "video", url: vUrl, poster: posterUrl, playbackId: muxId });
       }
     }
   }
 
-  // 4. Fallback / Supplement: source_url column (often holds video links)
   if (r.source_url && typeof r.source_url === "string" && isVideoUrl(r.source_url)) {
     const sUrl = r.source_url.trim();
     if (!seenUrls.has(sUrl)) {
       seenUrls.add(sUrl);
-      mediaItems.push({
-        type: "video",
-        url: sUrl,
-        poster: fallbackPoster,
-        playbackId: extractMuxId(sUrl),
-      });
+      mediaItems.push({ type: "video", url: sUrl, poster: fallbackPoster, playbackId: extractMuxId(sUrl) });
     }
   }
 
-  // 5. Fallback / Supplement: images array (check if any entry is actually a video vs image)
   for (const imgUrl of rawImages) {
     if (seenUrls.has(imgUrl)) continue;
     seenUrls.add(imgUrl);
     if (isVideoUrl(imgUrl)) {
-      mediaItems.push({
-        type: "video",
-        url: imgUrl,
-        poster: fallbackPoster,
-        playbackId: extractMuxId(imgUrl),
-      });
+      mediaItems.push({ type: "video", url: imgUrl, poster: fallbackPoster, playbackId: extractMuxId(imgUrl) });
     } else {
-      mediaItems.push({
-        type: "image",
-        url: imgUrl,
-      });
+      mediaItems.push({ type: "image", url: imgUrl });
     }
   }
 
-  // Extract separate arrays for backwards compatibility
   const cleanImages = mediaItems.filter((m) => m.type === "image").map((m) => m.url);
   const cleanVideos = mediaItems.filter((m) => m.type === "video").map((m) => m.url);
-
-  // If no images were classified in mediaItems, fallback to rawImages
-  const finalImages = cleanImages.length > 0 ? cleanImages : rawImages;
-
-  return {
-    images: finalImages,
-    videos: cleanVideos,
-    media: mediaItems,
-  };
+  return { images: cleanImages.length > 0 ? cleanImages : rawImages, videos: cleanVideos, media: mediaItems };
 }
 
 const toDTO = (r: any): ProductDTO => {
@@ -203,19 +157,47 @@ const toDTO = (r: any): ProductDTO => {
   };
 };
 
-const SELECT_MEDIA_JOIN = `
-  *,
-  product_media (
-    sort_order,
-    media_files (
-      id,
-      file_url,
-      file_type,
-      thumbnail_url,
-      sequence_number
-    )
-  )
-`;
+/**
+ * Production does not reliably expose product_media -> media_files as an embedded
+ * PostgREST relation. Hydrate the verified product_id/media_id link explicitly so
+ * media survives even when the embedded relation is absent from the schema cache.
+ */
+async function hydrateProductMedia(db: DB, rows: any[]): Promise<any[]> {
+  if (rows.length === 0) return rows;
+  const productIds = rows.map((row) => row.id).filter(Boolean);
+  if (productIds.length === 0) return rows;
+
+  const untypedDb = db as any;
+  const { data: links, error: linksError } = await untypedDb
+    .from("product_media")
+    .select("product_id, media_id, sort_order")
+    .in("product_id", productIds)
+    .order("sort_order", { ascending: true });
+
+  if (linksError || !links?.length) return rows;
+
+  const mediaIds = [...new Set(links.map((link: any) => link.media_id).filter(Boolean))];
+  if (mediaIds.length === 0) return rows;
+
+  const { data: files, error: filesError } = await untypedDb
+    .from("media_files")
+    .select("id, file_url, file_type, thumbnail_url, sequence_number")
+    .in("id", mediaIds);
+
+  if (filesError || !files?.length) return rows;
+
+  const filesById = new Map(files.map((file: any) => [file.id, file]));
+  const linksByProduct = new Map<string, any[]>();
+  for (const link of links) {
+    const file = filesById.get(link.media_id);
+    if (!file) continue;
+    const current = linksByProduct.get(link.product_id) ?? [];
+    current.push({ sort_order: link.sort_order, media_files: file });
+    linksByProduct.set(link.product_id, current);
+  }
+
+  return rows.map((row) => ({ ...row, product_media: linksByProduct.get(row.id) ?? [] }));
+}
 
 export interface ProductFilters {
   tenantId?: string;
@@ -226,91 +208,47 @@ export interface ProductFilters {
   includeUnpublished?: boolean;
 }
 
-export type ProductCreateInput = Omit<
-  Database["public"]["Tables"]["products"]["Insert"],
-  "tenant_id"
->;
+export type ProductCreateInput = Omit<Database["public"]["Tables"]["products"]["Insert"], "tenant_id">;
 
 export const productsRepo = {
   async list(db: DB, filters: ProductFilters = {}): Promise<ProductDTO[]> {
-    let q: any;
-    try {
-      q = db.from("products").select(SELECT_MEDIA_JOIN).order("created_at", { ascending: false });
-    } catch {
-      q = db.from("products").select("*").order("created_at", { ascending: false });
-    }
-
+    let q: any = db.from("products").select("*").order("created_at", { ascending: false });
     if (filters.tenantId) q = q.eq("tenant_id", filters.tenantId);
     if (!filters.includeUnpublished) q = q.eq("is_published", true);
     if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
     if (filters.search) q = q.ilike("name", `%${filters.search}%`);
     if (filters.limit) q = q.limit(filters.limit);
-    if (filters.offset != null && filters.limit) {
-      q = q.range(filters.offset, filters.offset + filters.limit - 1);
-    }
-    let { data, error } = await q;
+    if (filters.offset != null && filters.limit) q = q.range(filters.offset, filters.offset + filters.limit - 1);
 
-    if (error && error.message?.includes("product_media")) {
-      // Fallback query if product_media table/relation query errors out
-      let fallbackQ = db.from("products").select("*").order("created_at", { ascending: false });
-      if (filters.tenantId) fallbackQ = fallbackQ.eq("tenant_id", filters.tenantId);
-      if (!filters.includeUnpublished) fallbackQ = fallbackQ.eq("is_published", true);
-      if (filters.categoryId) fallbackQ = fallbackQ.eq("category_id", filters.categoryId);
-      if (filters.search) fallbackQ = fallbackQ.ilike("name", `%${filters.search}%`);
-      if (filters.limit) fallbackQ = fallbackQ.limit(filters.limit);
-      if (filters.offset != null && filters.limit) {
-        fallbackQ = fallbackQ.range(filters.offset, filters.offset + filters.limit - 1);
-      }
-      const res = await fallbackQ;
-      data = res.data;
-      error = res.error;
-    }
-
+    const { data, error } = await q;
     if (error) throw error;
-    return (data ?? []).map(toDTO);
+    const hydrated = await hydrateProductMedia(db, data ?? []);
+    return hydrated.map(toDTO);
   },
 
   async getBySlug(db: DB, slug: string, tenantId?: string): Promise<ProductDTO | null> {
-    let q: any = db.from("products").select(SELECT_MEDIA_JOIN).eq("slug", slug);
+    let q: any = db.from("products").select("*").eq("slug", slug);
     if (tenantId) q = q.eq("tenant_id", tenantId);
-    let { data, error } = await q.maybeSingle();
-
-    if (error && error.message?.includes("product_media")) {
-      let fallbackQ = db.from("products").select("*").eq("slug", slug);
-      if (tenantId) fallbackQ = fallbackQ.eq("tenant_id", tenantId);
-      const res = await fallbackQ.maybeSingle();
-      data = res.data;
-      error = res.error;
-    }
-
+    const { data, error } = await q.maybeSingle();
     if (error) throw error;
-    return data ? toDTO(data) : null;
+    if (!data) return null;
+    const [hydrated] = await hydrateProductMedia(db, [data]);
+    return toDTO(hydrated);
   },
 
   async getById(db: DB, id: string, tenantId?: string): Promise<ProductDTO | null> {
-    let q: any = db.from("products").select(SELECT_MEDIA_JOIN).eq("id", id);
+    let q: any = db.from("products").select("*").eq("id", id);
     if (tenantId) q = q.eq("tenant_id", tenantId);
-    let { data, error } = await q.maybeSingle();
-
-    if (error && error.message?.includes("product_media")) {
-      let fallbackQ = db.from("products").select("*").eq("id", id);
-      if (tenantId) fallbackQ = fallbackQ.eq("tenant_id", tenantId);
-      const res = await fallbackQ.maybeSingle();
-      data = res.data;
-      error = res.error;
-    }
-
+    const { data, error } = await q.maybeSingle();
     if (error) throw error;
-    return data ? toDTO(data) : null;
+    if (!data) return null;
+    const [hydrated] = await hydrateProductMedia(db, [data]);
+    return toDTO(hydrated);
   },
 
   async create(db: DB, tenantId: string, input: ProductCreateInput): Promise<ProductDTO> {
     if (!tenantId) throw new Error("productsRepo.create: tenantId required");
-    const { data, error } = await db
-      .from("products")
-      .insert({ ...input, tenant_id: tenantId })
-      .select("*")
-      .single();
+    const { data, error } = await db.from("products").insert({ ...input, tenant_id: tenantId }).select("*").single();
     if (error) throw error;
     return toDTO(data);
   },
