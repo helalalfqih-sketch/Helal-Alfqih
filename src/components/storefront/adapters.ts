@@ -36,7 +36,9 @@ export function resolveProductImage(p: LegacyProductShape): string {
 
   if (validImageUrl(p.image)) return p.image;
 
-  const imageMedia = p.media?.find((media) => media.type === "image" && validImageUrl(media.url));
+  const imageMedia = p.media?.find(
+    (media) => media.type === "image" && validImageUrl(media.url),
+  );
   if (imageMedia?.url) return imageMedia.url;
 
   return resolveVideoPoster(p) ?? NEUTRAL_FALLBACK_IMAGE;
@@ -62,7 +64,11 @@ export function resolveProductGallery(p: LegacyProductShape): string[] {
 function isPromotionalBadge(value: string | undefined): value is string {
   if (!value) return false;
   const badge = value.trim();
-  if (!badge || badge.startsWith("_") || /^(color|size|material|pattern|gender|age|gcat|fbcat)_?:/i.test(badge)) {
+  if (
+    !badge ||
+    badge.startsWith("_") ||
+    /^(color|size|material|pattern|gender|age|gcat|fbcat)_?:/i.test(badge)
+  ) {
     return false;
   }
   return /(خصم|عرض|تخفيض|جديد|وصل حديث|new|sale|offer|discount)/i.test(badge);

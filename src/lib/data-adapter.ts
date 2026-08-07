@@ -57,7 +57,8 @@ const seedToCategoryDTO = (c: SeedCategory): CategoryWithMetaDTO => ({
 });
 
 export const fallbackProducts = (): ProductDTO[] => seedProducts.map(seedToProductDTO);
-export const fallbackCategories = (): CategoryWithMetaDTO[] => seedCategories.map(seedToCategoryDTO);
+export const fallbackCategories = (): CategoryWithMetaDTO[] =>
+  seedCategories.map(seedToCategoryDTO);
 
 type Source = "db" | "fallback";
 export type AdapterResult<T> = { data: T; source: Source };

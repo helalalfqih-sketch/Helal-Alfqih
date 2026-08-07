@@ -6,13 +6,62 @@ import type { Database } from "@/integrations/supabase/types";
 import type { ProductDTO, ProductMediaItem } from "@/lib/domain/product";
 
 type DB = SupabaseClient<Database>;
+type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+
+type ProductMediaLink = {
+  product_id: string;
+  media_id: string;
+  sort_order: number | null;
+};
+
+type MediaFile = {
+  id: string;
+  file_url: string;
+  file_type: string | null;
+  thumbnail_url: string | null;
+  sequence_number: number | null;
+};
+
+type JoinedProductMedia = {
+  sort_order: number | null;
+  media_files: MediaFile;
+};
+
+type ProductSourceRow = ProductRow & {
+  image?: string | null;
+  videos?: string[] | null;
+  product_media?: JoinedProductMedia[];
+};
+
+type MediaDatabase = Database & {
+  public: Database["public"] & {
+    Tables: Database["public"]["Tables"] & {
+      product_media: {
+        Row: ProductMediaLink;
+        Insert: ProductMediaLink;
+        Update: Partial<ProductMediaLink>;
+        Relationships: [];
+      };
+      media_files: {
+        Row: MediaFile;
+        Insert: MediaFile;
+        Update: Partial<MediaFile>;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+type MediaDB = SupabaseClient<MediaDatabase>;
 
 export function isVideoUrl(url?: string | null): boolean {
   if (!url || typeof url !== "string") return false;
   const lower = url.trim().toLowerCase();
   if (/\.(mp4|webm|ogg|mov|avi|mkv|m3u8)(\?.*)?$/i.test(lower)) return true;
   if (lower.includes("stream.mux.com") || lower.includes("player.mux.com")) return true;
-  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com")) return true;
+  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com")) {
+    return true;
+  }
   if (lower.startsWith("data:video/")) return true;
   return false;
 }
@@ -22,36 +71,42 @@ export function extractMuxId(url?: string | null): string | null {
   const trimmed = url.trim();
   const m = trimmed.match(/(?:stream\.mux\.com\/|player\.mux\.com\/|mux\.com\/)([A-Za-z0-9]+)/);
   if (m) return m[1];
-  if (!trimmed.includes("http") && !trimmed.includes("/") && /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)) {
+  if (
+    !trimmed.includes("http") &&
+    !trimmed.includes("/") &&
+    /^[A-Za-z0-9_-]{10,40}$/.test(trimmed)
+  ) {
     if (
       trimmed.startsWith("demo-") ||
       trimmed.startsWith("mux-playback-") ||
       trimmed.startsWith("test-") ||
       trimmed.includes(" ")
-    ) return null;
+    ) {
+      return null;
+    }
     return trimmed;
   }
   return null;
 }
 
-export function buildProductMediaAndVideos(r: any): {
+export function buildProductMediaAndVideos(r: ProductSourceRow): {
   images: string[];
   videos: string[];
   media: ProductMediaItem[];
 } {
   const mediaItems: ProductMediaItem[] = [];
   const seenUrls = new Set<string>();
-  const rawImages: string[] = Array.isArray(r.images) ? r.images.filter(Boolean) : [];
+  const rawImages = Array.isArray(r.images) ? r.images.filter(Boolean) : [];
   const fallbackPoster = rawImages[0] || (typeof r.image === "string" ? r.image : null);
 
   if (Array.isArray(r.product_media) && r.product_media.length > 0) {
     const sortedPM = [...r.product_media].sort(
-      (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
     );
     for (const pm of sortedPM) {
       const file = pm.media_files;
       if (!file?.file_url) continue;
-      const fileUrl: string = file.file_url;
+      const fileUrl = file.file_url;
       if (seenUrls.has(fileUrl)) continue;
       seenUrls.add(fileUrl);
       const isVid = file.file_type === "video" || isVideoUrl(fileUrl);
@@ -72,7 +127,12 @@ export function buildProductMediaAndVideos(r: any): {
     for (const vUrl of r.videos) {
       if (!vUrl || typeof vUrl !== "string" || seenUrls.has(vUrl)) continue;
       seenUrls.add(vUrl);
-      mediaItems.push({ type: "video", url: vUrl, poster: fallbackPoster, playbackId: extractMuxId(vUrl) });
+      mediaItems.push({
+        type: "video",
+        url: vUrl,
+        poster: fallbackPoster,
+        playbackId: extractMuxId(vUrl),
+      });
     }
   }
 
@@ -82,7 +142,9 @@ export function buildProductMediaAndVideos(r: any): {
       const isUrl = isVideoUrl(vId) || vId.startsWith("http");
       const vUrl = isUrl ? vId : `https://stream.mux.com/${vId}.m3u8`;
       const muxId = extractMuxId(vId) || extractMuxId(vUrl) || (!isUrl ? vId : null);
-      const posterUrl = muxId ? `https://image.mux.com/${muxId}/thumbnail.webp` : fallbackPoster;
+      const posterUrl = muxId
+        ? `https://image.mux.com/${muxId}/thumbnail.webp`
+        : fallbackPoster;
       if (!seenUrls.has(vUrl)) {
         seenUrls.add(vUrl);
         mediaItems.push({ type: "video", url: vUrl, poster: posterUrl, playbackId: muxId });
@@ -94,7 +156,12 @@ export function buildProductMediaAndVideos(r: any): {
     const sUrl = r.source_url.trim();
     if (!seenUrls.has(sUrl)) {
       seenUrls.add(sUrl);
-      mediaItems.push({ type: "video", url: sUrl, poster: fallbackPoster, playbackId: extractMuxId(sUrl) });
+      mediaItems.push({
+        type: "video",
+        url: sUrl,
+        poster: fallbackPoster,
+        playbackId: extractMuxId(sUrl),
+      });
     }
   }
 
@@ -102,7 +169,12 @@ export function buildProductMediaAndVideos(r: any): {
     if (seenUrls.has(imgUrl)) continue;
     seenUrls.add(imgUrl);
     if (isVideoUrl(imgUrl)) {
-      mediaItems.push({ type: "video", url: imgUrl, poster: fallbackPoster, playbackId: extractMuxId(imgUrl) });
+      mediaItems.push({
+        type: "video",
+        url: imgUrl,
+        poster: fallbackPoster,
+        playbackId: extractMuxId(imgUrl),
+      });
     } else {
       mediaItems.push({ type: "image", url: imgUrl });
     }
@@ -110,10 +182,14 @@ export function buildProductMediaAndVideos(r: any): {
 
   const cleanImages = mediaItems.filter((m) => m.type === "image").map((m) => m.url);
   const cleanVideos = mediaItems.filter((m) => m.type === "video").map((m) => m.url);
-  return { images: cleanImages.length > 0 ? cleanImages : rawImages, videos: cleanVideos, media: mediaItems };
+  return {
+    images: cleanImages.length > 0 ? cleanImages : rawImages,
+    videos: cleanVideos,
+    media: mediaItems,
+  };
 }
 
-const toDTO = (r: any): ProductDTO => {
+const toDTO = (r: ProductSourceRow): ProductDTO => {
   const { images, videos, media } = buildProductMediaAndVideos(r);
   return {
     id: r.id,
@@ -162,13 +238,13 @@ const toDTO = (r: any): ProductDTO => {
  * PostgREST relation. Hydrate the verified product_id/media_id link explicitly so
  * media survives even when the embedded relation is absent from the schema cache.
  */
-async function hydrateProductMedia(db: DB, rows: any[]): Promise<any[]> {
+async function hydrateProductMedia(db: DB, rows: ProductRow[]): Promise<ProductSourceRow[]> {
   if (rows.length === 0) return rows;
   const productIds = rows.map((row) => row.id).filter(Boolean);
   if (productIds.length === 0) return rows;
 
-  const untypedDb = db as any;
-  const { data: links, error: linksError } = await untypedDb
+  const mediaDb = db as unknown as MediaDB;
+  const { data: links, error: linksError } = await mediaDb
     .from("product_media")
     .select("product_id, media_id, sort_order")
     .in("product_id", productIds)
@@ -176,18 +252,18 @@ async function hydrateProductMedia(db: DB, rows: any[]): Promise<any[]> {
 
   if (linksError || !links?.length) return rows;
 
-  const mediaIds = [...new Set(links.map((link: any) => link.media_id).filter(Boolean))];
+  const mediaIds = [...new Set(links.map((link) => link.media_id).filter(Boolean))];
   if (mediaIds.length === 0) return rows;
 
-  const { data: files, error: filesError } = await untypedDb
+  const { data: files, error: filesError } = await mediaDb
     .from("media_files")
     .select("id, file_url, file_type, thumbnail_url, sequence_number")
     .in("id", mediaIds);
 
   if (filesError || !files?.length) return rows;
 
-  const filesById = new Map(files.map((file: any) => [file.id, file]));
-  const linksByProduct = new Map<string, any[]>();
+  const filesById = new Map(files.map((file) => [file.id, file]));
+  const linksByProduct = new Map<string, JoinedProductMedia[]>();
   for (const link of links) {
     const file = filesById.get(link.media_id);
     if (!file) continue;
@@ -208,17 +284,22 @@ export interface ProductFilters {
   includeUnpublished?: boolean;
 }
 
-export type ProductCreateInput = Omit<Database["public"]["Tables"]["products"]["Insert"], "tenant_id">;
+export type ProductCreateInput = Omit<
+  Database["public"]["Tables"]["products"]["Insert"],
+  "tenant_id"
+>;
 
 export const productsRepo = {
   async list(db: DB, filters: ProductFilters = {}): Promise<ProductDTO[]> {
-    let q: any = db.from("products").select("*").order("created_at", { ascending: false });
+    let q = db.from("products").select("*").order("created_at", { ascending: false });
     if (filters.tenantId) q = q.eq("tenant_id", filters.tenantId);
     if (!filters.includeUnpublished) q = q.eq("is_published", true);
     if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
     if (filters.search) q = q.ilike("name", `%${filters.search}%`);
     if (filters.limit) q = q.limit(filters.limit);
-    if (filters.offset != null && filters.limit) q = q.range(filters.offset, filters.offset + filters.limit - 1);
+    if (filters.offset != null && filters.limit) {
+      q = q.range(filters.offset, filters.offset + filters.limit - 1);
+    }
 
     const { data, error } = await q;
     if (error) throw error;
@@ -227,7 +308,7 @@ export const productsRepo = {
   },
 
   async getBySlug(db: DB, slug: string, tenantId?: string): Promise<ProductDTO | null> {
-    let q: any = db.from("products").select("*").eq("slug", slug);
+    let q = db.from("products").select("*").eq("slug", slug);
     if (tenantId) q = q.eq("tenant_id", tenantId);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
@@ -237,7 +318,7 @@ export const productsRepo = {
   },
 
   async getById(db: DB, id: string, tenantId?: string): Promise<ProductDTO | null> {
-    let q: any = db.from("products").select("*").eq("id", id);
+    let q = db.from("products").select("*").eq("id", id);
     if (tenantId) q = q.eq("tenant_id", tenantId);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
@@ -248,7 +329,11 @@ export const productsRepo = {
 
   async create(db: DB, tenantId: string, input: ProductCreateInput): Promise<ProductDTO> {
     if (!tenantId) throw new Error("productsRepo.create: tenantId required");
-    const { data, error } = await db.from("products").insert({ ...input, tenant_id: tenantId }).select("*").single();
+    const { data, error } = await db
+      .from("products")
+      .insert({ ...input, tenant_id: tenantId })
+      .select("*")
+      .single();
     if (error) throw error;
     return toDTO(data);
   },
