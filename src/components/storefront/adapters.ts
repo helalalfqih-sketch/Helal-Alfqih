@@ -1,78 +1,75 @@
 import type { LegacyProductShape, LegacyCategoryShape } from "@/lib/data-adapter";
 import type { Product as DesignProduct, Category as DesignCategory } from "./types";
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&q=80";
+const NEUTRAL_FALLBACK_IMAGE =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'%3E%3Crect width='800' height='800' fill='%23140E24'/%3E%3Cpath d='M270 330h260v180H270z' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3Ccircle cx='350' cy='390' r='34' fill='%236b7280'/%3E%3Cpath d='m290 490 90-90 60 60 45-45 55 75' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3C/svg%3E";
 
 function isVideoUrl(url: string | undefined | null): boolean {
   if (!url) return false;
-  const lower = url.toLowerCase();
+  const lower = url.trim().toLowerCase();
   return (
-    lower.endsWith(".mp4") ||
-    lower.endsWith(".webm") ||
+    /\.(mp4|webm|ogg|mov|avi|mkv|m3u8)(\?.*)?$/i.test(lower) ||
+    lower.includes("stream.mux.com") ||
+    lower.includes("player.mux.com") ||
     lower.includes("/video/upload/") ||
-    lower.includes("videoPlaybackId")
+    lower.includes("videoplaybackid") ||
+    lower.startsWith("data:video/")
   );
 }
 
-/**
- * Resolves the primary product image using priority order:
- * Primary Product Media -> Product Image -> Media Thumbnail -> Fallback Image.
- * Ensures video URLs are never used as image src.
- */
-
-export function resolveProductImage(p: LegacyProductShape): string {
-  // 1. Check p.media array for explicit image type or video thumbnail
-  if (p.media && p.media.length > 0) {
-    const imgMedia = p.media.find((m) => m.type === "image" && m.url && !isVideoUrl(m.url));
-    if (imgMedia?.url) return imgMedia.url;
-
-    const vidMedia = p.media.find((m) => m.type === "video");
-    if (vidMedia) {
-      const vidObj = vidMedia as Record<string, unknown>;
-      if (typeof vidObj.poster === "string") return vidObj.poster;
-      if (typeof vidObj.thumbnailUrl === "string") return vidObj.thumbnailUrl;
-      if (typeof vidObj.thumbnail === "string") return vidObj.thumbnail;
-    }
-  }
-
-  // 2. Check p.image
-  if (p.image && !isVideoUrl(p.image)) {
-    return p.image;
-  }
-
-  // 3. Check p.images array for valid non-video image
-  if (p.images && p.images.length > 0) {
-    const validImg = p.images.find((img) => img && !isVideoUrl(img));
-    if (validImg) return validImg;
-  }
-
-  return FALLBACK_IMAGE;
+function validImageUrl(url: string | undefined | null): url is string {
+  return Boolean(url?.trim()) && !isVideoUrl(url);
 }
 
-/**
- * Resolves gallery images excluding video files.
- */
+function resolveVideoPoster(p: LegacyProductShape): string | undefined {
+  for (const media of p.media ?? []) {
+    if (media.type !== "video") continue;
+    if (validImageUrl(media.poster)) return media.poster;
+  }
+  return undefined;
+}
+
+/** Production media priority: primary DTO image -> legacy image -> image media -> video poster -> neutral fallback. */
+export function resolveProductImage(p: LegacyProductShape): string {
+  const primaryDtoImage = p.images?.find(validImageUrl);
+  if (primaryDtoImage) return primaryDtoImage;
+
+  if (validImageUrl(p.image)) return p.image;
+
+  const imageMedia = p.media?.find((media) => media.type === "image" && validImageUrl(media.url));
+  if (imageMedia?.url) return imageMedia.url;
+
+  return resolveVideoPoster(p) ?? NEUTRAL_FALLBACK_IMAGE;
+}
+
 export function resolveProductGallery(p: LegacyProductShape): string[] {
-  const mainImg = resolveProductImage(p);
-  const gallery: string[] = [mainImg];
+  const gallery: string[] = [];
+  const add = (url: string | undefined | null) => {
+    if (validImageUrl(url) && !gallery.includes(url)) gallery.push(url);
+  };
 
-  if (p.images && p.images.length > 0) {
-    p.images.forEach((img) => {
-      if (img && !isVideoUrl(img) && !gallery.includes(img)) {
-        gallery.push(img);
-      }
-    });
-  }
+  p.images?.forEach(add);
+  add(p.image);
+  p.media?.forEach((media) => {
+    if (media.type === "image") add(media.url);
+  });
+  add(resolveVideoPoster(p));
 
-  if (p.media && p.media.length > 0) {
-    p.media.forEach((m) => {
-      if (m.type === "image" && m.url && !isVideoUrl(m.url) && !gallery.includes(m.url)) {
-        gallery.push(m.url);
-      }
-    });
-  }
-
+  if (gallery.length === 0) gallery.push(NEUTRAL_FALLBACK_IMAGE);
   return gallery;
+}
+
+function isPromotionalBadge(value: string | undefined): value is string {
+  if (!value) return false;
+  const badge = value.trim();
+  if (
+    !badge ||
+    badge.startsWith("_") ||
+    /^(color|size|material|pattern|gender|age|gcat|fbcat)_?:/i.test(badge)
+  ) {
+    return false;
+  }
+  return /(خصم|عرض|تخفيض|جديد|وصل حديث|new|sale|offer|discount)/i.test(badge);
 }
 
 export function mapProductionProductToDesignProduct(p: LegacyProductShape): DesignProduct {
@@ -92,7 +89,9 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
   const discountBadge =
     rawOldPrice && rawOldPrice > priceYER
       ? `خصم ${Math.round(((rawOldPrice - priceYER) / rawOldPrice) * 100)}%`
-      : p.badge || undefined;
+      : isPromotionalBadge(p.badge)
+        ? p.badge
+        : undefined;
 
   const mainImage = resolveProductImage(p);
   const gallery = resolveProductGallery(p);
