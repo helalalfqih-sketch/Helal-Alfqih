@@ -42,7 +42,7 @@ export function parseAndValidateBase64Image(base64Str: string): {
   sizeBytes: number;
 } | null {
   try {
-    const matches = base64Str.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.+)$/);
+    const matches = base64Str.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
       return null;
     }

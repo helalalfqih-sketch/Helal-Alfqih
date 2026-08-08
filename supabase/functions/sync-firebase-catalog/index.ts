@@ -1,7 +1,28 @@
-// @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-declare const Deno: any;
+declare const Deno: {
+  serve: (handler: (req: Request) => Promise<Response>) => void;
+  env: { get: (key: string) => string | undefined };
+};
+
+interface CatalogProduct {
+  id?: string;
+  external_id?: string;
+  title?: string;
+  name?: string;
+  slug?: string;
+  price?: number | string;
+  description?: string;
+  status?: string;
+  images?: string[];
+  image_url?: string;
+}
+
+interface SyncPayload {
+  tenant_id?: string;
+  catalog_url?: string;
+  products?: CatalogProduct[];
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -25,10 +46,10 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    let payload: any = {};
+    let payload: SyncPayload = {};
     if (req.method === "POST") {
       try {
-        payload = await req.json();
+        payload = (await req.json()) as SyncPayload;
       } catch {
         payload = {};
       }
