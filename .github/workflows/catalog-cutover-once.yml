@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   cutover:
-    if: github.event.head_commit.message == 'chore(catalog): run one-time Supabase cutover'
+    if: "github.event.head_commit.message == 'chore(catalog): run one-time Supabase cutover'"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,7 +37,6 @@ jobs:
           s = path.read_text(encoding='utf-8')
           original = s
 
-          # 1) CSV-only types no longer belong in runtime catalog reads.
           s, n = re.subn(
               r'type ProductInsert = Database\["public"\]\["Tables"\]\["products"\]\["Insert"\];\n'
               r'type CsvProduct = ProductDTO & \{ category_name: string \};\n'
@@ -49,7 +48,6 @@ jobs:
           )
           assert n == 1, 'CSV type block not found exactly once'
 
-          # 2) Remove Firebase CSV parser/fetcher from runtime catalog module.
           s, n = re.subn(
               r'// -------- CSV Feed Parser & Helpers for storefront --------.*?'
               r'// ============ PUBLIC READS ============',
@@ -60,7 +58,6 @@ jobs:
           )
           assert n == 1, 'CSV helper block not found exactly once'
 
-          # 3) Storefront product list: Supabase only.
           list_products = '''export const listProducts = createServerFn({ method: "GET" })
             .inputValidator((raw: unknown) =>
               z
@@ -105,7 +102,6 @@ jobs:
           )
           assert n == 1, 'listProducts block not found exactly once'
 
-          # 4) Product detail lookup: no Firebase fallback.
           get_product = '''export const getProductBySlug = createServerFn({ method: "GET" })
             .inputValidator((raw: unknown) =>
               z.object({ slug: z.string(), tenantId: z.string().uuid().optional() }).parse(raw),
@@ -127,7 +123,6 @@ jobs:
           )
           assert n == 1, 'getProductBySlug block not found exactly once'
 
-          # 5) Categories: Supabase only.
           list_categories = '''export const listCategories = createServerFn({ method: "GET" })
             .inputValidator((raw: unknown) =>
               z.object({ tenantId: z.string().uuid().optional() }).parse(raw ?? {}),
@@ -149,7 +144,6 @@ jobs:
           )
           assert n == 1, 'listCategories block not found exactly once'
 
-          # 6) Admin product listing: Supabase only; retain existing post-query filters/pagination.
           admin_prefix = '''    // Supabase is the operational source of truth for admin catalog reads.
               let filtered = await productsRepo.list(ctx.supabase, {
                 tenantId,
