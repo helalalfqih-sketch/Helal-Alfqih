@@ -1,0 +1,200 @@
+name: One-time catalog Supabase cutover
+
+on:
+  push:
+    branches:
+      - fix/catalog-supabase-source-of-truth
+
+permissions:
+  contents: write
+
+jobs:
+  cutover:
+    if: github.event.head_commit.message == 'chore(catalog): run one-time Supabase cutover'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/catalog-supabase-source-of-truth
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Remove request-time Firebase CSV reads
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('src/lib/catalog.functions.ts')
+          s = path.read_text(encoding='utf-8')
+          original = s
+
+          # 1) CSV-only types no longer belong in runtime catalog reads.
+          s, n = re.subn(
+              r'type ProductInsert = Database\["public"\]\["Tables"\]\["products"\]\["Insert"\];\n'
+              r'type CsvProduct = ProductDTO & \{ category_name: string \};\n'
+              r'type CsvCategory = \{.*?\n\};\n\n',
+              'type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];\n\n',
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'CSV type block not found exactly once'
+
+          # 2) Remove Firebase CSV parser/fetcher from runtime catalog module.
+          s, n = re.subn(
+              r'// -------- CSV Feed Parser & Helpers for storefront --------.*?'
+              r'// ============ PUBLIC READS ============',
+              '// ============ PUBLIC READS ============',
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'CSV helper block not found exactly once'
+
+          # 3) Storefront product list: Supabase only.
+          list_products = '''export const listProducts = createServerFn({ method: "GET" })
+            .inputValidator((raw: unknown) =>
+              z
+                .object({
+                  tenantId: z.string().uuid().optional(),
+                  categoryId: z.string().optional(),
+                  search: z.string().optional(),
+                  limit: z.number().int().min(1).max(100).optional(),
+                  offset: z.number().int().min(0).optional(),
+                })
+                .parse(raw ?? {}),
+            )
+            .handler(async ({ data }) => {
+              const db = publicClient();
+              const tenantId = await resolvePublicTenant(db, data.tenantId ?? null);
+              const products = await productsRepo.list(db, {
+                tenantId,
+                categoryId: data.categoryId,
+                search: data.search,
+              });
+
+              if (data.offset != null && data.limit) {
+                return products.slice(data.offset, data.offset + data.limit);
+              }
+              if (data.offset != null) {
+                return products.slice(data.offset);
+              }
+              if (data.limit) {
+                return products.slice(0, data.limit);
+              }
+              return products;
+            });
+
+          '''
+          s, n = re.subn(
+              r'export const listProducts = createServerFn\(\{ method: "GET" \}\).*?'
+              r'(?=export const getProductBySlug)',
+              list_products,
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'listProducts block not found exactly once'
+
+          # 4) Product detail lookup: no Firebase fallback.
+          get_product = '''export const getProductBySlug = createServerFn({ method: "GET" })
+            .inputValidator((raw: unknown) =>
+              z.object({ slug: z.string(), tenantId: z.string().uuid().optional() }).parse(raw),
+            )
+            .handler(async ({ data }) => {
+              const db = publicClient();
+              const tenantId = await resolvePublicTenant(db, data.tenantId ?? null);
+              return productsRepo.getBySlug(db, data.slug, tenantId);
+            });
+
+          '''
+          s, n = re.subn(
+              r'export const getProductBySlug = createServerFn\(\{ method: "GET" \}\).*?'
+              r'(?=/\*\*\n \* getProductsByIds)',
+              get_product,
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'getProductBySlug block not found exactly once'
+
+          # 5) Categories: Supabase only.
+          list_categories = '''export const listCategories = createServerFn({ method: "GET" })
+            .inputValidator((raw: unknown) =>
+              z.object({ tenantId: z.string().uuid().optional() }).parse(raw ?? {}),
+            )
+            .handler(async ({ data }) => {
+              const db = publicClient();
+              const tenantId = await resolvePublicTenant(db, data.tenantId);
+              return categoriesRepo.list(db, { tenantId, includeInactive: false });
+            });
+
+          '''
+          s, n = re.subn(
+              r'export const listCategories = createServerFn\(\{ method: "GET" \}\).*?'
+              r'(?=export const getCategoryBySlug)',
+              list_categories,
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'listCategories block not found exactly once'
+
+          # 6) Admin product listing: Supabase only; retain existing post-query filters/pagination.
+          admin_prefix = '''    // Supabase is the operational source of truth for admin catalog reads.
+              let filtered = await productsRepo.list(ctx.supabase, {
+                tenantId,
+                search: data.search,
+                categoryId: data.categoryId,
+              });
+
+              if (data.publishedOnly)'''
+          s, n = re.subn(
+              r'    // ── 1\. Fetch Supabase products.*?'
+              r'    if \(data\.publishedOnly\)',
+              admin_prefix,
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'admin CSV merge block not found exactly once'
+
+          assert 'fetchCsvProducts' not in s, 'Runtime CSV fetch reference remains'
+          assert 'CATALOG_IMPORT_URL' not in s, 'Runtime catalog URL reference remains'
+          assert s != original, 'No changes were made'
+          path.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Format and validate cutover
+        run: |
+          npx prettier --write src/lib/catalog.functions.ts
+          npx prettier --check src/lib/catalog.functions.ts
+          npx eslint --max-warnings=0 src/lib/catalog.functions.ts
+          npm run typecheck
+          npm run test:unit
+          npm run test:integration
+          npm run test:security
+          npm run build
+          git diff --check
+
+      - name: Commit Supabase-only storefront cutover
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No diff after cutover; refusing to create empty commit.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/catalog.functions.ts
+          git commit -m 'fix(catalog): make storefront reads Supabase-only'
+          git push origin HEAD:fix/catalog-supabase-source-of-truth
