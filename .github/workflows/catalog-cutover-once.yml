@@ -41,7 +41,7 @@ jobs:
               r'type ProductInsert = Database\["public"\]\["Tables"\]\["products"\]\["Insert"\];\n'
               r'type CsvProduct = ProductDTO & \{ category_name: string \};\n'
               r'type CsvCategory = \{.*?\n\};\n\n',
-              'type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];\n\n',
+              '',
               s,
               count=1,
               flags=re.S,
@@ -82,12 +82,8 @@ jobs:
               if (data.offset != null && data.limit) {
                 return products.slice(data.offset, data.offset + data.limit);
               }
-              if (data.offset != null) {
-                return products.slice(data.offset);
-              }
-              if (data.limit) {
-                return products.slice(0, data.limit);
-              }
+              if (data.offset != null) return products.slice(data.offset);
+              if (data.limit) return products.slice(0, data.limit);
               return products;
             });
 
@@ -162,8 +158,92 @@ jobs:
           )
           assert n == 1, 'admin CSV merge block not found exactly once'
 
+          auto_categorize = '''export const adminAutoCategorizeProducts = createServerFn({ method: "POST" })
+            .middleware([requireSupabaseAuth])
+            .inputValidator((raw: unknown) =>
+              z.object({ tenantId: z.string().uuid().optional() }).parse(raw ?? {}),
+            )
+            .handler(async ({ data, context }) => {
+              const ctx = context;
+              await assertAdmin(ctx);
+              const tenantId = await resolveAdminTenant(ctx, data.tenantId);
+
+              let dbCategories = await categoriesRepo.list(ctx.supabase, {
+                tenantId,
+                includeInactive: true,
+              });
+
+              if (!dbCategories || dbCategories.length === 0) {
+                const defaultCats = [
+                  { name: "إلكترونيات", slug: "electronics", icon: "Smartphone", color: "purple" },
+                  { name: "الجمال والعناية", slug: "beauty-care", icon: "Sparkles", color: "pink" },
+                  { name: "المطبخ والأواني", slug: "kitchen", icon: "Utensils", color: "orange" },
+                  { name: "التنظيم والتخزين", slug: "storage-organization", icon: "Archive", color: "yellow" },
+                  { name: "الصحة والمساج", slug: "health-massage", icon: "Activity", color: "red" },
+                  { name: "الرياضة واللياقة", slug: "sports-fitness", icon: "Flame", color: "emerald" },
+                  { name: "السيارات والإكسسوارات", slug: "automotive", icon: "Car", color: "blue" },
+                  { name: "الأطفال والألعاب", slug: "kids-toys", icon: "Baby", color: "cyan" },
+                ];
+                for (let i = 0; i < defaultCats.length; i++) {
+                  const cat = defaultCats[i];
+                  try {
+                    await categoriesRepo.create(ctx.supabase, tenantId, {
+                      name: cat.name,
+                      slug: cat.slug,
+                      icon: cat.icon,
+                      color: cat.color,
+                      is_active: true,
+                      sort: i,
+                    });
+                  } catch {
+                    // Category may already exist; refresh below.
+                  }
+                }
+                dbCategories = await categoriesRepo.list(ctx.supabase, {
+                  tenantId,
+                  includeInactive: true,
+                });
+              }
+
+              const catMap = new Map<string, string>();
+              for (const category of dbCategories) {
+                catMap.set(category.slug.toLowerCase(), category.id);
+              }
+              const defaultCatId = dbCategories[0]?.id;
+              const products = await productsRepo.list(ctx.supabase, { tenantId });
+              let categorizedCount = 0;
+
+              for (const product of products) {
+                const slugMatch = inferCategorySlug(
+                  product.name,
+                  product.tags ?? [],
+                  product.description ?? "",
+                );
+                const categoryId = catMap.get(slugMatch) ?? defaultCatId;
+                if (!categoryId || product.category_id === categoryId) continue;
+                await productsRepo.update(ctx.supabase, tenantId, product.id, {
+                  category_id: categoryId,
+                });
+                categorizedCount++;
+              }
+
+              return { total: products.length, categorizedCount };
+            });
+
+          '''
+          s, n = re.subn(
+              r'export const adminAutoCategorizeProducts = createServerFn\(\{ method: "POST" \}\).*?'
+              r'(?=export const adminBulkAssignCategory)',
+              auto_categorize,
+              s,
+              count=1,
+              flags=re.S,
+          )
+          assert n == 1, 'adminAutoCategorizeProducts block not found exactly once'
+
           assert 'fetchCsvProducts' not in s, 'Runtime CSV fetch reference remains'
           assert 'CATALOG_IMPORT_URL' not in s, 'Runtime catalog URL reference remains'
+          assert 'CsvProduct' not in s, 'CSV runtime type reference remains'
           assert s != original, 'No changes were made'
           path.write_text(s, encoding='utf-8')
           PY
