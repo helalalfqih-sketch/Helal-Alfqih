@@ -1,7 +1,63 @@
 import React, { useState } from 'react';
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingBag,
+  FolderTree,
+  Settings,
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  Truck,
+  XCircle,
+  TrendingUp,
+  DollarSign,
+  Users,
+  Eye,
+  RefreshCw,
+  ExternalLink,
+  Phone,
+  MapPin,
+  Sparkles,
+  ShieldCheck,
+  Check,
+  Tag,
+  Store,
+  Layers,
+  ArrowLeft,
+  X,
+  AlertCircle,
+  Lock,
+  LogOut,
+  User,
+  Key,
+  Image as ImageIcon,
+  Percent,
+  Ticket,
+  Boxes,
+  Flame,
+  Gift
+} from 'lucide-react';
 import { Product, OrderStatus, Currency } from './types';
-import { Phone, Settings, Sparkles, X } from 'lucide-react';
-const CATEGORIES = ['all', 'electronics', 'audio', 'smartwatches', 'appliances', 'perfumes'];
+import { formatPrice } from './currency';
+
+const CATEGORIES = [
+  { id: 'all', name: 'الكل' },
+  { id: 'electronics', name: 'إلكترونيات' },
+  { id: 'audio', name: 'صوتيات' },
+  { id: 'smartwatches', name: 'ساعات ذكية' },
+  { id: 'appliances', name: 'أجهزة منزلية' },
+  { id: 'perfumes', name: 'عطور وخلايا' }
+];
+
+const saveFirestoreProduct = async (_p: Partial<Product>) => {};
+const deleteFirestoreProduct = async (_id: string) => {};
+const updateFirestoreOrderStatus = async (_id: string, _status: string) => {};
+const deleteFirestoreOrder = async (_id: string) => {};
+const seedInitialProductsIfNeeded = async () => {};
 
 interface AdminPanelProps {
   products: Product[];
