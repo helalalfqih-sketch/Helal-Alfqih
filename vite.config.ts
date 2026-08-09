@@ -1,22 +1,59 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig(() => {
-  return {
-    plugins: [react(), tailwindcss()],
+process.env.NITRO_PRESET = process.env.VERCEL ? "vercel" : "node-server";
+
+export default defineConfig({
+  tanstackStart: {
+    ssr: false,
+    server: { entry: "server" },
+  },
+  vite: {
+    base: process.env.VERCEL ? "/" : "/app/",
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
+      dedupe: ["three"],
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
+    plugins: [
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: false,
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          cleanupOutdatedCaches: true,
+          navigateFallbackDenylist: [
+            /\/api\//,
+            /supabase\.co\/auth\//,
+            /supabase\.co\/rest\/v1\//,
+            /supabase\.co\/storage\/v1\/object\/authenticated/,
+            /supabase\.co\/functions\/v1\//,
+          ],
+          runtimeCaching: [
+            {
+              // Public storage assets ONLY — NEVER cache /auth/, /rest/v1/, or authenticated objects
+              urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "supabase-public-storage-cache",
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|webp|gif)/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "image-cache",
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ],
+  },
 });

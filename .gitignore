@@ -1,8 +1,53 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+# Credentials & Secret Keys
+*-*.json
+*.pem
+*.key
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.local
+.env.*.local
+*.local
+
+# Logs
+logs
 *.log
-.env*
-!.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Production/Build outputs
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+.vercel/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Quality Reports
+reports/
+playwright-report/
+test-results/

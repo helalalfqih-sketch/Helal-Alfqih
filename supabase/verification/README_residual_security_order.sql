@@ -1,0 +1,3 @@
+-- This file intentionally exists to make the migration ordering explicit to reviewers.
+-- Apply 20260731000000_p0_production_hardening.sql before
+-- 20260731000001_residual_security_hardening.sql.

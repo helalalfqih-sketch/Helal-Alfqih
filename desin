@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            appbg: "#08060F",
+            cardbg: "#100B1A",
+            primary: {
+              DEFAULT: "#7B3FFF",
+              light: "#9A66FF",
+              dark: "#5A24E0"
+            }
+          },
+          fontFamily: {
+            sans: ['IBM Plex Sans Arabic', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      background-color: #08060F;
+      color: #FFFFFF;
+      font-family: 'IBM Plex Sans Arabic', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .glow-neon {
+      box-shadow: 0 0 15px rgba(123, 63, 255, 0.5);
+    }
+    .glow-purple {
+      box-shadow: 0 0 25px rgba(123, 63, 255, 0.6);
+    }
+    .truncate-2-lines {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+  </style>
+</head>
+<body class="antialiased" style="width: 941px; height: 1672px; margin: 0px auto; overflow-x: hidden; background-color: rgb(8, 6, 15); color: rgb(255, 255, 255); font-family: 'IBM Plex Sans Arabic', sans-serif; -webkit-tap-highlight-color: transparent; padding-bottom: 100px;">
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-[#08060F] px-6 py-5 flex items-center justify-between gap-6">
+<button class="w-14 h-14 flex items-center justify-center text-white border border-gray-700 rounded-2xl bg-[#0F0C1B]">
+<span class="material-symbols-outlined text-[36px] font-light">menu</span>
+</button>
+<div class="flex-grow relative h-14">
+<input class="w-full h-full bg-[#151025] border border-gray-800 rounded-full pr-14 pl-6 text-[18px] text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors" placeholder="ابحث عن منتج، قسم أو علامة تجارية..." type="text"/>
+<span class="material-symbols-outlined absolute right-5 top-1/2 -translate-y-1/2 text-gray-500 text-[28px]">search</span>
+</div>
+<div class="flex items-center gap-8">
+<button class="relative text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-[36px] font-light">notifications</span>
+<span class="absolute top-1 right-1 bg-primary border-2 border-[#08060F] w-3 h-3 rounded-full"></span>
+</button>
+<button class="relative text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-[36px] font-light">shopping_cart</span>
+<span class="absolute -top-2 -right-3 bg-primary text-white text-[14px] font-bold w-7 h-7 rounded-full flex items-center justify-center border-2 border-[#08060F]">3</span>
+</button>
+</div>
+</header>
+<!-- Shipping Banner -->
+<div class="px-6 py-2">
+<div class="flex items-center justify-between border border-gray-800/50 rounded-full px-8 py-4 text-[16px] bg-[#0A0714]">
+<div class="flex items-center gap-3 text-gray-300">
+<span class="text-[#FFB800] text-2xl">⚡</span> توصيل سريع خلال 24 - 48 ساعة
+    </div>
+<div class="flex items-center gap-3 text-gray-300">
+<span class="text-2xl">🚀</span> شحن مجاني للطلبات فوق <span class="text-primary font-bold mx-1">30,000</span> ريال <span class="text-[#FFB800] text-2xl ml-2">🚚</span>
+</div>
+</div>
+</div>
+<!-- Promotional Hero -->
+<div class="px-6 py-4">
+<div class="relative w-full rounded-[32px] overflow-hidden">
+<img alt="Hero" class="w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBVztMHrgHIcu2t_UTOptbXgKBK737WaWNc6XSkVJkZVPMsuP_OSWg1Ed_Uxxvg8ecyBYJunUMSX12npqudj4-W0gxDsQMzsGupUGfo8ATqtBV6m3HZ9Tbeu4wanaEcURV_kcHrOWQqgmuhwxpWyDCkyq3Wz_95vG1BtwXAPUb9Z8c6T6Wd4vrRA3y0dFkcCVhevp5nKwNCZA1pntrIkA8_u50jR4z26KqYpV-2A6nc-3DmpbIl0dR5B1aFp16r5M20y4" style="height: 380px; object-position: center 15%;"/>
+</div>
+</div>
+<!-- Category Row -->
+<div class="px-6 py-2">
+<div class="flex gap-4 overflow-x-auto no-scrollbar snap-x justify-between">
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">grid_view</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">المزيد</span>
+</a>
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">apparel</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">الأزياء</span>
+</a>
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">air_freshener</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">العطور</span>
+</a>
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">monitor_heart</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">الجمال والعناية</span>
+</a>
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">headphones</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">الإلكترونيات</span>
+</a>
+<a class="snap-start flex flex-col items-center gap-3 flex-shrink-0 w-[140px]" href="#">
+<div class="w-full aspect-square rounded-[28px] border border-gray-800 bg-[#0F0C1B] flex items-center justify-center text-primary hover:border-primary transition-all group">
+<span class="material-symbols-outlined text-[56px] font-light text-primary group-hover:scale-110 transition-transform">home</span>
+</div>
+<span class="text-[18px] font-medium text-gray-300">المنزل</span>
+</a>
+</div>
+</div>
+<!-- Best Offers -->
+<div class="py-4">
+<div class="px-6 flex justify-between items-center mb-6">
+<h3 class="text-[32px] font-bold flex items-center gap-2 text-white">أفضل العروض <span class="text-[32px]">🔥</span></h3>
+<a class="text-primary text-[18px] flex items-center gap-1 font-medium" href="#">عرض الكل <span class="material-symbols-outlined text-[24px]">chevron_left</span></a>
+</div>
+<div class="px-6 flex gap-4 overflow-x-auto no-scrollbar snap-x pb-4">
+<!-- Product 1 -->
+<div class="snap-start flex-shrink-0 w-[215px] bg-[#0F0C1B] border border-gray-800 rounded-[28px] p-5 flex flex-col relative group">
+<div class="absolute top-4 right-4 text-gray-600 hover:text-primary z-10 cursor-pointer">
+<span class="material-symbols-outlined text-[28px] font-light">favorite</span>
+</div>
+<div class="absolute top-4 left-4 bg-primary text-white text-[14px] font-bold px-3 py-1.5 rounded-xl z-10">خصم 30%</div>
+<div class="h-[150px] flex items-center justify-center mt-10 mb-4">
+<img alt="ساعة ذكية" class="max-h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTNoc-3flnLWUOrytXxWJchvE8QPgvWSX_uY2iEh6bO47cKyEFI_gO-Lt-91uBgfYX4uyEaWIK-P_V4I7ZTzGAbtZXn0QqoB2KBh61GVSKOFccZtXoW7s58iOYN7NxS5gEXwjjjzzoXv5hYYzrwYyRU-OS5f-ny-XhiEKcMJV4gSbf6laFR3P4i0kghUHWvFaIkWvLKnJOpGNn68DDxRPSH5rcFt3pyYqukltOqPW6MAdUWHp1vsMwCg"/>
+</div>
+<div class="text-center flex-grow flex flex-col justify-end">
+<h4 class="font-bold text-[20px] mb-1 text-white">ساعة ذكية</h4>
+<p class="text-[16px] text-gray-400 mb-3">شاشة AMOLED</p>
+<div class="flex items-center justify-center gap-1 text-[16px] mb-4">
+<span class="text-primary">★</span> <span class="text-white font-medium">4.8</span> <span class="text-gray-500">(128)</span>
+</div>
+<div class="flex justify-center items-center gap-3 mb-5">
+<span class="text-primary font-bold text-[22px]">199 ريال</span>
+<span class="text-gray-500 line-through text-[16px]">285 ريال</span>
+</div>
+<button class="w-full bg-[#1F1545] text-white text-[18px] font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary transition-colors border border-primary/30">
+          أضف للسلة <span class="material-symbols-outlined text-[24px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 2 -->
+<div class="snap-start flex-shrink-0 w-[215px] bg-[#0F0C1B] border border-gray-800 rounded-[28px] p-5 flex flex-col relative group">
+<div class="absolute top-4 right-4 text-gray-600 hover:text-primary z-10 cursor-pointer">
+<span class="material-symbols-outlined text-[28px] font-light">favorite</span>
+</div>
+<div class="absolute top-4 left-4 bg-primary text-white text-[14px] font-bold px-3 py-1.5 rounded-xl z-10">خصم 25%</div>
+<div class="h-[150px] flex items-center justify-center mt-10 mb-4">
+<img alt="سماعات لاسلكية" class="max-h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzG3SxeXt66iX73yBmbPbcaeb02eUYPzC4OD-UtB9tEt4xxiBKfgRaBSRpWn5gNQgCbI0l0zlL6F8r0oaNRTBy63isfdJEdV8GMAiv1ID4Ku1uIY_-iEOqepmPULsZfL_dqbzLmzfJ_4USx131ebXAqxoVy6HVNoF_d2zvtf2k63dtpwcazCkhKgXawdOgPBkr_3iTENbSVMQUFK1zMNoJok4uucA6RnatRy2xuspqpeo_dAD8Mvpq2A"/>
+</div>
+<div class="text-center flex-grow flex flex-col justify-end">
+<h4 class="font-bold text-[20px] mb-1 text-white">سماعات لاسلكية</h4>
+<p class="text-[16px] text-gray-400 mb-3">عزل ضوضاء</p>
+<div class="flex items-center justify-center gap-1 text-[16px] mb-4">
+<span class="text-primary">★</span> <span class="text-white font-medium">4.7</span> <span class="text-gray-500">(96)</span>
+</div>
+<div class="flex justify-center items-center gap-3 mb-5">
+<span class="text-primary font-bold text-[22px]">149 ريال</span>
+<span class="text-gray-500 line-through text-[16px]">199 ريال</span>
+</div>
+<button class="w-full bg-[#1F1545] text-white text-[18px] font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary transition-colors border border-primary/30">
+          أضف للسلة <span class="material-symbols-outlined text-[24px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 3 -->
+<div class="snap-start flex-shrink-0 w-[215px] bg-[#0F0C1B] border border-gray-800 rounded-[28px] p-5 flex flex-col relative group">
+<div class="absolute top-4 right-4 text-gray-600 hover:text-primary z-10 cursor-pointer">
+<span class="material-symbols-outlined text-[28px] font-light">favorite</span>
+</div>
+<div class="absolute top-4 left-4 bg-primary text-white text-[14px] font-bold px-3 py-1.5 rounded-xl z-10">خصم 20%</div>
+<div class="h-[150px] flex items-center justify-center mt-10 mb-4">
+<img alt="عطر عود" class="max-h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnATsl88nJLeEHOeb85zs18gmYO2FgdiMbJKBXCx1ojGfHeok46rgT2vFhXS4s8VfMDKCToog5uEKm71kCyEgYHuCG1PJs7reB2gKOekFKyRusHgZutQZAoFBquDiQUHnzCwFG1xbqAXXpqIhMsfujMOOZ6YwMjGvIx0O6Y87Ao4TgN10Buz12bhJsxkdJ0jVCXqDOARLaFx4o_z9o3VvVHfdTkCnX9kTEZf5N-Vmv2GTGjuYAesMVDA"/>
+</div>
+<div class="text-center flex-grow flex flex-col justify-end">
+<h4 class="font-bold text-[20px] mb-1 text-white">عطر عود</h4>
+<p class="text-[16px] text-gray-400 mb-3">فاخر</p>
+<div class="flex items-center justify-center gap-1 text-[16px] mb-4">
+<span class="text-primary">★</span> <span class="text-white font-medium">4.9</span> <span class="text-gray-500">(73)</span>
+</div>
+<div class="flex justify-center items-center gap-3 mb-5">
+<span class="text-primary font-bold text-[22px]">119 ريال</span>
+<span class="text-gray-500 line-through text-[16px]">149 ريال</span>
+</div>
+<button class="w-full bg-[#1F1545] text-white text-[18px] font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary transition-colors border border-primary/30">
+          أضف للسلة <span class="material-symbols-outlined text-[24px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 4 -->
+<div class="snap-start flex-shrink-0 w-[215px] bg-[#0F0C1B] border border-gray-800 rounded-[28px] p-5 flex flex-col relative group">
+<div class="absolute top-4 right-4 text-gray-600 hover:text-primary z-10 cursor-pointer">
+<span class="material-symbols-outlined text-[28px] font-light">favorite</span>
+</div>
+<div class="absolute top-4 left-4 bg-primary text-white text-[14px] font-bold px-3 py-1.5 rounded-xl z-10">خصم 15%</div>
+<div class="h-[150px] flex items-center justify-center mt-10 mb-4">
+<img alt="قلاية هوائية" class="max-h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP-fEGknE-JBylw0W2iBrFHXRLR9iOzMqah8IhhlZNhTIB194CFh0-x8VnAxt1DaESOnYii7HmRJD7ILOMn8cK7_gbfHAiihKh3Nu_U5yJs72KE2_kJKyP3fayGdbHdWxk7CITvcDeRn5uMSY0arbMCM4xrepBeRafjhjcHHNrrjS0X4Z8rREu5IfqFm9bUMHHpS52XyWG48Ye1cy3YTTkmLt7ctF7OwSsP-i47jnnLOGiWjVLoUtIRQ"/>
+</div>
+<div class="text-center flex-grow flex flex-col justify-end">
+<h4 class="font-bold text-[20px] mb-1 text-white">قلاية هوائية 4.5 لتر</h4>
+<p class="text-[16px] text-gray-400 mb-3">متعددة الاستخدام</p>
+<div class="flex items-center justify-center gap-1 text-[16px] mb-4">
+<span class="text-primary">★</span> <span class="text-white font-medium">4.6</span> <span class="text-gray-500">(62)</span>
+</div>
+<div class="flex justify-center items-center gap-3 mb-5">
+<span class="text-primary font-bold text-[22px]">289 ريال</span>
+<span class="text-gray-500 line-through text-[16px]">339 ريال</span>
+</div>
+<button class="w-full bg-[#1F1545] text-white text-[18px] font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary transition-colors border border-primary/30">
+          أضف للسلة <span class="material-symbols-outlined text-[24px]">shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Trust Features Bar -->
+<div class="px-6 py-2">
+<div class="grid grid-cols-4 gap-4 py-4">
+<div class="flex items-center justify-center gap-4">
+<span class="material-symbols-outlined text-primary text-[36px] font-light">verified_user</span>
+<div class="text-right">
+<h4 class="text-[18px] font-bold text-white mb-1">ضمان سنتين</h4>
+<p class="text-[14px] text-gray-400">على جميع المنتجات</p>
+</div>
+</div>
+<div class="flex items-center justify-center gap-4">
+<span class="material-symbols-outlined text-primary text-[36px] font-light">local_shipping</span>
+<div class="text-right">
+<h4 class="text-[18px] font-bold text-white mb-1">شحن مجاني</h4>
+<p class="text-[14px] text-gray-400">فوق 30,000 ريال</p>
+</div>
+</div>
+<div class="flex items-center justify-center gap-4">
+<span class="material-symbols-outlined text-primary text-[36px] font-light" style="transform: scaleX(-1);">keyboard_return</span>
+<div class="text-right">
+<h4 class="text-[18px] font-bold text-white mb-1">إرجاع سهل</h4>
+<p class="text-[14px] text-gray-400">خلال 14 يوم</p>
+</div>
+</div>
+<div class="flex items-center justify-center gap-4">
+<span class="material-symbols-outlined text-primary text-[36px] font-light">headset_mic</span>
+<div class="text-right">
+<h4 class="text-[18px] font-bold text-white mb-1">دعم 24/7</h4>
+<p class="text-[14px] text-gray-400">خدمة عملاء مميزة</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Loyalty Program Card -->
+<div class="px-6 py-4">
+<div class="bg-[#0A0714] border border-gray-800 rounded-[32px] p-0 relative overflow-hidden flex flex-row h-[200px]">
+<div class="absolute inset-0 z-0">
+<img alt="Loyalty BG" class="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAULh5Kf01iGwfC43HqV2DFhuKx1XoyLgMSvl5B2WrZuskNARqKw5gy9lAUwt0896_MvJDPO5uFrQCwRyO8OiT6DzjCtgwtcwwFAllSREmjLO3PiUEi7bfKkTNiMGzkTHPQ4HZrcxC63-fPXhepydLCzolviEMeYU36TD89PcV1OHeGodoqPDKAxct-0e7v74bKPA0V5D9BCpnhIJ_CbmmRvX79yDRnyciUxrJJ409ej0AULdjofZtUURHgUwY9z6tsvgQ" style="object-position: left bottom;"/>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="px-6 py-8"><div class="bg-transparent border-t border-gray-800 pt-8 flex flex-row items-center justify-between"><div class="flex-1 flex flex-col gap-6 text-right pr-6"><div class="flex items-center justify-end gap-4"><span class="text-gray-300 text-[18px]">لطلب والاستفسار (واتساب): 967771370740</span><span class="material-symbols-outlined text-green-500 text-[28px]">chat</span></div><div class="flex items-center justify-end gap-4"><span class="text-gray-300 text-[18px]">العنوان: صنعاء - شارع بيون - مقابل صيدلية الرعاية الصحية</span><span class="material-symbols-outlined text-primary text-[28px]">location_on</span></div><div class="flex items-center justify-end gap-4"><span class="text-gray-300 text-[18px]">متوفر لدينا خدمة التوصيل لجميع المحافظات</span><span class="text-[28px]">🇾🇪</span></div><div class="flex items-center justify-end gap-4"><span class="text-gray-300 text-[18px]"><span class="font-bold text-white">تتبع طلبك</span> - برقم الطلب وآخر 4 أرقام من هاتفك</span><span class="material-symbols-outlined text-blue-500 text-[28px]">package_2</span></div><div class="flex items-center justify-end gap-6 mt-4"><div class="flex items-center gap-3 text-white"><span class="text-[20px] font-bold">تواصل معنا الآن</span><span class="material-symbols-outlined text-green-500 text-[32px]">chat</span></div><a class="w-14 h-14 rounded-full border border-gray-600 flex items-center justify-center text-white bg-[#0A0714]" href="#"><svg class="w-7 h-7" fill="currentColor" viewbox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"></path></svg></a><a class="w-14 h-14 rounded-full border border-gray-600 flex items-center justify-center text-white bg-[#0A0714]" href="#"><svg class="w-7 h-7" fill="currentColor" viewbox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"></path></svg></a><a class="w-14 h-14 rounded-full border border-gray-600 flex items-center justify-center text-white bg-[#0A0714]" href="#"><span class="material-symbols-outlined text-[28px]">camera_alt</span></a></div></div><div class="w-56 h-56 rounded-full border border-[#FFB800] flex items-center justify-center bg-transparent mr-8"><div class="w-[200px] h-[200px] rounded-full border-2 border-dashed border-[#FFB800] flex flex-col items-center justify-center text-center p-2"><span class="material-symbols-outlined text-white text-[48px] mb-2">shopping_cart</span><h4 class="text-white font-bold text-[32px] leading-tight">INDEXES<br/>STORE</h4><p class="text-white text-[12px] tracking-widest mt-2">PREMIUM QUALITY</p></div></div></div></footer>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 w-full bg-[#0F0C1B] border-t border-gray-800 z-50 h-[100px] pb-safe">
+<div class="flex items-center justify-around h-full px-6">
+<a class="flex flex-col items-center gap-2 text-gray-400 hover:text-white transition-colors w-[100px]" href="#">
+<span class="material-symbols-outlined text-[36px] font-light">person</span>
+<span class="text-[16px] font-medium">حسابي</span>
+</a>
+<a class="flex flex-col items-center gap-2 text-gray-400 hover:text-white transition-colors w-[100px]" href="#">
+<span class="material-symbols-outlined text-[36px] font-light">chat</span>
+<span class="text-[16px] font-medium">واتساب</span>
+</a>
+<a class="flex flex-col items-center gap-2 text-gray-400 hover:text-white transition-colors relative w-[100px]" href="#">
+<div class="relative">
+<span class="material-symbols-outlined text-[36px] font-light">shopping_cart</span>
+<span class="absolute -top-2 -right-2 bg-primary text-white text-[14px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#08060F]">3</span>
+</div>
+<span class="text-[16px] font-medium">السلة</span>
+</a>
+<a class="flex flex-col items-center gap-2 text-gray-400 hover:text-white transition-colors w-[100px]" href="#">
+<span class="material-symbols-outlined text-[36px] font-light">search</span>
+<span class="text-[16px] font-medium">البحث</span>
+</a>
+<a class="flex flex-col items-center justify-center relative -top-8 w-[120px]" href="#">
+<div class="absolute inset-0 bg-primary rounded-full blur-2xl opacity-50"></div>
+<div class="w-[100px] h-[100px] rounded-full bg-[#0F0C1B] border-[3px] border-primary flex flex-col items-center justify-center text-white relative z-10 glow-purple shadow-[0_0_20px_rgba(123,63,255,0.6)]">
+<span class="material-symbols-outlined text-[40px] mb-1">home</span>
+<span class="text-[16px] font-bold text-white">الرئيسية</span>
+</div>
+</a>
+</div>
+</nav>
+</body></html>
