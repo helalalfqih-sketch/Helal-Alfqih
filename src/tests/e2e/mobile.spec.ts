@@ -16,7 +16,9 @@ export const MobileViewportSpec = {
     "7. Open mobile cart sheet & verify responsive checkout button",
   ],
   runSimulation() {
-    console.log(`[E2E Mobile] Running ${this.name} (${this.viewport.width}x${this.viewport.height})...`);
+    console.log(
+      `[E2E Mobile] Running ${this.name} (${this.viewport.width}x${this.viewport.height})...`,
+    );
     for (const step of this.steps) {
       console.log(`   ✓ Passed step: ${step}`);
     }

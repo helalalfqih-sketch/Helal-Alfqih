@@ -79,10 +79,7 @@ export function useLoadableProducts(
   want: number,
 ): { items: LegacyProductShape[]; settled: boolean } {
   const candidates = useMemo(
-    () =>
-      products.filter(
-        (p) => typeof p.image === "string" && !!p.image.trim(),
-      ),
+    () => products.filter((p) => typeof p.image === "string" && !!p.image.trim()),
     [products],
   );
   const key = useMemo(() => candidates.map((p) => p.id).join("|"), [candidates]);

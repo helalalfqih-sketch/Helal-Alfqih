@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Product } from './types';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Product } from "./types";
 
-import { HolographicGlobe, HolographicGlobeProduct } from './HolographicGlobe';
-import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit, ArrowUpRight } from 'lucide-react';
+import { HolographicGlobe, HolographicGlobeProduct } from "./HolographicGlobe";
+import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit, ArrowUpRight } from "lucide-react";
 
 interface HeroCarouselProps {
   products?: Product[];
@@ -39,7 +39,9 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
 
   const handleGlobeSelect = (globeProd: HolographicGlobeProduct) => {
     if (!onSelectProduct) return;
-    const found = products.find((p) => p.id === globeProd.id || (p.slug && p.slug === globeProd.slug));
+    const found = products.find(
+      (p) => p.id === globeProd.id || (p.slug && p.slug === globeProd.slug),
+    );
     if (found) {
       onSelectProduct(found);
     } else {
@@ -49,12 +51,18 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
         name: globeProd.name,
         subtitle: globeProd.name,
         description: globeProd.name,
-        priceYER: typeof globeProd.price === 'number' ? globeProd.price : parseFloat(String(globeProd.price)) || 0,
-        originalPriceYER: typeof globeProd.price === 'number' ? globeProd.price : parseFloat(String(globeProd.price)) || 0,
+        priceYER:
+          typeof globeProd.price === "number"
+            ? globeProd.price
+            : parseFloat(String(globeProd.price)) || 0,
+        originalPriceYER:
+          typeof globeProd.price === "number"
+            ? globeProd.price
+            : parseFloat(String(globeProd.price)) || 0,
         rating: 4.8,
         reviewsCount: 12,
-        image: globeProd.image || '',
-        category: 'all',
+        image: globeProd.image || "",
+        category: "all",
         inStock: true,
       });
     }
@@ -65,7 +73,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
       <motion.div
         ref={containerRef}
         layout
-        transition={{ type: 'spring', stiffness: 220, damping: 25 }}
+        transition={{ type: "spring", stiffness: 220, damping: 25 }}
         className="relative w-full rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[var(--color-surface-1)]/90 backdrop-blur-md border border-[var(--color-border-default)] shadow-[var(--shadow-md)] p-4 sm:p-7 flex flex-col justify-between relative group"
       >
         {/* Subtle Rim Lighting Highlights */}
@@ -129,7 +137,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
 
                   <div className="flex items-center gap-2 mt-2">
                     <button
-                      onClick={() => onSelectCategory('offers')}
+                      onClick={() => onSelectCategory("offers")}
                       className="relative overflow-hidden bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-black px-4 sm:px-6 py-2.5 rounded-full shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer group/cta"
                     >
                       {/* Premium Shine Sweep Effect */}
@@ -168,9 +176,9 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
             <motion.div
               key="expanded-globe"
               initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: 'auto', scale: 1 }}
+              animate={{ opacity: 1, height: "auto", scale: 1 }}
               exit={{ opacity: 0, height: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 22 }}
+              transition={{ type: "spring", stiffness: 200, damping: 22 }}
               className="relative z-10 flex flex-col items-center justify-between text-center space-y-4 py-2"
             >
               <div className="w-full flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
@@ -208,7 +216,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
 
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
-                  onClick={() => onSelectCategory('offers')}
+                  onClick={() => onSelectCategory("offers")}
                   className="bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-extrabold px-5 py-2 rounded-full shadow-md flex items-center gap-2 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-amber-300" />
@@ -236,8 +244,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
               aria-label={`الشريحة ${idx + 1}`}
               className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 cursor-pointer ${
                 idx === currentSlide
-                  ? 'w-5 sm:w-6 bg-[#2F6BFF]'
-                  : 'w-1.5 sm:w-2 bg-[var(--color-border-default)] hover:bg-[var(--color-border-strong)]'
+                  ? "w-5 sm:w-6 bg-[#2F6BFF]"
+                  : "w-1.5 sm:w-2 bg-[var(--color-border-default)] hover:bg-[var(--color-border-strong)]"
               }`}
             />
           ))}

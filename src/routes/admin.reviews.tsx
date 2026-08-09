@@ -14,7 +14,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listTenantReviews, moderateReview, deleteReview, type ReviewRow } from "@/lib/reviews.functions";
+import {
+  listTenantReviews,
+  moderateReview,
+  deleteReview,
+  type ReviewRow,
+} from "@/lib/reviews.functions";
 import { useStoreContext } from "@/components/store/store-shell";
 
 export const Route = createFileRoute("/admin/reviews")({
@@ -39,18 +44,22 @@ function ReviewsPage() {
   const modReviewFn = useServerFn(moderateReview);
   const delReviewFn = useServerFn(deleteReview);
 
-  const { data: reviews = [], refetch, isLoading } = useQuery({
+  const {
+    data: reviews = [],
+    refetch,
+    isLoading,
+  } = useQuery({
     queryKey: ["admin-reviews"],
     queryFn: () => fetchReviews(),
   });
 
   const [filter, setFilter] = useState<"all" | ReviewRow["status"]>("all");
 
-  const filtered =
-    filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
+  const filtered = filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
 
   const modMut = useMutation({
-    mutationFn: (args: { id: string; status: "approved" | "rejected" }) => modReviewFn({ data: args }),
+    mutationFn: (args: { id: string; status: "approved" | "rejected" }) =>
+      modReviewFn({ data: args }),
     onSuccess: (r, args) => {
       if (r.success) {
         toast.success(args.status === "approved" ? "تمت الموافقة على التقييم" : "تم رفض التقييم");
@@ -147,30 +156,27 @@ function ReviewsPage() {
           </div>
         ) : (
           filtered.map((r) => (
-            <div
-              key={r.id}
-              className="rounded-2xl border border-border bg-surface p-4 space-y-3"
-            >
+            <div key={r.id} className="rounded-2xl border border-border bg-surface p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-bold">{r.customer_name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_COLORS[r.status]}`}>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_COLORS[r.status]}`}
+                    >
                       {STATUS_LABELS[r.status]}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {r.product_name}
-                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{r.product_name}</div>
                   <div className="flex items-center gap-0.5 mt-1">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
-                         key={i}
-                         className={`h-3.5 w-3.5 ${
+                        key={i}
+                        className={`h-3.5 w-3.5 ${
                           i < r.rating
                             ? "fill-warning stroke-warning"
                             : "stroke-muted-foreground fill-none"
-                         }`}
+                        }`}
                       />
                     ))}
                   </div>

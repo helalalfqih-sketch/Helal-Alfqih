@@ -38,7 +38,7 @@ export const MonitoringService = {
         {
           component: "GlobalWindow",
           action: "unhandled_rejection",
-        }
+        },
       );
     });
   },

@@ -101,7 +101,10 @@ export const Route = createFileRoute("/api/public/image-proxy")({
         try {
           parsedUrl = new URL(source);
           if (parsedUrl.protocol !== "https:") {
-            return new Response("Invalid image URL protocol: HTTPS required", { status: 400, headers: CORS_HEADERS });
+            return new Response("Invalid image URL protocol: HTTPS required", {
+              status: 400,
+              headers: CORS_HEADERS,
+            });
           }
         } catch {
           return new Response("Invalid image URL format", { status: 400, headers: CORS_HEADERS });
@@ -136,14 +139,22 @@ export const Route = createFileRoute("/api/public/image-proxy")({
             location: "/api/public/image-proxy",
             cause: `[ImageProxy] Unauthorized image domain blocked: ${parsedUrl.hostname}`,
             stackTrace: `HTTP 403 Forbidden\nGET /api/public/image-proxy\nBlocked hostname: ${parsedUrl.hostname}`,
-            context: { method: "GET", status: 403, host: "indexes-store.vercel.app", blockedDomain: parsedUrl.hostname },
+            context: {
+              method: "GET",
+              status: 403,
+              host: "indexes-store.vercel.app",
+              blockedDomain: parsedUrl.hostname,
+            },
           }).catch(() => {});
           // ────────────────────────────────────────────────────────────────
 
-          return new Response(`Forbidden: Host '${parsedUrl.hostname}' is not in the allowed domains list`, {
-            status: 403,
-            headers: CORS_HEADERS,
-          });
+          return new Response(
+            `Forbidden: Host '${parsedUrl.hostname}' is not in the allowed domains list`,
+            {
+              status: 403,
+              headers: CORS_HEADERS,
+            },
+          );
         }
 
         const controller = new AbortController();
@@ -167,7 +178,9 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           });
 
           if (!upstream.ok) {
-            console.warn(`[ImageProxy] Upstream returned HTTP ${upstream.status} for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
+            console.warn(
+              `[ImageProxy] Upstream returned HTTP ${upstream.status} for host: ${parsedUrl.hostname} (hash: ${pathHash})`,
+            );
             const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none"><rect width="300" height="300" rx="24" fill="#0c0a1a"/><rect x="2" y="2" width="296" height="296" rx="22" stroke="#7C3AED" stroke-opacity="0.3" stroke-width="2"/><circle cx="150" cy="135" r="50" fill="#7C3AED" fill-opacity="0.15" stroke="#A855F7" stroke-width="3"/><path d="M132 135L145 148L168 122" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="220" text-anchor="middle" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="14" font-weight="700">INDEXES</text></svg>`;
             return new Response(FALLBACK_SVG, {
               status: 200,
@@ -181,7 +194,10 @@ export const Route = createFileRoute("/api/public/image-proxy")({
 
           const contentLength = upstream.headers.get("content-length");
           if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_BYTES) {
-            return new Response("Image exceeds maximum allowed size (10MB)", { status: 413, headers: CORS_HEADERS });
+            return new Response("Image exceeds maximum allowed size (10MB)", {
+              status: 413,
+              headers: CORS_HEADERS,
+            });
           }
 
           const contentType = upstream.headers.get("content-type") || "image/jpeg";
@@ -191,7 +207,10 @@ export const Route = createFileRoute("/api/public/image-proxy")({
 
           const arrayBuffer = await upstream.arrayBuffer();
           if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
-            return new Response("Image exceeds maximum allowed size (10MB)", { status: 413, headers: CORS_HEADERS });
+            return new Response("Image exceeds maximum allowed size (10MB)", {
+              status: 413,
+              headers: CORS_HEADERS,
+            });
           }
 
           const buffer = Buffer.from(arrayBuffer);
@@ -255,14 +274,18 @@ export const Route = createFileRoute("/api/public/image-proxy")({
           });
         } catch (err: any) {
           if (err instanceof DOMException && err.name === "AbortError") {
-            console.warn(`[ImageProxy] Upstream request timed out for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
+            console.warn(
+              `[ImageProxy] Upstream request timed out for host: ${parsedUrl.hostname} (hash: ${pathHash})`,
+            );
             return new Response("Image source request timed out", {
               status: 504,
               headers: { ...CORS_HEADERS, "cache-control": "public, s-maxage=60" },
             });
           }
 
-          console.error(`[ImageProxy] Processing error for host: ${parsedUrl.hostname} (hash: ${pathHash})`);
+          console.error(
+            `[ImageProxy] Processing error for host: ${parsedUrl.hostname} (hash: ${pathHash})`,
+          );
 
           // ── Real error capture ───────────────────────────────────────────
           logServerError({
@@ -272,7 +295,12 @@ export const Route = createFileRoute("/api/public/image-proxy")({
             location: "/api/public/image-proxy",
             cause: `Processing failed for host ${parsedUrl.hostname}: ${(err as any)?.message || String(err)}`,
             stackTrace: (err as any)?.stack || String(err),
-            context: { method: "GET", status: 502, host: "indexes-store.vercel.app", blockedDomain: parsedUrl.hostname },
+            context: {
+              method: "GET",
+              status: 502,
+              host: "indexes-store.vercel.app",
+              blockedDomain: parsedUrl.hostname,
+            },
           }).catch(() => {});
           // ────────────────────────────────────────────────────────────────
 

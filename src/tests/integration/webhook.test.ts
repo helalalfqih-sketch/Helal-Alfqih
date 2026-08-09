@@ -11,7 +11,7 @@ export interface WebhookEvent {
 
 export function processWebhookEvent(provider: string, payload: Record<string, any>): WebhookEvent {
   if (!provider) throw new Error("Missing provider parameter");
-  
+
   return {
     provider,
     eventType: payload.type || "generic_notification",

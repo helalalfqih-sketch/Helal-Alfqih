@@ -31,16 +31,16 @@ test.describe("CHECK 1: No-WebGL / ProductSphereFallback", () => {
     expect(canvasCount).toBe(0);
 
     // Fallback element should be present
-    const fallback =
-      page.locator('[data-testid="hero-sphere-fallback"]').or(
-        page.locator('[data-testid="product-sphere-fallback"]')
-      ).or(
-        page.locator('.product-sphere-fallback, .webgl-fallback, #hero-sphere-fallback')
-      );
-    await expect(fallback.first()).toBeVisible({ timeout: 10_000 }).catch(() => {
-      // If no explicit data-testid, verify there are no THREE.WebGLRenderer errors
-      console.log("No explicit fallback testid found — checking console for WebGL errors");
-    });
+    const fallback = page
+      .locator('[data-testid="hero-sphere-fallback"]')
+      .or(page.locator('[data-testid="product-sphere-fallback"]'))
+      .or(page.locator(".product-sphere-fallback, .webgl-fallback, #hero-sphere-fallback"));
+    await expect(fallback.first())
+      .toBeVisible({ timeout: 10_000 })
+      .catch(() => {
+        // If no explicit data-testid, verify there are no THREE.WebGLRenderer errors
+        console.log("No explicit fallback testid found — checking console for WebGL errors");
+      });
 
     // No WebGL error in console
     const errors: string[] = [];
@@ -71,21 +71,23 @@ test.describe("CHECK 2: Search Filter Button Interception", () => {
   test("clicking Filters while suggestions are open stays on /search", async ({ page }) => {
     await page.goto(`${BASE}/search`, { waitUntil: "networkidle" });
 
-    const searchInput = page.locator('input[aria-label="مربع البحث عن المنتجات"]').or(
-      page.locator('input[placeholder*="ابحث"]')
-    );
+    const searchInput = page
+      .locator('input[aria-label="مربع البحث عن المنتجات"]')
+      .or(page.locator('input[placeholder*="ابحث"]'));
     await searchInput.fill("سيارة");
 
     // Wait for suggestions to appear
-    const suggestions = page.locator('[role="listbox"]').or(
-      page.locator('[aria-label="اقتراحات البحث"]')
-    );
-    await expect(suggestions).toBeVisible({ timeout: 5_000 }).catch(() => {});
+    const suggestions = page
+      .locator('[role="listbox"]')
+      .or(page.locator('[aria-label="اقتراحات البحث"]'));
+    await expect(suggestions)
+      .toBeVisible({ timeout: 5_000 })
+      .catch(() => {});
 
     // Click the filter button
-    const filterButton = page.locator('[data-testid="search-filter-drawer"]').or(
-      page.locator('button[aria-label="تصفية النتائج"]')
-    );
+    const filterButton = page
+      .locator('[data-testid="search-filter-drawer"]')
+      .or(page.locator('button[aria-label="تصفية النتائج"]'));
     await filterButton.click();
 
     // URL must remain /search
@@ -100,9 +102,9 @@ test.describe("CHECK 2: Search Filter Button Interception", () => {
   test("repeated filter open/close stays stable", async ({ page }) => {
     await page.goto(`${BASE}/search`, { waitUntil: "networkidle" });
 
-    const filterButton = page.locator('[data-testid="search-filter-drawer"]').or(
-      page.locator('button[aria-label="تصفية النتائج"]')
-    );
+    const filterButton = page
+      .locator('[data-testid="search-filter-drawer"]')
+      .or(page.locator('button[aria-label="تصفية النتائج"]'));
 
     for (let i = 0; i < 3; i++) {
       await filterButton.click();
@@ -121,14 +123,14 @@ test.describe("CHECK 3: True Empty Search State", () => {
 
     // "لم نجد منتجًا مطابقًا" must be visible
     await expect(
-      page.locator('text=لم نجد منتجًا مطابقًا').or(page.locator('[role="status"]'))
+      page.locator("text=لم نجد منتجًا مطابقًا").or(page.locator('[role="status"]')),
     ).toBeVisible({ timeout: 8_000 });
 
     // Zero ProductCard items in primary results grid
-    const primaryGrid = page.locator('[data-testid="search-results-grid"]').or(
-      page.locator('.grid').first()
-    );
-    const cards = primaryGrid.locator('[data-product-id]');
+    const primaryGrid = page
+      .locator('[data-testid="search-results-grid"]')
+      .or(page.locator(".grid").first());
+    const cards = primaryGrid.locator("[data-product-id]");
     await expect(cards).toHaveCount(0);
   });
 
@@ -141,7 +143,7 @@ test.describe("CHECK 3: True Empty Search State", () => {
     if (recsExist > 0) {
       await expect(recSection).toBeVisible();
       // Confirm the section has product cards
-      await expect(recSection.locator('[data-product-id]').first()).toBeVisible({ timeout: 5_000 });
+      await expect(recSection.locator("[data-product-id]").first()).toBeVisible({ timeout: 5_000 });
     }
   });
 });
@@ -165,9 +167,11 @@ test.describe("CHECK 4: Share URL Encoding", () => {
     await page.waitForLoadState("networkidle");
 
     // Inspect share link hrefs
-    const waHref = await page.locator('a[href*="wa.me"]').or(
-      page.locator('a[href*="whatsapp"]')
-    ).first().getAttribute("href");
+    const waHref = await page
+      .locator('a[href*="wa.me"]')
+      .or(page.locator('a[href*="whatsapp"]'))
+      .first()
+      .getAttribute("href");
 
     if (waHref) {
       expect(waHref).not.toContain("%25D8");
@@ -221,7 +225,10 @@ test.describe("CHECK 5: Video Modal Accessibility and Lifecycle", () => {
 
     const videoButton = page.locator('button[aria-label*="فيديو"]').first();
     const hasVideo = await videoButton.count();
-    if (!hasVideo) { test.skip(); return; }
+    if (!hasVideo) {
+      test.skip();
+      return;
+    }
 
     await videoButton.click();
     await page.locator('[role="dialog"]').waitFor({ state: "visible", timeout: 5_000 });
@@ -239,7 +246,10 @@ test.describe("CHECK 5: Video Modal Accessibility and Lifecycle", () => {
 
     const videoButton = page.locator('button[aria-label*="فيديو"]').first();
     const hasVideo = await videoButton.count();
-    if (!hasVideo) { test.skip(); return; }
+    if (!hasVideo) {
+      test.skip();
+      return;
+    }
 
     await videoButton.click();
     const modal = page.locator('[role="dialog"]');
@@ -255,7 +265,10 @@ test.describe("CHECK 5: Video Modal Accessibility and Lifecycle", () => {
 
     const videoButton = page.locator('button[aria-label*="فيديو"]').first();
     const hasVideo = await videoButton.count();
-    if (!hasVideo) { test.skip(); return; }
+    if (!hasVideo) {
+      test.skip();
+      return;
+    }
 
     await videoButton.click();
     await page.locator('[role="dialog"]').waitFor({ state: "visible", timeout: 5_000 });

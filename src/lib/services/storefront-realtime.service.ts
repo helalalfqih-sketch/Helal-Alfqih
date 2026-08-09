@@ -81,7 +81,7 @@ export const StorefrontRealtimeService = {
             table: "orders",
             filter: `tenant_id=eq.${tenantId}`,
           },
-          (payload) => onOrderChange(payload)
+          (payload) => onOrderChange(payload),
         )
         .subscribe();
     } catch (err) {
@@ -108,7 +108,7 @@ export const StorefrontRealtimeService = {
             table: "sync_jobs",
             filter: `tenant_id=eq.${tenantId}`,
           },
-          (payload) => onSyncChange(payload)
+          (payload) => onSyncChange(payload),
         )
         .subscribe();
     } catch (err) {
@@ -138,4 +138,3 @@ export const StorefrontRealtimeService = {
     };
   },
 };
-

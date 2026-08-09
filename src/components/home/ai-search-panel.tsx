@@ -74,9 +74,6 @@ export function AiSearchPanel({ height }: { height?: number }) {
           </button>
         ))}
       </div>
-
-
-
     </section>
   );
 }

@@ -128,95 +128,94 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .middleware([requireSupabaseAuth])
-  .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ ok: true; from: OrderStatus; to: OrderStatus }> => {
-      const { supabase, userId } = context as unknown as { supabase: any; userId: string };
+  .handler(async ({ data, context }): Promise<{ ok: true; from: OrderStatus; to: OrderStatus }> => {
+    const { supabase, userId } = context as unknown as { supabase: any; userId: string };
 
-      // Read under RLS: proves the caller can manage this order's tenant.
-      const { data: order, error: readErr } = await supabase
-        .from("orders")
-        .select("id, status, tenant_id, total, currency")
-        .eq("id", data.orderId)
-        .maybeSingle();
-      if (readErr || !order) {
-        throw new Error("الطلب غير موجود أو لا تملك صلاحية إدارته.");
-      }
+    // Read under RLS: proves the caller can manage this order's tenant.
+    const { data: order, error: readErr } = await supabase
+      .from("orders")
+      .select("id, status, tenant_id, total, currency")
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (readErr || !order) {
+      throw new Error("الطلب غير موجود أو لا تملك صلاحية إدارته.");
+    }
 
-      const fromStatus = order.status as OrderStatus;
-      if (fromStatus === data.toStatus) {
-        return { ok: true, from: fromStatus, to: data.toStatus };
-      }
-
-      // Enforce the allowed status flow (e.g. never delivered → processing,
-      // never cancelled → any active state). UI mirrors this map, but the
-      // server is the authority.
-      const allowed = ORDER_STATUS_TRANSITIONS[fromStatus] ?? [];
-      if (!allowed.includes(data.toStatus)) {
-        throw new Error(
-          `انتقال غير مسموح: من "${ORDER_STATUS_LABELS_AR[fromStatus]}" إلى "${ORDER_STATUS_LABELS_AR[data.toStatus]}".`,
-        );
-      }
-
-      const expectedStatus = data.expectedStatus ?? fromStatus;
-
-      // Compare-and-swap update: ensures status has not changed concurrently
-      const { data: updatedRows, error: updErr } = await supabase
-        .from("orders")
-        .update({ status: data.toStatus, updated_at: new Date().toISOString() })
-        .eq("id", data.orderId)
-        .eq("status", expectedStatus)
-        .select("id");
-
-      if (updErr || !updatedRows || updatedRows.length === 0) {
-        throw new Error("تعذّر تحديث حالة الطلب. قد يكون قد تم تعديل الطلب بواسطة موظف آخر، يرجى تحديث الصفحة.");
-      }
-
-      // Atomic Audit Entry: append to order_status_history
-      const { error: histErr } = await supabase.from("order_status_history").insert({
-        order_id: data.orderId,
-        tenant_id: order.tenant_id,
-        from_status: fromStatus,
-        to_status: data.toStatus,
-        changed_by: userId,
-        note: data.note ?? null,
-      });
-
-      if (histErr) {
-        console.error("[updateOrderStatus] History Insert Error, rolling back status:", histErr.message);
-        // Rollback the status update to maintain audit integrity
-        await supabase
-          .from("orders")
-          .update({ status: fromStatus })
-          .eq("id", data.orderId);
-        throw new Error(`تعذر حفظ سجل التغيير: ${histErr.message}. تم إلغاء تعديل الحالة للحفاظ على سلامة البيانات.`);
-      }
-
-      // P4 — financial ledger hooks (best-effort, idempotent, service role;
-      // ledger has NO client INSERT policy so this is the only write path).
-      // A failure here never fails the status change.
-      if (data.toStatus === "delivered" || data.toStatus === "refunded") {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const fin = await import("@/lib/services/store-financial.service");
-          const orderRow = {
-            id: order.id,
-            tenant_id: order.tenant_id,
-            total: Number(order.total ?? 0),
-            currency: order.currency ?? "YER",
-          };
-          if (data.toStatus === "delivered") {
-            await fin.recordOrderIncome(supabaseAdmin as any, orderRow);
-          } else {
-            await fin.recordOrderRefund(supabaseAdmin as any, orderRow);
-          }
-        } catch (finErr) {
-          console.warn("[updateOrderStatus] financial ledger notice:", finErr);
-        }
-      }
-
+    const fromStatus = order.status as OrderStatus;
+    if (fromStatus === data.toStatus) {
       return { ok: true, from: fromStatus, to: data.toStatus };
-    },
-  );
+    }
+
+    // Enforce the allowed status flow (e.g. never delivered → processing,
+    // never cancelled → any active state). UI mirrors this map, but the
+    // server is the authority.
+    const allowed = ORDER_STATUS_TRANSITIONS[fromStatus] ?? [];
+    if (!allowed.includes(data.toStatus)) {
+      throw new Error(
+        `انتقال غير مسموح: من "${ORDER_STATUS_LABELS_AR[fromStatus]}" إلى "${ORDER_STATUS_LABELS_AR[data.toStatus]}".`,
+      );
+    }
+
+    const expectedStatus = data.expectedStatus ?? fromStatus;
+
+    // Compare-and-swap update: ensures status has not changed concurrently
+    const { data: updatedRows, error: updErr } = await supabase
+      .from("orders")
+      .update({ status: data.toStatus, updated_at: new Date().toISOString() })
+      .eq("id", data.orderId)
+      .eq("status", expectedStatus)
+      .select("id");
+
+    if (updErr || !updatedRows || updatedRows.length === 0) {
+      throw new Error(
+        "تعذّر تحديث حالة الطلب. قد يكون قد تم تعديل الطلب بواسطة موظف آخر، يرجى تحديث الصفحة.",
+      );
+    }
+
+    // Atomic Audit Entry: append to order_status_history
+    const { error: histErr } = await supabase.from("order_status_history").insert({
+      order_id: data.orderId,
+      tenant_id: order.tenant_id,
+      from_status: fromStatus,
+      to_status: data.toStatus,
+      changed_by: userId,
+      note: data.note ?? null,
+    });
+
+    if (histErr) {
+      console.error(
+        "[updateOrderStatus] History Insert Error, rolling back status:",
+        histErr.message,
+      );
+      // Rollback the status update to maintain audit integrity
+      await supabase.from("orders").update({ status: fromStatus }).eq("id", data.orderId);
+      throw new Error(
+        `تعذر حفظ سجل التغيير: ${histErr.message}. تم إلغاء تعديل الحالة للحفاظ على سلامة البيانات.`,
+      );
+    }
+
+    // P4 — financial ledger hooks (best-effort, idempotent, service role;
+    // ledger has NO client INSERT policy so this is the only write path).
+    // A failure here never fails the status change.
+    if (data.toStatus === "delivered" || data.toStatus === "refunded") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const fin = await import("@/lib/services/store-financial.service");
+        const orderRow = {
+          id: order.id,
+          tenant_id: order.tenant_id,
+          total: Number(order.total ?? 0),
+          currency: order.currency ?? "YER",
+        };
+        if (data.toStatus === "delivered") {
+          await fin.recordOrderIncome(supabaseAdmin as any, orderRow);
+        } else {
+          await fin.recordOrderRefund(supabaseAdmin as any, orderRow);
+        }
+      } catch (finErr) {
+        console.warn("[updateOrderStatus] financial ledger notice:", finErr);
+      }
+    }
+
+    return { ok: true, from: fromStatus, to: data.toStatus };
+  });

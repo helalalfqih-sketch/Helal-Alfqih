@@ -56,9 +56,7 @@ export const Route = createFileRoute("/api/ai/agent")({
         const customStream = new ReadableStream({
           async start(controller) {
             const sendEvent = (data: object) => {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
-              );
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
             };
 
             try {
@@ -128,7 +126,12 @@ export const Route = createFileRoute("/api/ai/agent")({
                 location: "/api/ai/agent",
                 cause: errMsg,
                 stackTrace: err?.stack || errMsg,
-                context: { method: "POST", status: 500, host: "indexes-store.vercel.app", provider: payload.providerId },
+                context: {
+                  method: "POST",
+                  status: 500,
+                  host: "indexes-store.vercel.app",
+                  provider: payload.providerId,
+                },
               }).catch(() => {});
 
               sendEvent({ type: "error", error: userFriendlyErr, detail: errMsg });

@@ -8,11 +8,7 @@
  */
 import { queryOptions } from "@tanstack/react-query";
 import { fetchCategories } from "@/lib/actions/category.actions";
-import {
-  fetchBestSellers,
-  fetchOffers,
-  fetchProducts,
-} from "@/lib/actions/product.actions";
+import { fetchBestSellers, fetchOffers, fetchProducts } from "@/lib/actions/product.actions";
 import type { LegacyProductShape, LegacyCategoryShape } from "@/lib/data-adapter";
 
 const CATALOG_POLICY = {

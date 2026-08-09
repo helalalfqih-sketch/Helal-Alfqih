@@ -29,7 +29,8 @@ export const requestProductVideo = createServerFn({ method: "POST" })
         return {
           ok: true,
           duplicate: true,
-          message: "تم تسجيل طلبك المسبق لتوفير فيديو لهذا المنتج بنجاح. سنقوم بإضافته فور تجهيزه ✨",
+          message:
+            "تم تسجيل طلبك المسبق لتوفير فيديو لهذا المنتج بنجاح. سنقوم بإضافته فور تجهيزه ✨",
         };
       }
     } catch {
@@ -69,6 +70,7 @@ export const requestProductVideo = createServerFn({ method: "POST" })
     return {
       ok: true,
       duplicate: false,
-      message: "تم إرسال طلب توفير الفيديو إلى فريق المتجر بنجاح 🎥! سيتم إشعارات عند إضافة الفيديو.",
+      message:
+        "تم إرسال طلب توفير الفيديو إلى فريق المتجر بنجاح 🎥! سيتم إشعارات عند إضافة الفيديو.",
     };
   });

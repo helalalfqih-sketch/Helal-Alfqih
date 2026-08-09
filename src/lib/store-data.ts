@@ -27,8 +27,18 @@ export type Category = {
 export const categories: Category[] = [
   { id: "fashion", name: "الأزياء", icon: "Shirt", color: "from-purple-500 to-indigo-600" },
   { id: "perfumes", name: "العطور", icon: "Sparkles", color: "from-pink-500 to-rose-600" },
-  { id: "beauty_care", name: "الجمال والعناية", icon: "Heart", color: "from-fuchsia-400 to-purple-600" },
-  { id: "electronics", name: "الإلكترونيات", icon: "Headphones", color: "from-blue-500 to-violet-700" },
+  {
+    id: "beauty_care",
+    name: "الجمال والعناية",
+    icon: "Heart",
+    color: "from-fuchsia-400 to-purple-600",
+  },
+  {
+    id: "electronics",
+    name: "الإلكترونيات",
+    icon: "Headphones",
+    color: "from-blue-500 to-violet-700",
+  },
   { id: "home_decor", name: "المنزل", icon: "Home", color: "from-amber-500 to-orange-600" },
 ];
 
@@ -41,7 +51,8 @@ export const products: Product[] = [
     price: 199,
     oldPrice: 285,
     stock: 34,
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
     rating: 4.8,
     reviews: 128,
     categoryId: "electronics",
@@ -55,7 +66,8 @@ export const products: Product[] = [
     price: 149,
     oldPrice: 199,
     stock: 50,
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80",
     rating: 4.7,
     reviews: 96,
     categoryId: "electronics",
@@ -69,7 +81,8 @@ export const products: Product[] = [
     price: 119,
     oldPrice: 149,
     stock: 25,
-    image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=800&q=80",
     rating: 4.9,
     reviews: 73,
     categoryId: "perfumes",
@@ -83,7 +96,8 @@ export const products: Product[] = [
     price: 289,
     oldPrice: 339,
     stock: 18,
-    image: "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=800&q=80",
     rating: 4.6,
     reviews: 62,
     categoryId: "home_decor",
@@ -91,11 +105,9 @@ export const products: Product[] = [
   },
 ];
 
-export const getProductBySlug = (slug: string) =>
-  products.find((p) => p.slug === slug);
+export const getProductBySlug = (slug: string) => products.find((p) => p.slug === slug);
 
-export const getProductsByCategory = (id: string) =>
-  products.filter((p) => p.categoryId === id);
+export const getProductsByCategory = (id: string) => products.filter((p) => p.categoryId === id);
 
 export const formatPrice = (n: number) =>
   new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(n) + " " + CURRENCY;

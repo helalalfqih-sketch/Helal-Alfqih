@@ -22,7 +22,9 @@ export async function simulateConcurrentOrders(orderCount: number = 100) {
   const totalDuration = Date.now() - startTime;
   const avgLatency = results.reduce((sum, r) => sum + r.latencyMs, 0) / orderCount;
 
-  console.log(`[Load Test] Created ${orderCount} orders in ${totalDuration}ms (Avg Latency: ${avgLatency.toFixed(2)}ms, Throughput: ${(orderCount / (totalDuration / 1000)).toFixed(1)} req/sec)`);
+  console.log(
+    `[Load Test] Created ${orderCount} orders in ${totalDuration}ms (Avg Latency: ${avgLatency.toFixed(2)}ms, Throughput: ${(orderCount / (totalDuration / 1000)).toFixed(1)} req/sec)`,
+  );
   return { orderCount, totalDuration, avgLatency };
 }
 
@@ -43,7 +45,9 @@ export async function simulateCatalogBrowsing(readCount: number = 1000) {
   const totalDuration = Date.now() - startTime;
   const avgLatency = results.reduce((sum, r) => sum + r.latencyMs, 0) / readCount;
 
-  console.log(`[Load Test] Served ${readCount} product reads in ${totalDuration}ms (Avg Latency: ${avgLatency.toFixed(2)}ms, Throughput: ${(readCount / (totalDuration / 1000)).toFixed(1)} req/sec)`);
+  console.log(
+    `[Load Test] Served ${readCount} product reads in ${totalDuration}ms (Avg Latency: ${avgLatency.toFixed(2)}ms, Throughput: ${(readCount / (totalDuration / 1000)).toFixed(1)} req/sec)`,
+  );
   return { readCount, totalDuration, avgLatency };
 }
 

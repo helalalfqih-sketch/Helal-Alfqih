@@ -25,15 +25,15 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    return new Response(
-      JSON.stringify(responsePayload),
-      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 200 }
-    );
+    return new Response(JSON.stringify(responsePayload), {
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
     const errMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: errMessage }),
-      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 400 }
-    );
+    return new Response(JSON.stringify({ error: errMessage }), {
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });

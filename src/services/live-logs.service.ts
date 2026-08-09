@@ -48,7 +48,7 @@ export function generateSuggestedFix(
   cause: string,
   location: string,
   stackTrace?: string | null,
-  errorType?: string
+  errorType?: string,
 ): string {
   const lowerName = (errorName || "").toLowerCase();
   const lowerCause = (cause || "").toLowerCase();
@@ -128,7 +128,8 @@ const inMemoryLiveLogs: SystemLiveLogEntry[] = [];
 // Helper to get service-role client on server or fallback safely to anon client
 async function getDbClient() {
   try {
-    const hasServiceKey = typeof process !== "undefined" && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const hasServiceKey =
+      typeof process !== "undefined" && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
     if (hasServiceKey) {
       const { getSupabaseAdmin } = await import("@/integrations/supabase/client.server");
       const admin = getSupabaseAdmin();
@@ -158,7 +159,7 @@ export async function logServerError(opts: {
     opts.cause,
     opts.location,
     opts.stackTrace,
-    opts.errorType || "Server Function"
+    opts.errorType || "Server Function",
   );
   const entry: SystemLiveLogEntry = {
     id: crypto.randomUUID(),
@@ -204,7 +205,7 @@ export async function logServerError(opts: {
  */
 export async function captureSupabaseQueryError<T>(
   promise: Promise<{ data: T | null; error: any }>,
-  location: string
+  location: string,
 ): Promise<{ data: T | null; error: any }> {
   const result = await promise;
   if (result.error) {
@@ -216,7 +217,12 @@ export async function captureSupabaseQueryError<T>(
       location,
       cause: err.message || err.details || "فشل تنفيذ الاستعلام في سوبا بيس",
       stackTrace: `Code: ${err.code || "N/A"}\nMessage: ${err.message || ""}\nDetails: ${err.details || ""}\nHint: ${err.hint || ""}`,
-      context: { status: 500, host: "indexes-store.vercel.app", code: err.code, details: err.details },
+      context: {
+        status: 500,
+        host: "indexes-store.vercel.app",
+        code: err.code,
+        details: err.details,
+      },
     }).catch(() => {});
   }
   return result;
@@ -233,97 +239,101 @@ export const listLiveLogsFn = createServerFn({ method: "GET" })
       level: z.string().optional(),
       status: z.string().optional(),
       limit: z.number().optional().default(100),
-    })
+    }),
   )
-  .handler(
-    async ({ data }): Promise<{ logs: SystemLiveLogEntry[]; stats: LiveLogsStats }> => {
-      let dbLogs: SystemLiveLogEntry[] = [];
+  .handler(async ({ data }): Promise<{ logs: SystemLiveLogEntry[]; stats: LiveLogsStats }> => {
+    let dbLogs: SystemLiveLogEntry[] = [];
 
-      try {
-        const db = await getDbClient();
-        let query = (db as any)
-          .from("system_live_logs")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(data.limit || 100);
+    try {
+      const db = await getDbClient();
+      let query = (db as any)
+        .from("system_live_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(data.limit || 100);
 
-        const { data: dbData, error } = await query;
+      const { data: dbData, error } = await query;
 
-        if (!error && dbData && dbData.length > 0) {
-          dbLogs = dbData.map((row: any) => ({
-            id: row.id,
-            tenantId: row.tenant_id,
-            errorName: row.error_name,
-            errorType: row.error_type,
-            level: row.level,
-            location: row.location,
-            cause: row.cause,
-            suggestedFix:
-              row.suggested_fix ||
-              generateSuggestedFix(row.error_name, row.cause, row.location, row.stack_trace, row.error_type),
-            stackTrace: row.stack_trace,
-            context: row.context,
-            status: row.status,
-            createdAt: row.created_at,
-          }));
-        }
-      } catch (err) {
-        console.warn("Supabase system_live_logs table query skipped, using fallback logs:", err);
+      if (!error && dbData && dbData.length > 0) {
+        dbLogs = dbData.map((row: any) => ({
+          id: row.id,
+          tenantId: row.tenant_id,
+          errorName: row.error_name,
+          errorType: row.error_type,
+          level: row.level,
+          location: row.location,
+          cause: row.cause,
+          suggestedFix:
+            row.suggested_fix ||
+            generateSuggestedFix(
+              row.error_name,
+              row.cause,
+              row.location,
+              row.stack_trace,
+              row.error_type,
+            ),
+          stackTrace: row.stack_trace,
+          context: row.context,
+          status: row.status,
+          createdAt: row.created_at,
+        }));
       }
-
-      // Merge DB logs with in-memory logs (deduplicated by id)
-      const existingIds = new Set(dbLogs.map((l) => l.id));
-      const combinedLogs = [...dbLogs];
-
-      for (const memLog of inMemoryLiveLogs) {
-        if (!existingIds.has(memLog.id)) {
-          combinedLogs.push(memLog);
-        }
-      }
-
-      // Sort by created_at DESC
-      combinedLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      // Apply filtering
-      let filteredLogs = combinedLogs;
-
-      if (data.errorType && data.errorType !== "ALL") {
-        filteredLogs = filteredLogs.filter((l) => l.errorType === data.errorType);
-      }
-
-      if (data.level && data.level !== "ALL") {
-        filteredLogs = filteredLogs.filter((l) => l.level === data.level);
-      }
-
-      if (data.status && data.status !== "ALL") {
-        filteredLogs = filteredLogs.filter((l) => l.status === data.status);
-      }
-
-      if (data.search && data.search.trim()) {
-        const s = data.search.trim().toLowerCase();
-        filteredLogs = filteredLogs.filter(
-          (l) =>
-            l.errorName.toLowerCase().includes(s) ||
-            l.cause.toLowerCase().includes(s) ||
-            l.location.toLowerCase().includes(s) ||
-            l.suggestedFix.toLowerCase().includes(s)
-        );
-      }
-
-      const stats: LiveLogsStats = {
-        total: filteredLogs.length,
-        open: filteredLogs.filter((l) => l.status === "open").length,
-        fatal: filteredLogs.filter((l) => l.level === "fatal").length,
-        adminUi: filteredLogs.filter((l) => l.errorType === "Admin UI").length,
-        storefrontUi: filteredLogs.filter((l) => l.errorType === "Storefront UI").length,
-        supabaseDb: filteredLogs.filter((l) => l.errorType === "Supabase DB").length,
-        githubIntegration: filteredLogs.filter((l) => l.errorType === "GitHub Integration").length,
-        serverFunction: filteredLogs.filter((l) => l.errorType === "Server Function").length,
-      };
-
-      return { logs: filteredLogs, stats };
+    } catch (err) {
+      console.warn("Supabase system_live_logs table query skipped, using fallback logs:", err);
     }
-  );
+
+    // Merge DB logs with in-memory logs (deduplicated by id)
+    const existingIds = new Set(dbLogs.map((l) => l.id));
+    const combinedLogs = [...dbLogs];
+
+    for (const memLog of inMemoryLiveLogs) {
+      if (!existingIds.has(memLog.id)) {
+        combinedLogs.push(memLog);
+      }
+    }
+
+    // Sort by created_at DESC
+    combinedLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Apply filtering
+    let filteredLogs = combinedLogs;
+
+    if (data.errorType && data.errorType !== "ALL") {
+      filteredLogs = filteredLogs.filter((l) => l.errorType === data.errorType);
+    }
+
+    if (data.level && data.level !== "ALL") {
+      filteredLogs = filteredLogs.filter((l) => l.level === data.level);
+    }
+
+    if (data.status && data.status !== "ALL") {
+      filteredLogs = filteredLogs.filter((l) => l.status === data.status);
+    }
+
+    if (data.search && data.search.trim()) {
+      const s = data.search.trim().toLowerCase();
+      filteredLogs = filteredLogs.filter(
+        (l) =>
+          l.errorName.toLowerCase().includes(s) ||
+          l.cause.toLowerCase().includes(s) ||
+          l.location.toLowerCase().includes(s) ||
+          l.suggestedFix.toLowerCase().includes(s),
+      );
+    }
+
+    const stats: LiveLogsStats = {
+      total: filteredLogs.length,
+      open: filteredLogs.filter((l) => l.status === "open").length,
+      fatal: filteredLogs.filter((l) => l.level === "fatal").length,
+      adminUi: filteredLogs.filter((l) => l.errorType === "Admin UI").length,
+      storefrontUi: filteredLogs.filter((l) => l.errorType === "Storefront UI").length,
+      supabaseDb: filteredLogs.filter((l) => l.errorType === "Supabase DB").length,
+      githubIntegration: filteredLogs.filter((l) => l.errorType === "GitHub Integration").length,
+      serverFunction: filteredLogs.filter((l) => l.errorType === "Server Function").length,
+    };
+
+    return { logs: filteredLogs, stats };
+  });
 
 /**
  * Server Fn: Record a new error into system_live_logs.
@@ -340,12 +350,18 @@ export const logLiveErrorFn = createServerFn({ method: "POST" })
       stackTrace: z.string().optional(),
       context: z.record(z.any()).optional(),
       tenantId: z.string().optional(),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     const fix =
       data.suggestedFix ||
-      generateSuggestedFix(data.errorName, data.cause, data.location, data.stackTrace, data.errorType);
+      generateSuggestedFix(
+        data.errorName,
+        data.cause,
+        data.location,
+        data.stackTrace,
+        data.errorType,
+      );
 
     const generatedId = crypto.randomUUID();
     const nowIso = new Date().toISOString();
@@ -403,7 +419,7 @@ export const updateLiveLogStatusFn = createServerFn({ method: "POST" })
     z.object({
       id: z.string(),
       status: z.enum(["open", "investigating", "resolved"]),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     // Update in-memory log
@@ -415,10 +431,7 @@ export const updateLiveLogStatusFn = createServerFn({ method: "POST" })
     // Try updating Supabase DB
     try {
       const db = await getDbClient();
-      await (db as any)
-        .from("system_live_logs")
-        .update({ status: data.status })
-        .eq("id", data.id);
+      await (db as any).from("system_live_logs").update({ status: data.status }).eq("id", data.id);
     } catch (err) {
       console.warn("Database status update notice:", err);
     }
@@ -433,7 +446,7 @@ export const clearLiveLogsFn = createServerFn({ method: "POST" })
   .validator(
     z.object({
       clearMode: z.enum(["resolved_only", "all"]),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     if (data.clearMode === "resolved_only") {

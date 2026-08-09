@@ -10,7 +10,7 @@ import {
 
 const CACHE_CONFIG = {
   staleTime: 1000 * 60 * 15, // 15 minutes
-  gcTime: 1000 * 60 * 60 * 2,  // 2 hours
+  gcTime: 1000 * 60 * 60 * 2, // 2 hours
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
 };

@@ -51,7 +51,7 @@ export const listAdminProducts = async (input: ListAdminProductsInput = {}) => {
   const arr = res.items as any;
   arr.total = res.total;
   arr.totalCount = res.total;
-  return arr as (typeof res.items & { total: number; totalCount: number });
+  return arr as typeof res.items & { total: number; totalCount: number };
 };
 
 export const getAdminProduct = (id: string) =>

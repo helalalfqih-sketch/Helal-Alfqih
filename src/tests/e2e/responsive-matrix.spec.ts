@@ -33,15 +33,21 @@ export const TARGET_VIEWPORTS: DeviceViewport[] = [
 export const ResponsiveMatrixSpec = {
   name: "12-Device Multi-Viewport Responsive Audit Spec",
   runAudit() {
-    console.log(`[E2E Responsive Matrix] Auditing layout responsiveness across ${TARGET_VIEWPORTS.length} devices...`);
+    console.log(
+      `[E2E Responsive Matrix] Auditing layout responsiveness across ${TARGET_VIEWPORTS.length} devices...`,
+    );
 
     let passedDevices = 0;
     for (const vp of TARGET_VIEWPORTS) {
-      console.log(`   ✓ [${vp.type.toUpperCase()}] Device '${vp.device}' (${vp.width}x${vp.height}) -> Zero Horizontal Overflow`);
+      console.log(
+        `   ✓ [${vp.type.toUpperCase()}] Device '${vp.device}' (${vp.width}x${vp.height}) -> Zero Horizontal Overflow`,
+      );
       passedDevices++;
     }
 
-    console.log(`[E2E Responsive Matrix] Audit Complete! Verified ${passedDevices}/${TARGET_VIEWPORTS.length} viewports with 0 layout breaks.`);
+    console.log(
+      `[E2E Responsive Matrix] Audit Complete! Verified ${passedDevices}/${TARGET_VIEWPORTS.length} viewports with 0 layout breaks.`,
+    );
     return true;
   },
 };

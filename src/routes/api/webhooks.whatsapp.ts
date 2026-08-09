@@ -11,7 +11,8 @@ function verifyMetaSignature(rawBody: string, signatureHeader: string | null): b
   const secret = process.env.META_APP_SECRET;
   if (!secret) return false;
 
-  const expectedSignature = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expectedSignature =
+    "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
   try {
     const signatureBuffer = Buffer.from(signatureHeader);
@@ -39,13 +40,24 @@ async function getWebhookServiceDb() {
 
 // ── Tenant Resolution (Strict — No Fallback) ──────────────────────────────
 
-async function resolveTenantFromPhoneNumberId(db: any, phoneNumberId: string): Promise<string | null> {
+async function resolveTenantFromPhoneNumberId(
+  db: any,
+  phoneNumberId: string,
+): Promise<string | null> {
   // Use SECURITY DEFINER RPC to bypass RLS — works with new sb_secret_ key format
-  const { data: tenantId, error } = await db
-    .rpc("get_whatsapp_tenant_by_phone", { p_phone_number_id: phoneNumberId });
+  const { data: tenantId, error } = await db.rpc("get_whatsapp_tenant_by_phone", {
+    p_phone_number_id: phoneNumberId,
+  });
 
   if (error) {
-    console.error("[WA] Integration lookup RPC error:", error.code, "-", error.message, "-", error.details);
+    console.error(
+      "[WA] Integration lookup RPC error:",
+      error.code,
+      "-",
+      error.message,
+      "-",
+      error.details,
+    );
     return null;
   }
 
@@ -233,21 +245,27 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           console.error("[WA 503 REASON] META_APP_SECRET is not configured in process.env");
           logServerError({
             errorName: "[WhatsApp] META_APP_SECRET not configured",
-            errorType: "Server Function", level: "error",
+            errorType: "Server Function",
+            level: "error",
             location: "/api/webhooks/whatsapp",
-            cause: "Environment variable META_APP_SECRET is missing — WhatsApp webhook cannot process incoming payloads",
+            cause:
+              "Environment variable META_APP_SECRET is missing — WhatsApp webhook cannot process incoming payloads",
             context: { method: "POST", status: 503, host: "indexes-store.vercel.app" },
           }).catch(() => {});
-          return new Response("Service Unavailable: META_APP_SECRET not configured", { status: 503 });
+          return new Response("Service Unavailable: META_APP_SECRET not configured", {
+            status: 503,
+          });
         }
 
         const signature = request.headers.get("X-Hub-Signature-256");
         if (!signature) {
           logServerError({
             errorName: "[WhatsApp] Missing X-Hub-Signature-256",
-            errorType: "Server Function", level: "warn",
+            errorType: "Server Function",
+            level: "warn",
             location: "/api/webhooks/whatsapp",
-            cause: "Incoming POST to /api/webhooks/whatsapp is missing X-Hub-Signature-256 header — possible unauthorized request",
+            cause:
+              "Incoming POST to /api/webhooks/whatsapp is missing X-Hub-Signature-256 header — possible unauthorized request",
             context: { method: "POST", status: 403, host: "indexes-store.vercel.app" },
           }).catch(() => {});
           return new Response("Forbidden: Missing signature header", { status: 403 });
@@ -255,9 +273,11 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         if (!verifyMetaSignature(rawBody, signature)) {
           logServerError({
             errorName: "[WhatsApp] Invalid HMAC Signature",
-            errorType: "Server Function", level: "error",
+            errorType: "Server Function",
+            level: "error",
             location: "/api/webhooks/whatsapp",
-            cause: "HMAC signature verification failed for incoming WhatsApp webhook — possible tampered or replayed request",
+            cause:
+              "HMAC signature verification failed for incoming WhatsApp webhook — possible tampered or replayed request",
             context: { method: "POST", status: 403, host: "indexes-store.vercel.app" },
           }).catch(() => {});
           return new Response("Forbidden: Invalid signature", { status: 403 });
@@ -307,7 +327,8 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
                 errorType: "Supabase DB",
                 level: "error",
                 location: "/api/webhooks/whatsapp",
-                cause: "Supabase Service Role client is unavailable — WhatsApp media pipeline cannot proceed",
+                cause:
+                  "Supabase Service Role client is unavailable — WhatsApp media pipeline cannot proceed",
                 context: { method: "POST", status: 503, host: "indexes-store.vercel.app" },
               }).catch(() => {});
               return Response.json({ error: "Service unavailable" }, { status: 503 });
@@ -334,7 +355,10 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
               const idempotency = await checkAndInsertWebhookEvent(db, tenantId, messageId);
               if (idempotency.error) {
                 console.error("[WA 503 REASON] Idempotency check failed:", idempotency.error);
-                return Response.json({ error: "Service unavailable: idempotency check failed" }, { status: 503 });
+                return Response.json(
+                  { error: "Service unavailable: idempotency check failed" },
+                  { status: 503 },
+                );
               }
               if (!idempotency.isNew) {
                 results.push({ messageId, status: "already_processed" });
@@ -421,26 +445,25 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
 
               if (insertError) {
                 // Fallback to direct insert
-                const { error: directErr } = await db
-                  .from("media_files")
-                  .insert({
-                    tenant_id: tenantId,
-                    file_name: fileName,
-                    file_path: storagePath,
-                    file_url: permanentUrl,
-                    file_type: (messageType === "video" ? "video" : "image") as "image" | "video" | "other",
-                    mime_type: mimeType,
-                    size_bytes: binary.buffer.byteLength,
-                    source: "whatsapp",
-                    metadata: {
-                      whatsapp_message_id: messageId,
-                      sender_hash: senderHash,
-                      whatsapp_media_id: mediaId,
-                      caption,
-                      upload_success: true,
-                      received_at: new Date().toISOString(),
-                    },
-                  });
+                const { error: directErr } = await db.from("media_files").insert({
+                  tenant_id: tenantId,
+                  file_name: fileName,
+                  file_path: storagePath,
+                  file_url: permanentUrl,
+                  file_type: (messageType === "video" ? "video" : "image") as
+                    "image" | "video" | "other",
+                  mime_type: mimeType,
+                  size_bytes: binary.buffer.byteLength,
+                  source: "whatsapp",
+                  metadata: {
+                    whatsapp_message_id: messageId,
+                    sender_hash: senderHash,
+                    whatsapp_media_id: mediaId,
+                    caption,
+                    upload_success: true,
+                    received_at: new Date().toISOString(),
+                  },
+                });
                 insertError = directErr;
               }
 
@@ -453,11 +476,17 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
                 }
                 logServerError({
                   errorName: "[WhatsApp] media_files DB Insert Failed",
-                  errorType: "Supabase DB", level: "error",
+                  errorType: "Supabase DB",
+                  level: "error",
                   location: "/api/webhooks/whatsapp",
                   cause: `DB insert into media_files failed after successful Storage upload: ${insertError.message || insertError.code}`,
                   stackTrace: `Code: ${insertError.code}\nMessage: ${insertError.message}\nDetails: ${insertError.details}`,
-                  context: { method: "POST", status: 500, host: "indexes-store.vercel.app", errorCode: insertError.code },
+                  context: {
+                    method: "POST",
+                    status: 500,
+                    host: "indexes-store.vercel.app",
+                    errorCode: insertError.code,
+                  },
                 }).catch(() => {});
                 await updateWebhookEventStatus(db, tenantId, messageId, "failed");
                 results.push({ messageId, status: "db_insert_failed" });

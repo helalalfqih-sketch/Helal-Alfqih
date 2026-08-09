@@ -136,8 +136,35 @@ export async function searchProductsAdvanced(
     const rawTokens = getExpandedTokens(search);
     // Stop-words: tokens that are too common or semantically empty to drive relevance
     const STOP_WORDS = new Set([
-      "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of", "to", "for", "with", "and", "or", "is",
-      "من", "في", "على", "عن", "مع", "لا", "او", "ام", "ال", "ما", "هذا", "هذه"
+      "no",
+      "product",
+      "products",
+      "item",
+      "items",
+      "the",
+      "a",
+      "an",
+      "in",
+      "on",
+      "of",
+      "to",
+      "for",
+      "with",
+      "and",
+      "or",
+      "is",
+      "من",
+      "في",
+      "على",
+      "عن",
+      "مع",
+      "لا",
+      "او",
+      "ام",
+      "ال",
+      "ما",
+      "هذا",
+      "هذه",
     ]);
 
     // Content tokens: not a stop-word AND at least 3 chars (eliminates single-letter fragments
@@ -161,12 +188,12 @@ export async function searchProductsAdvanced(
         for (const token of contentTokens) {
           // Score only on product-facing fields; intentionally omit metadata JSON
           // to avoid accidental substring matches on internal identifiers
-          if (normName.includes(token)) score += 10;       // name match
+          if (normName.includes(token)) score += 10; // name match
           if (normSku.includes(token) || normBarcode.includes(token)) score += 8; // sku/barcode
-          if (normBrand.includes(token)) score += 6;       // brand
-          if (normCat.includes(token)) score += 5;         // category
-          if (normTags.includes(token)) score += 4;        // tags
-          if (normDesc.includes(token)) score += 2;        // description
+          if (normBrand.includes(token)) score += 6; // brand
+          if (normCat.includes(token)) score += 5; // category
+          if (normTags.includes(token)) score += 4; // tags
+          if (normDesc.includes(token)) score += 2; // description
         }
 
         return { product: p, score };
@@ -232,9 +259,35 @@ export function rankSearchResults(
 
   const rawTokens = getExpandedTokens(query);
   const STOP_WORDS = new Set([
-    "no", "product", "products", "item", "items", "the", "a", "an", "in", "on", "of",
-    "to", "for", "with", "and", "or", "is",
-    "\u0645\u0646", "\u0641\u064a", "\u0639\u0644\u0649", "\u0639\u0646", "\u0645\u0639", "\u0644\u0627", "\u0627\u0648", "\u0627\u0645", "\u0627\u0644", "\u0645\u0627", "\u0647\u0630\u0627", "\u0647\u0630\u0647",
+    "no",
+    "product",
+    "products",
+    "item",
+    "items",
+    "the",
+    "a",
+    "an",
+    "in",
+    "on",
+    "of",
+    "to",
+    "for",
+    "with",
+    "and",
+    "or",
+    "is",
+    "\u0645\u0646",
+    "\u0641\u064a",
+    "\u0639\u0644\u0649",
+    "\u0639\u0646",
+    "\u0645\u0639",
+    "\u0644\u0627",
+    "\u0627\u0648",
+    "\u0627\u0645",
+    "\u0627\u0644",
+    "\u0645\u0627",
+    "\u0647\u0630\u0627",
+    "\u0647\u0630\u0647",
   ]);
   const contentTokens = rawTokens.filter((t) => !STOP_WORDS.has(t) && t.length >= 3);
   if (contentTokens.length === 0) return [];

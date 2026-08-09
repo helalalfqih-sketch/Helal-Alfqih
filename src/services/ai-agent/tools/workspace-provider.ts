@@ -7,13 +7,13 @@ export interface AgentWorkspace {
   branch: string;
   baseCommit: string;
   rootPath: string;
-  environment: 'local' | 'container' | 'remote';
+  environment: "local" | "container" | "remote";
   disposable: boolean;
 }
 
 export interface FileChangeProposal {
   filePath: string;
-  operation: 'create' | 'modify' | 'delete';
+  operation: "create" | "modify" | "delete";
   baseBlobSha?: string;
   originalHash?: string;
   proposedHash?: string;
@@ -24,11 +24,16 @@ export interface FileChangeProposal {
 }
 
 export class WorkspaceProvider {
-  private currentEnv: 'development' | 'preview' | 'production';
+  private currentEnv: "development" | "preview" | "production";
   private rootPath: string;
 
   constructor() {
-    this.currentEnv = process.env.NODE_ENV === "production" ? "production" : (process.env.VERCEL_ENV === "preview" ? "preview" : "development");
+    this.currentEnv =
+      process.env.NODE_ENV === "production"
+        ? "production"
+        : process.env.VERCEL_ENV === "preview"
+          ? "preview"
+          : "development";
     this.rootPath = process.cwd();
   }
 
@@ -44,9 +49,14 @@ export class WorkspaceProvider {
     };
   }
 
-  public async applyProposal(workspace: AgentWorkspace, proposal: FileChangeProposal): Promise<void> {
+  public async applyProposal(
+    workspace: AgentWorkspace,
+    proposal: FileChangeProposal,
+  ): Promise<void> {
     if (this.currentEnv !== "development") {
-      throw new Error(`EXECUTION_ENVIRONMENT_UNAVAILABLE: Cannot safely modify files in environment '${this.currentEnv}' without an isolated container provider.`);
+      throw new Error(
+        `EXECUTION_ENVIRONMENT_UNAVAILABLE: Cannot safely modify files in environment '${this.currentEnv}' without an isolated container provider.`,
+      );
     }
 
     const absolutePath = path.resolve(workspace.rootPath, proposal.filePath);
@@ -56,22 +66,24 @@ export class WorkspaceProvider {
     }
 
     // Hash check for 'modify' or 'delete'
-    if (proposal.operation !== 'create') {
-       try {
-         const currentContent = await fs.readFile(absolutePath, "utf-8");
-         // Very simple string hash equivalent for demonstration. 
-         // In production we would use crypto.createHash("sha256").update(currentContent).digest("hex")
-         const currentLength = currentContent.length.toString(); 
-         
-         if (proposal.originalHash && proposal.originalHash !== currentLength) {
-             throw new Error(`FILE_CONFLICT: The file ${proposal.filePath} has changed on disk since the proposal was approved.`);
-         }
-       } catch (e: any) {
-         if (e.code !== 'ENOENT') throw e;
-       }
+    if (proposal.operation !== "create") {
+      try {
+        const currentContent = await fs.readFile(absolutePath, "utf-8");
+        // Very simple string hash equivalent for demonstration.
+        // In production we would use crypto.createHash("sha256").update(currentContent).digest("hex")
+        const currentLength = currentContent.length.toString();
+
+        if (proposal.originalHash && proposal.originalHash !== currentLength) {
+          throw new Error(
+            `FILE_CONFLICT: The file ${proposal.filePath} has changed on disk since the proposal was approved.`,
+          );
+        }
+      } catch (e: any) {
+        if (e.code !== "ENOENT") throw e;
+      }
     }
 
-    if (proposal.operation === 'delete') {
+    if (proposal.operation === "delete") {
       await fs.unlink(absolutePath);
       return;
     }

@@ -242,7 +242,10 @@ function ProductPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="rounded-md bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
-                  {product.categoryName || product.category_name || (product.categoryId ? undefined : null) || "عام"}
+                  {product.categoryName ||
+                    product.category_name ||
+                    (product.categoryId ? undefined : null) ||
+                    "عام"}
                 </span>
                 <span className="flex items-center gap-1 text-xs font-bold text-success">
                   <CheckCircle2 className="h-3.5 w-3.5" />

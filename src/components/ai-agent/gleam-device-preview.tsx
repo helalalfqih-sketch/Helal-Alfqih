@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Sparkles, ExternalLink, Home, Search, ShoppingBag, User, RefreshCw, Globe } from "lucide-react";
+import {
+  Sparkles,
+  ExternalLink,
+  Home,
+  Search,
+  ShoppingBag,
+  User,
+  RefreshCw,
+  Globe,
+} from "lucide-react";
 
 interface GleamDevicePreviewProps {
   activeRoute?: string;
@@ -73,9 +82,13 @@ export function GleamDevicePreview({
             <div className="w-full h-full bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 flex flex-col justify-between pt-2 pb-2">
               {/* Header */}
               <div className="text-center pt-2 px-3">
-                <span className="text-[9px] tracking-widest text-slate-400 font-mono uppercase">{projectName}</span>
+                <span className="text-[9px] tracking-widest text-slate-400 font-mono uppercase">
+                  {projectName}
+                </span>
                 <h4 className="text-xs font-black mt-1 text-slate-100">كوكب المنتجات</h4>
-                <p className="text-[9px] text-slate-400 mt-0.5">تفاعلي ثلاثي الأبعاد — انقر لاستكشاف العروض</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">
+                  تفاعلي ثلاثي الأبعاد — انقر لاستكشاف العروض
+                </p>
               </div>
 
               {/* 3D Product Sphere Graphic Simulation */}

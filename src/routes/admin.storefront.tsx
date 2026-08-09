@@ -497,7 +497,9 @@ function LivePreviewDevice({
                           <div>
                             <h4 className="text-[10px] font-bold truncate">{prod.name}</h4>
                             {layout.showRating && (
-                              <span className="text-[8px] text-yellow-400">★ {prod.rating || 4.8} ({prod.reviews || 12})</span>
+                              <span className="text-[8px] text-yellow-400">
+                                ★ {prod.rating || 4.8} ({prod.reviews || 12})
+                              </span>
                             )}
                           </div>
                           <div className="flex items-center justify-between mt-1">
@@ -876,7 +878,9 @@ function HomepageTab({ hero, sections, onHeroChange, onSectionsChange }: Homepag
 
           {/* Globe Overlay Texts & Font Sizes */}
           <div className="space-y-3 pt-3 border-t border-border/40">
-            <h4 className="text-xs font-bold text-primary">نصوص وأحجام الخطوط فوق الكرة (Globe Overlay)</h4>
+            <h4 className="text-xs font-bold text-primary">
+              نصوص وأحجام الخطوط فوق الكرة (Globe Overlay)
+            </h4>
             <div className="grid grid-cols-2 gap-3">
               <Field label="نص الشارة فوق الكرة">
                 <input
@@ -1449,7 +1453,9 @@ function CatalogTab({ layout, page, onLayoutChange, onPageChange }: CatalogTabPr
 
         {/* Product Card Dimensions Manager */}
         <div className="space-y-3 pt-3 border-t border-border/40">
-          <h4 className="text-xs font-bold text-primary">التحكم الدقيق في أبعاد ومقاسات الكروت والخطوط (Card Dimensions)</h4>
+          <h4 className="text-xs font-bold text-primary">
+            التحكم الدقيق في أبعاد ومقاسات الكروت والخطوط (Card Dimensions)
+          </h4>
           <div className="grid grid-cols-2 gap-3">
             <Field label="عرض البطاقة للهواتف (px)">
               <input
@@ -1710,7 +1716,15 @@ function CheckoutTab({ cart, checkout, onCartChange, onCheckoutChange }: Checkou
             />
           </Field>
           <Field label="رسوم الشحن الأساسية">
-            <input type="number" min={0} value={cart.shippingFee} onChange={(e) => setCart("shippingFee", Number(e.target.value))} className={fieldCls} dir="ltr" placeholder="مثال: 3000" />
+            <input
+              type="number"
+              min={0}
+              value={cart.shippingFee}
+              onChange={(e) => setCart("shippingFee", Number(e.target.value))}
+              className={fieldCls}
+              dir="ltr"
+              placeholder="مثال: 3000"
+            />
           </Field>
         </div>
 

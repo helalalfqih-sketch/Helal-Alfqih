@@ -61,10 +61,7 @@ export function NeonProductCard({ product }: { product: Product }) {
           onClick={handleToggleFav}
           className="press -mt-1 -mr-1 grid h-5 w-5 place-items-center rounded-full text-ink-text transition hover:text-neon-2"
         >
-          <Heart
-            className={`h-3 w-3 ${fav ? "fill-neon-2 text-neon-2" : ""}`}
-            strokeWidth={1.7}
-          />
+          <Heart className={`h-3 w-3 ${fav ? "fill-neon-2 text-neon-2" : ""}`} strokeWidth={1.7} />
         </button>
       </div>
 
@@ -103,9 +100,7 @@ export function NeonProductCard({ product }: { product: Product }) {
       <div className="mt-0.5 flex items-baseline justify-center gap-1.5">
         <span className="text-[12px] font-bold text-neon-2">{riyal(product.price)}</span>
         {hasDiscount ? (
-          <span className="text-[9px] text-ink-muted line-through">
-            {riyal(product.oldPrice!)}
-          </span>
+          <span className="text-[9px] text-ink-muted line-through">{riyal(product.oldPrice!)}</span>
         ) : null}
       </div>
 
@@ -120,4 +115,3 @@ export function NeonProductCard({ product }: { product: Product }) {
     </div>
   );
 }
-
