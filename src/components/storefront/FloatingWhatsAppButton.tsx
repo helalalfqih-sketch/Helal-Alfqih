@@ -1,18 +1,17 @@
-import React, { useState } from "react";
-import { STORE_INFO } from "./constants";
-import { MessageCircle, Phone, X, Sparkles, Send, ShieldCheck, Clock } from "lucide-react";
+import React, { useState } from 'react';
+import { STORE_INFO } from './constants';
+import { MessageCircle, Phone, X, Sparkles, Send, ShieldCheck, Clock } from 'lucide-react';
 
 export const FloatingWhatsAppButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [quickMsg, setQuickMsg] = useState("");
+  const [quickMsg, setQuickMsg] = useState('');
 
-  const whatsappNumber = STORE_INFO.whatsappNumber || "967771370740";
+  const whatsappNumber = STORE_INFO.whatsappNumber || '967771370740';
 
   const sendWhatsAppMsg = (text?: string) => {
-    const message =
-      text || quickMsg || "السلام عليكم، أود الاستفسار عن المنتجات متوفرة في متجر إندكس";
+    const message = text || quickMsg || 'السلام عليكم، أود الاستفسار عن المنتجات متوفرة في متجر إندكس';
     const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -46,7 +45,7 @@ export const FloatingWhatsAppButton: React.FC = () => {
           {/* Preset Quick Actions */}
           <div className="space-y-2 mb-3">
             <button
-              onClick={() => sendWhatsAppMsg("السلام عليكم، أريد الاستفسار عن كروت وشحن الألعاب")}
+              onClick={() => sendWhatsAppMsg('السلام عليكم، أريد الاستفسار عن كروت وشحن الألعاب')}
               className="w-full text-right bg-[#15102a]/80 hover:bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400/60 rounded-xl p-2.5 text-xs text-gray-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
             >
               <Send className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-[-2px] transition-transform" />
@@ -54,7 +53,7 @@ export const FloatingWhatsAppButton: React.FC = () => {
             </button>
 
             <button
-              onClick={() => sendWhatsAppMsg("السلام عليكم، أود تتبع طلبي أو الاستفسار عن الشحن")}
+              onClick={() => sendWhatsAppMsg('السلام عليكم، أود تتبع طلبي أو الاستفسار عن الشحن')}
               className="w-full text-right bg-[#15102a]/80 hover:bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400/60 rounded-xl p-2.5 text-xs text-gray-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
             >
               <Send className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-[-2px] transition-transform" />
@@ -62,7 +61,7 @@ export const FloatingWhatsAppButton: React.FC = () => {
             </button>
 
             <button
-              onClick={() => sendWhatsAppMsg("السلام عليكم، أريد طلب منتج خاص غير موجود بالمتجر")}
+              onClick={() => sendWhatsAppMsg('السلام عليكم، أريد طلب منتج خاص غير موجود بالمتجر')}
               className="w-full text-right bg-[#15102a]/80 hover:bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400/60 rounded-xl p-2.5 text-xs text-gray-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
@@ -83,7 +82,7 @@ export const FloatingWhatsAppButton: React.FC = () => {
               type="text"
               value={quickMsg}
               onChange={(e) => setQuickMsg(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendWhatsAppMsg()}
+              onKeyDown={(e) => e.key === 'Enter' && sendWhatsAppMsg()}
               placeholder="اكتب رسالتك مباشرة..."
               className="w-full bg-transparent text-xs text-white placeholder-gray-500 text-right focus:outline-none px-1"
             />

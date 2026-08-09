@@ -19,4 +19,5 @@ export const SCROLL_SPRING = { stiffness: 140, damping: 30, mass: 0.35 } as cons
 export const STAGGER_STEP = 0.045;
 export const STAGGER_MAX_INDEX = 6;
 
-export const staggerDelay = (index = 0) => Math.min(index, STAGGER_MAX_INDEX) * STAGGER_STEP;
+export const staggerDelay = (index = 0) =>
+  Math.min(index, STAGGER_MAX_INDEX) * STAGGER_STEP;

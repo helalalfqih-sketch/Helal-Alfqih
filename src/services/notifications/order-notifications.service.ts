@@ -39,7 +39,9 @@ export interface NotificationRecord {
 /**
  * Get notification templates for a tenant
  */
-export async function getNotificationTemplates(tenantId: string): Promise<NotificationTemplate[]> {
+export async function getNotificationTemplates(
+  tenantId: string,
+): Promise<NotificationTemplate[]> {
   try {
     const db = await getAgentDb({});
     const { data, error } = await (db as any)
@@ -65,13 +67,10 @@ export async function saveNotificationTemplate(
     const db = await getAgentDb({});
     const { data, error } = await (db as any)
       .from("notification_templates")
-      .upsert(
-        {
-          ...template,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "tenant_id,type,channel" },
-      )
+      .upsert({
+        ...template,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "tenant_id,type,channel" })
       .select()
       .single();
 
@@ -109,8 +108,7 @@ export async function dispatchOrderNotification(params: {
 
     const template = templates?.[0];
     const subject = template?.subject_template || `تحديث للطلب #${params.orderId.slice(0, 8)}`;
-    const content =
-      template?.body_template || `تم تحديث حالة الطلب الخاص بك #${params.orderId.slice(0, 8)}.`;
+    const content = template?.body_template || `تم تحديث حالة الطلب الخاص بك #${params.orderId.slice(0, 8)}.`;
 
     // 2. Record notification
     const { data: record, error } = await (db as any)

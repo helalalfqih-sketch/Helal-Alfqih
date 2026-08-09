@@ -15,9 +15,7 @@ export interface EvidenceBackedRecommendation {
   requiresUserApproval: boolean;
 }
 
-export function generateEvidenceRecommendations(
-  results: EnrichedAuditResult[],
-): EvidenceBackedRecommendation[] {
+export function generateEvidenceRecommendations(results: EnrichedAuditResult[]): EvidenceBackedRecommendation[] {
   const recommendations: EvidenceBackedRecommendation[] = [];
 
   for (const r of results) {
@@ -29,10 +27,8 @@ export function generateEvidenceRecommendations(
         auditName: r.name,
         priority: "LOW",
         fact: `Audit '${r.name}' returned NOT_MEASURED status.`,
-        potentialCause:
-          r.notMeasuredReason || "Environment variables or runtime DB connectivity not configured",
-        recommendation:
-          "Configure runtime environment variables or verify database connection credentials.",
+        potentialCause: r.notMeasuredReason || "Environment variables or runtime DB connectivity not configured",
+        recommendation: "Configure runtime environment variables or verify database connection credentials.",
         confidence: "HIGH",
         requiresUserApproval: false,
       });

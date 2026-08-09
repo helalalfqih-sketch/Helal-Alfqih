@@ -31,6 +31,7 @@ const PANEL_GAP = 8;
 /** Space reserved for the floating bottom navigation (nav height + gap). */
 const NAV_RESERVE = 76;
 
+
 type Geometry = {
   cw: number;
   header: number;
@@ -104,13 +105,7 @@ function useStageGeometry(stageRef: React.RefObject<HTMLDivElement | null>): Geo
     // measured from the real stage offset — so the AI and trust panels always
     // stay fully visible above the floating bottom navigation.
     const available =
-      vh -
-      Math.max(stageTop, header) -
-      IDENTITY_H -
-      GLOBE_GAP -
-      AI_H -
-      TRUST_H -
-      PANEL_GAP * 2 -
+      vh - Math.max(stageTop, header) - IDENTITY_H - GLOBE_GAP - AI_H - TRUST_H - PANEL_GAP * 2 -
       (vw >= 768 ? NAV_RESERVE + 34 : NAV_RESERVE);
     // The planet reads edge-to-edge like the reference: the canvas box may
     // bleed past the page gutters, but never past the viewport, so no orbiting
@@ -142,6 +137,8 @@ function useStageGeometry(stageRef: React.RefObject<HTMLDivElement | null>): Geo
     const sectionH = stageH + TRAVEL;
     // Sticky release point expressed as scroll progress (offset end→start).
     const pEnd = Math.min(0.94, Math.max(0.5, (sectionH - heroH) / sectionH));
+
+
 
     // Text-protection zone: wide enough that no tile crosses the headline,
     // subline or CTA while the initial state is on screen.
@@ -184,6 +181,7 @@ function useStageGeometry(stageRef: React.RefObject<HTMLDivElement | null>): Geo
       pEnd,
       exclusion: { x: zoneW / base, y0: -zoneH / base, y1: zoneH / base },
     };
+
   }, [cw, vh, vw, stageTop]);
 }
 
@@ -210,6 +208,7 @@ function StoreIdentity() {
     </div>
   );
 }
+
 
 export function ScrollGlobeHero({ products }: { products: LegacyProductShape[] }) {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -395,6 +394,7 @@ export function ScrollGlobeHero({ products }: { products: LegacyProductShape[] }
         >
           <TrustStrip />
         </motion.div>
+
       </div>
     </div>
   );

@@ -38,12 +38,13 @@ const allProducts = [watchProduct, carProduct];
 // ─── Phone Validation ────────────────────────────────────────────────────────
 
 describe("checkout phone validation", () => {
-  it.each(["771234567", "+967771234567", "967771234567"])(
-    "accepts and normalizes %s to 967771234567",
-    (input) => {
-      expect(yemeniPhoneSchema.parse(input)).toBe("967771234567");
-    },
-  );
+  it.each([
+    "771234567",
+    "+967771234567",
+    "967771234567",
+  ])("accepts and normalizes %s to 967771234567", (input) => {
+    expect(yemeniPhoneSchema.parse(input)).toBe("967771234567");
+  });
 
   it("accepts Arabic-Indic digits ٧٧١٢٣٤٥٦٧", () => {
     expect(yemeniPhoneSchema.parse("٧٧١٢٣٤٥٦٧")).toBe("967771234567");
@@ -53,8 +54,9 @@ describe("checkout phone validation", () => {
     expect(yemeniPhoneSchema.parse("۷۷۱۲۳۴۵۶۷")).toBe("967771234567");
   });
 
-  it.each(["", "123456789", "967123456789", "77123"])("rejects invalid: %s", (input) =>
-    expect(yemeniPhoneSchema.safeParse(input).success).toBe(false),
+  it.each(["", "123456789", "967123456789", "77123"])(
+    "rejects invalid: %s",
+    (input) => expect(yemeniPhoneSchema.safeParse(input).success).toBe(false),
   );
 
   it("normalizeArabicDigits handles both Arabic and Persian blocks", () => {

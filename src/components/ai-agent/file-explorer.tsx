@@ -17,11 +17,7 @@ import {
   HardDrive,
   RefreshCw,
 } from "lucide-react";
-import {
-  getRealProjectTreeFn,
-  readProjectFileContentFn,
-  ProjectFileNode,
-} from "@/lib/ai-agent.functions";
+import { getRealProjectTreeFn, readProjectFileContentFn, ProjectFileNode } from "@/lib/ai-agent.functions";
 
 export interface FileItem {
   id: string;
@@ -54,7 +50,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
   const readFileServerFn = useServerFn(readProjectFileContentFn);
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
-    src: true,
+    "src": true,
     "src/routes": true,
     "src/components": true,
     "src/lib": true,
@@ -63,11 +59,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
   const [filterText, setFilterText] = useState("");
   const [loadingFilePath, setLoadingFilePath] = useState<string | null>(null);
 
-  const {
-    data: treeData,
-    isLoading: loadingTree,
-    refetch: refetchTree,
-  } = useQuery({
+  const { data: treeData, isLoading: loadingTree, refetch: refetchTree } = useQuery({
     queryKey: ["real-project-tree"],
     queryFn: () => getTreeServerFn(),
     staleTime: 30000,
@@ -123,43 +115,21 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
   const getFileIcon = (fileName: string, isActive: boolean) => {
     const ext = fileName.split(".").pop()?.toLowerCase() || "";
     if (ext === "tsx" || ext === "ts") {
-      return (
-        <FileCode
-          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-cyan-400" : "text-cyan-500/80"}`}
-        />
-      );
+      return <FileCode className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-cyan-400" : "text-cyan-500/80"}`} />;
     }
     if (ext === "css") {
-      return (
-        <FileText
-          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-pink-400" : "text-pink-500/80"}`}
-        />
-      );
+      return <FileText className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-pink-400" : "text-pink-500/80"}`} />;
     }
     if (ext === "json" || ext === "config") {
-      return (
-        <FileJson
-          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-amber-400" : "text-amber-500/80"}`}
-        />
-      );
+      return <FileJson className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-amber-400" : "text-amber-500/80"}`} />;
     }
     if (ext === "sql") {
-      return (
-        <Database
-          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-violet-400" : "text-violet-500/80"}`}
-        />
-      );
+      return <Database className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-violet-400" : "text-violet-500/80"}`} />;
     }
     if (ext === "md") {
-      return (
-        <FileText
-          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-emerald-400" : "text-emerald-500/80"}`}
-        />
-      );
+      return <FileText className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-emerald-400" : "text-emerald-500/80"}`} />;
     }
-    return (
-      <File className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-zinc-200" : "text-zinc-500"}`} />
-    );
+    return <File className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-zinc-200" : "text-zinc-500"}`} />;
   };
 
   const formatFileSize = (bytes?: number) => {
@@ -171,9 +141,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
 
   const renderNode = (node: ProjectFileNode, depth = 0) => {
     const isSearchActive = filterText.trim().length > 0;
-    const matchesSearch =
-      node.name.toLowerCase().includes(filterText.toLowerCase()) ||
-      node.path.toLowerCase().includes(filterText.toLowerCase());
+    const matchesSearch = node.name.toLowerCase().includes(filterText.toLowerCase()) || node.path.toLowerCase().includes(filterText.toLowerCase());
 
     if (isSearchActive && node.type === "file" && !matchesSearch) {
       return null;
@@ -191,19 +159,9 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
             className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded-lg text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition font-mono group"
             style={{ paddingLeft: `${depth * 10 + 6}px` }}
           >
-            {isOpen ? (
-              <ChevronDown className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
-            ) : (
-              <ChevronLeft className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
-            )}
-            {isOpen ? (
-              <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-            ) : (
-              <Folder className="h-3.5 w-3.5 text-amber-400/80 shrink-0" />
-            )}
-            <span className="truncate group-hover:text-amber-200 transition-colors">
-              {node.name}
-            </span>
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-zinc-500 shrink-0" /> : <ChevronLeft className="h-3.5 w-3.5 text-zinc-500 shrink-0" />}
+            {isOpen ? <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" /> : <Folder className="h-3.5 w-3.5 text-amber-400/80 shrink-0" />}
+            <span className="truncate group-hover:text-amber-200 transition-colors">{node.name}</span>
           </button>
 
           {isOpen && hasChildren && (
@@ -224,10 +182,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
         type="button"
         draggable={true}
         onDragStart={(e) => {
-          e.dataTransfer.setData(
-            "application/json",
-            JSON.stringify({ path: node.path, name: node.name, type: "file" }),
-          );
+          e.dataTransfer.setData("application/json", JSON.stringify({ path: node.path, name: node.name, type: "file" }));
           e.dataTransfer.setData("text/plain", node.path);
         }}
         onClick={() => handleFileClick(node)}
@@ -239,17 +194,11 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
         style={{ paddingLeft: `${depth * 10 + 16}px` }}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          {isLoadingThis ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400 shrink-0" />
-          ) : (
-            getFileIcon(node.name, isActive)
-          )}
+          {isLoadingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400 shrink-0" /> : getFileIcon(node.name, isActive)}
           <span className="truncate">{node.name}</span>
         </div>
         {node.size ? (
-          <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 shrink-0">
-            {formatFileSize(node.size)}
-          </span>
+          <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 shrink-0">{formatFileSize(node.size)}</span>
         ) : null}
       </button>
     );
@@ -291,9 +240,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
           <HardDrive className="h-3 w-3 text-cyan-400" />
           Files loaded: <strong className="text-cyan-300">{totalFiles}</strong>
         </span>
-        <span>
-          Folders: <strong className="text-amber-400">{totalFolders}</strong>
-        </span>
+        <span>Folders: <strong className="text-amber-400">{totalFolders}</strong></span>
       </div>
 
       {/* Tree View Section */}
@@ -304,9 +251,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
             <span className="text-xs text-zinc-400 font-medium">Scanning project structure...</span>
           </div>
         ) : projectTree.length === 0 ? (
-          <div className="text-center py-10 text-xs text-zinc-500 font-mono">
-            لا توجد ملفات متوفرة
-          </div>
+          <div className="text-center py-10 text-xs text-zinc-500 font-mono">لا توجد ملفات متوفرة</div>
         ) : (
           projectTree.map((node) => renderNode(node))
         )}
@@ -322,9 +267,7 @@ export function FileExplorer({ activeFilePath, onSelectFile }: FileExplorerProps
         <button
           type="button"
           onClick={() => {
-            const blob = new Blob([JSON.stringify(projectTree, null, 2)], {
-              type: "application/json",
-            });
+            const blob = new Blob([JSON.stringify(projectTree, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;

@@ -104,10 +104,7 @@ function StoresOverview() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {stores.map((s) => {
-            const st = STATUS_LABELS[s.status] ?? {
-              label: s.status,
-              tone: "bg-muted text-muted-foreground",
-            };
+            const st = STATUS_LABELS[s.status] ?? { label: s.status, tone: "bg-muted text-muted-foreground" };
             return (
               <Link
                 key={s.tenantId}
@@ -117,11 +114,7 @@ function StoresOverview() {
               >
                 <div className="flex items-start gap-3">
                   {s.logoUrl ? (
-                    <img
-                      src={s.logoUrl}
-                      alt=""
-                      className="h-12 w-12 rounded-xl object-cover border border-border"
-                    />
+                    <img src={s.logoUrl} alt="" className="h-12 w-12 rounded-xl object-cover border border-border" />
                   ) : (
                     <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-lg font-black text-primary">
                       {(s.displayName || s.name).slice(0, 1)}
@@ -165,9 +158,7 @@ function StoresOverview() {
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground">الإيرادات</p>
-                    <p className="truncate text-sm font-black text-primary">
-                      {formatPrice(s.revenue)}
-                    </p>
+                    <p className="truncate text-sm font-black text-primary">{formatPrice(s.revenue)}</p>
                   </div>
                 </div>
 

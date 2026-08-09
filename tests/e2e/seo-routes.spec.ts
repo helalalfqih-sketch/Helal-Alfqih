@@ -1,9 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("E2E — SEO Routes & Public Endpoint Standards", () => {
-  test("robots.txt endpoint serves valid disallow rules without private route leaks", async ({
-    request,
-  }) => {
+  test("robots.txt endpoint serves valid disallow rules without private route leaks", async ({ request }) => {
     try {
       const res = await request.get("/robots.txt");
       if (res.ok()) {

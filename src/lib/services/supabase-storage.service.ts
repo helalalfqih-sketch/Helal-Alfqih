@@ -16,13 +16,15 @@ export const SupabaseStorageService = {
     bucket: StorageBucket,
     filePath: string,
     file: File | Blob,
-    options?: StorageUploadOptions,
+    options?: StorageUploadOptions
   ) {
-    const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
-      cacheControl: options?.cacheControl || "3600",
-      contentType: options?.contentType,
-      upsert: options?.upsert ?? true,
-    });
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        cacheControl: options?.cacheControl || "3600",
+        contentType: options?.contentType,
+        upsert: options?.upsert ?? true,
+      });
 
     if (error) {
       console.error(`[SupabaseStorage] Upload error in bucket ${bucket}:`, error);
@@ -46,7 +48,7 @@ export const SupabaseStorageService = {
   async createSignedUrl(
     bucket: StorageBucket,
     filePath: string,
-    expiresInSeconds: number = 3600,
+    expiresInSeconds: number = 3600
   ): Promise<string> {
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -64,7 +66,9 @@ export const SupabaseStorageService = {
    * Delete a file from a storage bucket.
    */
   async deleteFile(bucket: StorageBucket, filePath: string) {
-    const { data, error } = await supabase.storage.from(bucket).remove([filePath]);
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .remove([filePath]);
 
     if (error) {
       console.error(`[SupabaseStorage] Delete error in bucket ${bucket}:`, error);

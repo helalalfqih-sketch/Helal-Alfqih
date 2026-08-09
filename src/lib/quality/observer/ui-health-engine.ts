@@ -50,8 +50,7 @@ export function generateProductHealthSummary(): ProductHealthSummary {
         title: "Hardcoded Hex Colors Detected",
         component: "ProductMediaUploader",
         impact: "MEDIUM",
-        recommendation:
-          "Replace hardcoded hex colors with design tokens (bg-background, text-primary)",
+        recommendation: "Replace hardcoded hex colors with design tokens (bg-background, text-primary)",
       },
     ],
   };

@@ -1,7 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import * as Icons from "lucide-react";
 import { useEffect, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { fetchCategories } from "@/lib/actions/category.actions";
 import type { LegacyCategoryShape } from "@/lib/data-adapter";
 import { whatsappLink } from "@/lib/whatsapp";

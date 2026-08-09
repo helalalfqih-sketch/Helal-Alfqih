@@ -41,8 +41,7 @@ export function LivePreviewCanvas({
     return "w-full";
   };
 
-  const targetUrl =
-    typeof window !== "undefined" ? `${window.location.origin}${currentPath}` : currentPath;
+  const targetUrl = typeof window !== "undefined" ? `${window.location.origin}${currentPath}` : currentPath;
 
   return (
     <div className="flex flex-col h-full bg-[#121215] rounded-2xl border border-zinc-800/80 shadow-2xl overflow-hidden select-none">
@@ -84,9 +83,7 @@ export function LivePreviewCanvas({
               type="button"
               onClick={() => setDeviceView("desktop")}
               className={`p-1 rounded-lg text-xs transition ${
-                deviceView === "desktop"
-                  ? "bg-violet-600 text-white shadow-xs"
-                  : "text-zinc-400 hover:text-zinc-200"
+                deviceView === "desktop" ? "bg-violet-600 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200"
               }`}
               title="Desktop View"
             >
@@ -96,9 +93,7 @@ export function LivePreviewCanvas({
               type="button"
               onClick={() => setDeviceView("tablet")}
               className={`p-1 rounded-lg text-xs transition ${
-                deviceView === "tablet"
-                  ? "bg-violet-600 text-white shadow-xs"
-                  : "text-zinc-400 hover:text-zinc-200"
+                deviceView === "tablet" ? "bg-violet-600 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200"
               }`}
               title="Tablet View"
             >
@@ -108,9 +103,7 @@ export function LivePreviewCanvas({
               type="button"
               onClick={() => setDeviceView("mobile")}
               className={`p-1 rounded-lg text-xs transition ${
-                deviceView === "mobile"
-                  ? "bg-violet-600 text-white shadow-xs"
-                  : "text-zinc-400 hover:text-zinc-200"
+                deviceView === "mobile" ? "bg-violet-600 text-white shadow-xs" : "text-zinc-400 hover:text-zinc-200"
               }`}
               title="Mobile View"
             >
@@ -124,9 +117,7 @@ export function LivePreviewCanvas({
             className="p-1.5 rounded-xl border border-zinc-800 bg-[#1f1f24] hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition"
             title="Refresh Preview"
           >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isBuilding ? "animate-spin text-violet-400" : ""}`}
-            />
+            <RefreshCw className={`h-3.5 w-3.5 ${isBuilding ? "animate-spin text-violet-400" : ""}`} />
           </button>
 
           <a
@@ -152,9 +143,7 @@ export function LivePreviewCanvas({
 
       {/* iFrame Preview Container */}
       <div className="flex-1 bg-[#09090b] flex items-center justify-center p-2 overflow-auto">
-        <div
-          className={`h-full transition-all duration-300 ${getContainerWidth()} border border-zinc-800/80 rounded-xl overflow-hidden shadow-2xl bg-background`}
-        >
+        <div className={`h-full transition-all duration-300 ${getContainerWidth()} border border-zinc-800/80 rounded-xl overflow-hidden shadow-2xl bg-background`}>
           <iframe
             key={iframeKey}
             src={targetUrl}

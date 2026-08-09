@@ -6,18 +6,17 @@ stored in `docs/design-reference/qa/`.
 
 ## Artifacts produced per viewport
 
-| Artifact                  | Filename pattern                    | Description                                                                   |
-| ------------------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| Reference screenshot      | `<role>-<W>x<H>-reference.png`      | The canonical V1 PNG scaled (not cropped) to the target width                 |
-| Implementation screenshot | `<role>-<W>x<H>-implementation.png` | Live app capture at the exact viewport, application viewport only             |
-| Side-by-side              | `<role>-<W>x<H>-sidebyside.png`     | Reference left / implementation right, same scale, shared baseline            |
-| Overlay                   | `<role>-<W>x<H>-overlay.png`        | Implementation over reference at 50 % opacity, aligned on the header top edge |
-| Diff notes                | `<role>-<W>x<H>-notes.md`           | Measured differences and remaining mismatches                                 |
+| Artifact | Filename pattern | Description |
+| --- | --- | --- |
+| Reference screenshot | `<role>-<W>x<H>-reference.png` | The canonical V1 PNG scaled (not cropped) to the target width |
+| Implementation screenshot | `<role>-<W>x<H>-implementation.png` | Live app capture at the exact viewport, application viewport only |
+| Side-by-side | `<role>-<W>x<H>-sidebyside.png` | Reference left / implementation right, same scale, shared baseline |
+| Overlay | `<role>-<W>x<H>-overlay.png` | Implementation over reference at 50 % opacity, aligned on the header top edge |
+| Diff notes | `<role>-<W>x<H>-notes.md` | Measured differences and remaining mismatches |
 
 `<role>` is `mobile` for Reference A viewports and `commerce` for Reference B viewports.
 
 ## Capture rules
-
 - Application viewport only. No browser chrome, no Lovable editor UI, no device frame, no OS status bar.
 - Headless Chromium, `deviceScaleFactor: 2`, `prefers-reduced-motion: no-preference`.
 - Wait for network idle plus 2 s for WebGL/textures before capture.
@@ -26,22 +25,20 @@ stored in `docs/design-reference/qa/`.
 
 ## Required viewports
 
-| Role     | Viewport    | Governing reference              |
-| -------- | ----------- | -------------------------------- |
-| mobile   | 360 × 800   | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
-| mobile   | 375 × 812   | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
-| mobile   | 390 × 844   | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
-| mobile   | 412 × 915   | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
-| commerce | 768 × 1024  | INDEXES-HOME-COMMERCE-V1         |
-| commerce | 1024 × 1536 | INDEXES-HOME-COMMERCE-V1         |
-| commerce | 1366 × 768  | INDEXES-HOME-COMMERCE-V1         |
-| commerce | 1440 × 900  | INDEXES-HOME-COMMERCE-V1         |
+| Role | Viewport | Governing reference |
+| --- | --- | --- |
+| mobile | 360 × 800 | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
+| mobile | 375 × 812 | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
+| mobile | 390 × 844 | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
+| mobile | 412 × 915 | INDEXES-HOME-IMMERSIVE-MOBILE-V1 |
+| commerce | 768 × 1024 | INDEXES-HOME-COMMERCE-V1 |
+| commerce | 1024 × 1536 | INDEXES-HOME-COMMERCE-V1 |
+| commerce | 1366 × 768 | INDEXES-HOME-COMMERCE-V1 |
+| commerce | 1440 × 900 | INDEXES-HOME-COMMERCE-V1 |
 
 ## Measured differences (recorded for every viewport)
-
 For each section (header, announcement, store identity, planet, hero copy, AI panel, trust
 panel, offers banner, categories, best offers, trust strip, loyalty, bottom nav) record:
-
 - element x/y position delta (px)
 - width/height delta (px and %)
 - vertical gap between sections (px)
@@ -55,7 +52,6 @@ panel, offers banner, categories, best offers, trust strip, loyalty, bottom nav)
 ## Pass / fail criteria
 
 Pass when, at every required viewport:
-
 - Section order matches the contract exactly, with no unrelated sections inserted.
 - Position deltas ≤ 8 px and size deltas ≤ 4 % for every listed element.
 - Vertical section gaps within ±4 px of the reference proportion.
@@ -70,7 +66,6 @@ Fail on any single violation. Fix and re-capture; do not waive a criterion witho
 `docs/design-reference/DEVIATIONS.md` carrying explicit user approval.
 
 ## Loop
-
 1. Capture reference + implementation.
 2. Build side-by-side and overlay.
 3. Record measured differences.

@@ -77,6 +77,7 @@ function SearchPage() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
 
+
   // Fetch Categories for Filter
   useEffect(() => {
     fetchCategories()

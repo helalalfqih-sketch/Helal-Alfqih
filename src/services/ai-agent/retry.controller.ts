@@ -4,11 +4,7 @@
  * Manages autonomous self-healing retry loops with a maximum of 3 attempts.
  */
 
-import {
-  analyzeExecutionFailure,
-  generateRecoveryStrategy,
-  type FailureAnalysisResult,
-} from "./failure-analysis.engine";
+import { analyzeExecutionFailure, generateRecoveryStrategy, type FailureAnalysisResult } from "./failure-analysis.engine";
 
 export interface RetryAttemptRecord {
   attempt: number;
@@ -54,7 +50,7 @@ export async function executeSelfHealingLoop(
   while (attemptsCount < MAX_RETRY_ATTEMPTS) {
     attemptsCount++;
     const analysis = analyzeExecutionFailure(currentOutput, affectedFiles);
-
+    
     // Simulate targeted fix application in self-healing engine
     timeline.push({
       attempt: attemptsCount,

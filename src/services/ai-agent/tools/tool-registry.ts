@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { AgentRole } from "../agent.permissions";
 
-export type ToolCategory = "repository" | "database" | "validation" | "execution" | "git";
-export type ToolExecutionMode = "read" | "proposal" | "mutation";
-export type ToolRiskLevel = "low" | "medium" | "high" | "critical";
-export type Environment = "development" | "preview" | "production";
+export type ToolCategory = 'repository' | 'database' | 'validation' | 'execution' | 'git';
+export type ToolExecutionMode = 'read' | 'proposal' | 'mutation';
+export type ToolRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type Environment = 'development' | 'preview' | 'production';
 
 export interface AgentToolDefinition<TInput = any, TOutput = any> {
   name: string;
@@ -25,9 +25,7 @@ export interface AgentToolDefinition<TInput = any, TOutput = any> {
 
 export const TOOL_REGISTRY = new Map<string, AgentToolDefinition>();
 
-export function registerTool<TInput = any, TOutput = any>(
-  tool: AgentToolDefinition<TInput, TOutput>,
-) {
+export function registerTool<TInput = any, TOutput = any>(tool: AgentToolDefinition<TInput, TOutput>) {
   if (TOOL_REGISTRY.has(tool.name)) {
     throw new Error(`Tool ${tool.name} is already registered. Dual-registration detected.`);
   }
@@ -44,19 +42,19 @@ export function getAllTools(): AgentToolDefinition[] {
 
 // Generates the ToolSet for the AI SDK `streamText` function
 export function buildCanonicalAiSdkTools(
-  agentRole: AgentRole,
-  tenantId: string,
+  agentRole: AgentRole, 
+  tenantId: string, 
   sendEvent: (e: any) => void,
-  context: any = {},
+  context: any = {}
 ) {
   const aiTools: Record<string, any> = {};
-
+  
   const ROLE_RANK: Record<AgentRole, number> = { owner: 4, admin: 3, developer: 2, viewer: 1 };
   const userRank = ROLE_RANK[agentRole] || 0;
 
   for (const [name, tool] of TOOL_REGISTRY.entries()) {
     const requiredRank = ROLE_RANK[tool.minimumRole] || 0;
-
+    
     // Enforce strictly fail-closed RBAC: only generate tool if user has minimum required role
     if (userRank >= requiredRank) {
       aiTools[name] = {
@@ -68,13 +66,9 @@ export function buildCanonicalAiSdkTools(
             type: "tool_call",
             tool: name,
             message: `🛠️ ${tool.description}`,
-            metadata: {
-              category: tool.category,
-              risk: tool.risk,
-              requiresApproval: tool.requiresApproval,
-            },
+            metadata: { category: tool.category, risk: tool.risk, requiresApproval: tool.requiresApproval }
           });
-
+          
           try {
             return await tool.execute(input, { ...context, tenantId, agentRole, sendEvent });
           } catch (e: any) {
@@ -87,19 +81,17 @@ export function buildCanonicalAiSdkTools(
 
   // Double check that NO human-control approval tools leak into the SDK model's tools
   const blockedTools = [
-    "approve_execution_plan",
-    "reject_execution_plan",
-    "startApprovedExecution",
-    "gitPush",
-    "applyMigration",
-    "deployProduction",
+    "approve_execution_plan", 
+    "reject_execution_plan", 
+    "startApprovedExecution", 
+    "gitPush", 
+    "applyMigration", 
+    "deployProduction"
   ];
 
   for (const blocked of blockedTools) {
     if (aiTools[blocked]) {
-      throw new Error(
-        `SECURITY_VIOLATION: Human-control tool '${blocked}' leaked into AI SDK tool list.`,
-      );
+      throw new Error(`SECURITY_VIOLATION: Human-control tool '${blocked}' leaked into AI SDK tool list.`);
     }
   }
 

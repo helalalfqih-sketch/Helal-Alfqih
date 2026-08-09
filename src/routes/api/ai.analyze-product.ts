@@ -40,7 +40,10 @@ export const Route = createFileRoute("/api/ai/analyze-product")({
 
         const resolved = await resolveActiveAIProvider();
         if (!resolved || !resolved.model) {
-          return Response.json({ error: "No AI provider configured" }, { status: 500 });
+          return Response.json(
+            { error: "No AI provider configured" },
+            { status: 500 },
+          );
         }
         const model = resolved.model;
 
@@ -91,7 +94,9 @@ export const Route = createFileRoute("/api/ai/analyze-product")({
             model,
             system: systemMsg,
             output: Output.object({ schema: OutputSchema }),
-            messages: [{ role: "user", content: userContent }],
+            messages: [
+              { role: "user", content: userContent },
+            ],
           });
           return Response.json(output);
         } catch (error) {

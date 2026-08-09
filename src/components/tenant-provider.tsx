@@ -8,7 +8,14 @@
  *   3. window.location.host           — subdomain resolution on server
  *   4. Default tenant (backend fallback)
  */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentTenant } from "@/lib/tenant.functions";
 

@@ -21,7 +21,7 @@ export async function processPlanApproval(
   sessionId: string,
   approved: boolean,
   approvedBy = "quality.executor",
-  notes?: string,
+  notes?: string
 ): Promise<ApprovalControllerRecord> {
   const nextState: ExecutionLifecycleState = approved ? "APPROVED" : "FAILED";
   const record: ApprovalControllerRecord = {
@@ -40,21 +40,10 @@ export async function processPlanApproval(
 export async function approveAndExecuteTask(
   taskId: string,
   sessionId: string,
-  approvedBy = "quality.executor",
+  approvedBy = "quality.executor"
 ): Promise<{ success: boolean; record: ApprovalControllerRecord; lifecycleEvents: string[] }> {
-  const record = await processPlanApproval(
-    taskId,
-    sessionId,
-    true,
-    approvedBy,
-    "Approved & Dispatched Execution Orchestrator",
-  );
-  const lifecycleEvents: string[] = [
-    "PLAN_CREATED",
-    "EVIDENCE_READY",
-    "APPROVAL_GRANTED",
-    "EXECUTION_STARTED",
-  ];
+  const record = await processPlanApproval(taskId, sessionId, true, approvedBy, "Approved & Dispatched Execution Orchestrator");
+  const lifecycleEvents: string[] = ["PLAN_CREATED", "EVIDENCE_READY", "APPROVAL_GRANTED", "EXECUTION_STARTED"];
 
   try {
     await logExecutionJournal({

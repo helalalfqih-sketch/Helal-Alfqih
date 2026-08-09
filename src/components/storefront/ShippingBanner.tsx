@@ -1,6 +1,6 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { Rocket, Zap, Truck } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Rocket, Zap, Truck } from 'lucide-react';
 
 interface ShippingBannerProps {
   onOpenShippingInfo?: () => void;
@@ -9,7 +9,7 @@ interface ShippingBannerProps {
 export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingInfo }) => {
   return (
     <div className="px-3 sm:px-6 py-2">
-      <motion.div
+      <motion.div 
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -23,13 +23,7 @@ export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingIn
             <div className="w-6 h-6 rounded-lg bg-[#2F6BFF]/10 border border-[#2F6BFF]/30 flex items-center justify-center text-[#2F6BFF] shrink-0 group-hover:scale-110 transition-transform">
               <Truck className="w-3.5 h-3.5 text-[#2F6BFF]" />
             </div>
-            <span>
-              توصيل سريع خلال{" "}
-              <strong className="text-[var(--color-text-primary)] font-black mx-1 text-sm">
-                24 - 48
-              </strong>{" "}
-              ساعة إلى كافة المحافظات اليمنية
-            </span>
+            <span>توصيل سريع خلال <strong className="text-[var(--color-text-primary)] font-black mx-1 text-sm">24 - 48</strong> ساعة إلى كافة المحافظات اليمنية</span>
           </div>
 
           <div className="w-6 h-6 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -40,13 +34,7 @@ export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingIn
         {/* Line 2 */}
         <div className="flex items-center justify-between text-xs sm:text-sm text-[var(--color-text-secondary)] border-t border-[var(--color-border-subtle)] pt-2 relative z-10">
           <div className="flex items-center gap-2">
-            <span>
-              شحن مجاني للطلبات فوق{" "}
-              <strong className="text-[var(--color-text-primary)] font-black mx-1 text-sm">
-                30,000
-              </strong>{" "}
-              ريال
-            </span>
+            <span>شحن مجاني للطلبات فوق <strong className="text-[var(--color-text-primary)] font-black mx-1 text-sm">30,000</strong> ريال</span>
           </div>
 
           <div className="w-6 h-6 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 group-hover:rotate-12 transition-transform">
@@ -57,3 +45,4 @@ export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingIn
     </div>
   );
 };
+

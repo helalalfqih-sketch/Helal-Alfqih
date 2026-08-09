@@ -63,11 +63,7 @@ export async function logExecutionJournal(log: ExecutionJournalLog, customDb?: a
   }
 }
 
-export async function fetchExecutionJournalLogs(
-  tenantId: string,
-  limit = 50,
-  customDb?: any,
-): Promise<ExecutionJournalLog[]> {
+export async function fetchExecutionJournalLogs(tenantId: string, limit = 50, customDb?: any): Promise<ExecutionJournalLog[]> {
   try {
     const db = customDb || (await getAgentDb({}));
     let query = db
@@ -116,10 +112,7 @@ export interface PersistentExecutionEvent {
   createdAt?: string;
 }
 
-export async function savePersistentExecutionEvent(
-  event: PersistentExecutionEvent,
-  customDb?: any,
-): Promise<void> {
+export async function savePersistentExecutionEvent(event: PersistentExecutionEvent, customDb?: any): Promise<void> {
   try {
     const db = customDb || (await getAgentDb({}));
     const { error } = await db.from("agent_execution_events").insert({
@@ -142,11 +135,7 @@ export async function savePersistentExecutionEvent(
   }
 }
 
-export async function listSessionExecutionEvents(
-  sessionId: string,
-  limit = 100,
-  customDb?: any,
-): Promise<PersistentExecutionEvent[]> {
+export async function listSessionExecutionEvents(sessionId: string, limit = 100, customDb?: any): Promise<PersistentExecutionEvent[]> {
   try {
     const db = customDb || (await getAgentDb({}));
     const { data, error } = await db
@@ -157,10 +146,7 @@ export async function listSessionExecutionEvents(
       .limit(limit);
 
     if (error) {
-      console.error(
-        "[ExecutionEvents] Failed to fetch session execution events from Supabase:",
-        error,
-      );
+      console.error("[ExecutionEvents] Failed to fetch session execution events from Supabase:", error);
       return [];
     }
 

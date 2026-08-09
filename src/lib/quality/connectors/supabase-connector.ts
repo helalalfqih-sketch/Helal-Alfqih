@@ -24,10 +24,8 @@ export async function inspectProductionDatabase(): Promise<ProductionDatabaseSta
   const tableDetails: Record<string, { rlsEnabled: boolean; rowsCount?: number }> = {};
 
   const supabaseUrl =
-    (typeof process !== "undefined" &&
-      (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)) ||
-    (typeof window !== "undefined" &&
-      ((window as any).VITE_SUPABASE_URL || (window as any).SUPABASE_URL));
+    (typeof process !== "undefined" && (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)) ||
+    (typeof window !== "undefined" && ((window as any).VITE_SUPABASE_URL || (window as any).SUPABASE_URL));
 
   if (!supabaseUrl) {
     return {
@@ -39,8 +37,7 @@ export async function inspectProductionDatabase(): Promise<ProductionDatabaseSta
       migrationStatus: "UNVERIFIED",
       queryLatencyMs: null,
       confidenceLevel: "LOW",
-      notConnectedReason:
-        "Production database environment credentials (SUPABASE_URL) not configured in runner environment",
+      notConnectedReason: "Production database environment credentials (SUPABASE_URL) not configured in runner environment",
       tableDetails: {},
       lastSyncAt: new Date().toISOString(),
     };

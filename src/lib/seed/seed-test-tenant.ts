@@ -16,7 +16,7 @@ export async function seedTestTenant() {
         status: "active",
         settings: { qa_enabled: true, mode: "sandbox" },
       },
-      { onConflict: "slug" },
+      { onConflict: "slug" }
     )
     .select()
     .single();
@@ -39,7 +39,7 @@ export async function seedTestTenant() {
         description: "Test electronics category",
         is_active: true,
       },
-      { onConflict: "tenant_id,slug" },
+      { onConflict: "tenant_id,slug" }
     )
     .select()
     .single();
@@ -90,7 +90,9 @@ export async function seedTestTenant() {
       price: 89.99,
       category_id: category?.id,
       brand: "Indexes Sound",
-      images: ["https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=800"],
+      images: [
+        "https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=800",
+      ],
       stock: 100,
       badge: "Best Seller",
       is_published: true,

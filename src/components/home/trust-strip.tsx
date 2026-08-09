@@ -25,9 +25,7 @@ export function TrustStrip({
     <section
       aria-label="مزايا المتجر"
       className={`grid grid-cols-4 items-center rounded-2xl border border-ink-line bg-ink-card ${
-        stacked
-          ? "gap-1.5 px-1.5 py-3.5"
-          : "gap-1 px-1 py-3 lg:h-[78px] lg:gap-0 lg:divide-x lg:divide-ink-line lg:px-2 lg:py-0"
+        stacked ? "gap-1.5 px-1.5 py-3.5" : "gap-1 px-1 py-3 lg:h-[78px] lg:gap-0 lg:divide-x lg:divide-ink-line lg:px-2 lg:py-0"
       } ${className}`}
     >
       {PERKS.map((p) => (

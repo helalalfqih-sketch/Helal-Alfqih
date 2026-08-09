@@ -38,11 +38,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 /**
  * Scan project files recursively with depth limit
  */
-async function scanDirectoryFiles(
-  dirRelPath: string,
-  maxDepth = 4,
-  currentDepth = 0,
-): Promise<string[]> {
+async function scanDirectoryFiles(dirRelPath: string, maxDepth = 4, currentDepth = 0): Promise<string[]> {
   if (currentDepth > maxDepth) return [];
   const absPath = path.resolve(PROJECT_ROOT, dirRelPath);
   let results: string[] = [];
@@ -50,12 +46,7 @@ async function scanDirectoryFiles(
   try {
     const entries = await fs.readdir(absPath, { withFileTypes: true });
     for (const entry of entries) {
-      if (
-        entry.name.startsWith(".") ||
-        entry.name === "node_modules" ||
-        entry.name === "dist" ||
-        entry.name === ".output"
-      ) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist" || entry.name === ".output") {
         continue;
       }
       const relItem = path.join(dirRelPath, entry.name).replace(/\\/g, "/");
@@ -123,9 +114,7 @@ export async function scanProjectStructure(): Promise<CodebaseIndex> {
   ];
 
   // Extract server function files (.functions.ts)
-  const serverFunctions = allServices.filter(
-    (f) => f.includes(".functions.ts") || f.includes(".server.ts"),
-  );
+  const serverFunctions = allServices.filter((f) => f.includes(".functions.ts") || f.includes(".server.ts"));
 
   return {
     routes,
@@ -194,12 +183,8 @@ export async function getProjectContextForAgent(
 
   // Filter relevant files based on user query keywords
   const q = userQuery.toLowerCase();
-  const matchedRoutes = index.routes.filter((r) =>
-    q.split(" ").some((kw) => kw.length > 2 && r.toLowerCase().includes(kw)),
-  );
-  const matchedComponents = index.components.filter((c) =>
-    q.split(" ").some((kw) => kw.length > 2 && c.toLowerCase().includes(kw)),
-  );
+  const matchedRoutes = index.routes.filter((r) => q.split(" ").some((kw) => kw.length > 2 && r.toLowerCase().includes(kw)));
+  const matchedComponents = index.components.filter((c) => q.split(" ").some((kw) => kw.length > 2 && c.toLowerCase().includes(kw)));
 
   const sections: string[] = [
     `=== FINGERPRINT: Indexes Store Code Intelligence ===`,
@@ -260,9 +245,7 @@ export interface ImpactAnalysisReport {
 /**
  * Build a light dependency graph mapping files to imports and database tables
  */
-export async function buildDependencyGraph(
-  targetFiles: string[],
-): Promise<Record<string, string[]>> {
+export async function buildDependencyGraph(targetFiles: string[]): Promise<Record<string, string[]>> {
   const graph: Record<string, string[]> = {};
   for (const file of targetFiles) {
     const imports = await analyzeFileDependencies(file);
@@ -297,11 +280,7 @@ export async function findImpactAnalysis(targetFiles: string[]): Promise<ImpactA
       }
 
       // Detect APIs/Server functions
-      if (
-        content.includes("createServerFn") ||
-        file.includes(".functions.ts") ||
-        file.includes(".server.ts")
-      ) {
+      if (content.includes("createServerFn") || file.includes(".functions.ts") || file.includes(".server.ts")) {
         affectedApis.add(file);
       }
 
@@ -339,3 +318,4 @@ export async function getRelatedCodeContext(targetFile: string): Promise<string>
   ];
   return sections.join("\n");
 }
+

@@ -44,7 +44,7 @@ function buildProductItem(p: any, baseUrl: string): string {
 
   const sku = xmlEscape(p.sku || p.id);
   const mpn = xmlEscape(p.mpn || p.sku || p.id);
-
+  
   // GTIN resolution (explicit fields take priority over barcode, no fallback to id)
   const gtinValue = p.gtin14 || p.gtin13 || p.gtin12 || p.gtin8 || p.barcode || null;
   const gtinField = gtinValue ? `    <g:gtin>${xmlEscape(gtinValue)}</g:gtin>\n` : "";
@@ -53,10 +53,7 @@ function buildProductItem(p: any, baseUrl: string): string {
   const extraImages = Array.isArray(p.images)
     ? p.images
         .slice(1, 11) // Merchant Center supports up to 10 additional images
-        .map(
-          (img: string) =>
-            `    <g:additional_image_link>${xmlEscape(img)}</g:additional_image_link>`,
-        )
+        .map((img: string) => `    <g:additional_image_link>${xmlEscape(img)}</g:additional_image_link>`)
         .join("\n")
     : "";
 

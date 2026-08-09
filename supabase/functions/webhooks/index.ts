@@ -3,8 +3,7 @@ declare const Deno: any;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-hub-signature-256",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-hub-signature-256",
 };
 
 /**
@@ -18,16 +17,13 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const siteUrl =
-      Deno.env.get("SITE_URL") || Deno.env.get("VERCEL_URL") || "https://indexes-store.com";
+    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("VERCEL_URL") || "https://indexes-store.com";
     const canonicalTarget = `${siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`}/api/webhooks/whatsapp`;
 
     const reqUrl = new URL(req.url);
     const targetUrl = `${canonicalTarget}${reqUrl.search}`;
 
-    console.log(
-      `[Webhook Edge Proxy] Proxying ${req.method} request to canonical endpoint: ${targetUrl}`,
-    );
+    console.log(`[Webhook Edge Proxy] Proxying ${req.method} request to canonical endpoint: ${targetUrl}`);
 
     const proxyHeaders = new Headers(req.headers);
     proxyHeaders.set("x-forwarded-by", "supabase-edge-function");
@@ -49,9 +45,9 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const errMessage = error instanceof Error ? error.message : "Proxy error";
     console.error("[Webhook Edge Proxy] Failed to proxy request:", errMessage);
-    return new Response(JSON.stringify({ error: `Webhook proxy failed: ${errMessage}` }), {
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      status: 502,
-    });
+    return new Response(
+      JSON.stringify({ error: `Webhook proxy failed: ${errMessage}` }),
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 502 }
+    );
   }
 });

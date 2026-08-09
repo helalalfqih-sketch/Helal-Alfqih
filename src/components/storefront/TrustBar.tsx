@@ -1,18 +1,18 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { Headphones, RotateCcw, Truck, ShieldCheck } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Headphones, RotateCcw, Truck, ShieldCheck } from 'lucide-react';
 
 const TRUST_ITEMS = [
-  { icon: Truck, title: "توصيل سريع", desc: "خلال 24 - 48 ساعة" },
-  { icon: ShieldCheck, title: "ضمان أصلي", desc: "جودة عالية %100" },
-  { icon: Headphones, title: "دعم 24/7", desc: "خدمة عملاء مميزة" },
-  { icon: RotateCcw, title: "استبدال وإرجاع", desc: "ضمان رضا العملاء" },
+  { icon: Truck, title: 'توصيل سريع', desc: 'خلال 24 - 48 ساعة' },
+  { icon: ShieldCheck, title: 'ضمان أصلي', desc: 'جودة عالية %100' },
+  { icon: Headphones, title: 'دعم 24/7', desc: 'خدمة عملاء مميزة' },
+  { icon: RotateCcw, title: 'استبدال وإرجاع', desc: 'ضمان رضا العملاء' },
 ];
 
 export const TrustBar: React.FC = () => {
   return (
     <section className="px-3 sm:px-6 my-5">
-      <motion.div
+      <motion.div 
         initial={{ opacity: 0, y: 15 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -30,12 +30,8 @@ export const TrustBar: React.FC = () => {
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#2F6BFF]/10 border border-[#2F6BFF]/20 flex items-center justify-center text-[#2F6BFF] mb-1.5 shrink-0 transition-all">
                 <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-[#2F6BFF] group-hover:scale-110 transition-transform" />
               </div>
-              <p className="text-xs font-bold text-[var(--color-text-primary)] leading-tight transition-colors">
-                {item.title}
-              </p>
-              <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5 font-medium">
-                {item.desc}
-              </p>
+              <p className="text-xs font-bold text-[var(--color-text-primary)] leading-tight transition-colors">{item.title}</p>
+              <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5 font-medium">{item.desc}</p>
             </motion.div>
           );
         })}
@@ -43,3 +39,5 @@ export const TrustBar: React.FC = () => {
     </section>
   );
 };
+
+

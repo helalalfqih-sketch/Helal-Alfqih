@@ -6,7 +6,7 @@ import type { LegacyProductShape } from "@/lib/data-adapter";
 import { useAppearance } from "@/components/appearance-provider";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
-  factory: () => Promise<{ default: T }>,
+  factory: () => Promise<{ default: T }>
 ): React.LazyExoticComponent<T> {
   return lazy(() =>
     factory().catch((err) => {
@@ -17,7 +17,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
         return new Promise(() => {}) as never;
       }
       throw err;
-    }),
+    })
   );
 }
 
@@ -37,7 +37,9 @@ export function PersistentShowcaseCanvas() {
 
   // Only run 3D canvas on non-home pages if hero is enabled and not cinematic
   const shouldRender3D =
-    !isHome && settings?.hero?.enabled !== false && settings?.hero?.type !== "cinematic";
+    !isHome &&
+    settings?.hero?.enabled !== false &&
+    settings?.hero?.type !== "cinematic";
 
   if (!shouldRender3D) return null;
 

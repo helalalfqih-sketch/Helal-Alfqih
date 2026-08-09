@@ -19,7 +19,7 @@ export async function performSecureLogout(redirectUrl: string = "/auth"): Promis
       await Promise.all(
         keys
           .filter((name) => privateCacheNames.includes(name) || name.includes("api-cache"))
-          .map((name) => caches.delete(name)),
+          .map((name) => caches.delete(name))
       );
     }
   } catch (err) {

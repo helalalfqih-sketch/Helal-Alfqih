@@ -112,7 +112,9 @@ async function loadShippingSettings(
     const freeShippingThreshold = Number(
       val.freeShippingThreshold ?? val.free_shipping_threshold ?? 30000,
     );
-    const defaultShippingFee = Number(val.defaultShippingFee ?? val.default_shipping_fee ?? 3000);
+    const defaultShippingFee = Number(
+      val.defaultShippingFee ?? val.default_shipping_fee ?? 3000,
+    );
 
     return {
       freeShippingThreshold: isNaN(freeShippingThreshold) ? 30000 : freeShippingThreshold,
@@ -465,10 +467,7 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     if (itemsErr || !insertedItems) {
-      console.warn(
-        "[createOrder] Order Items Insert Notice (proceeding with main order):",
-        itemsErr?.message,
-      );
+      console.warn("[createOrder] Order Items Insert Notice (proceeding with main order):", itemsErr?.message);
     }
 
     // 6b. Multi-Vendor Sub-Orders splitting (best-effort)

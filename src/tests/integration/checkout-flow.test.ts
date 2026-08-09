@@ -14,7 +14,7 @@ export interface CartItem {
 export function processCheckout(
   cart: CartItem[],
   inventoryMap: Map<string, ProductStock>,
-  couponCode?: string,
+  couponCode?: string
 ) {
   for (const item of cart) {
     const stockInfo = inventoryMap.get(item.productId);
@@ -65,10 +65,7 @@ export function runCheckoutIntegrationTest() {
   console.assert(order.total === 315, `Final total expected 315, got ${order.total}`);
 
   const updatedProd1 = order.updatedInventory.get("prod_1");
-  console.assert(
-    updatedProd1?.reservedStock === 2,
-    `Product 1 reserved stock should be 2, got ${updatedProd1?.reservedStock}`,
-  );
+  console.assert(updatedProd1?.reservedStock === 2, `Product 1 reserved stock should be 2, got ${updatedProd1?.reservedStock}`);
 
   console.log("✓ Integration Test (Cart -> Order -> Inventory) Passed!");
   return true;

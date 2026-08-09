@@ -36,13 +36,11 @@ const allowedLifecycleTransitions: Record<ExecutionLifecycleState, ExecutionLife
 
 export function transitionExecutionState(
   currentState: ExecutionLifecycleState,
-  nextState: ExecutionLifecycleState,
+  nextState: ExecutionLifecycleState
 ): ExecutionLifecycleState {
   const allowed = allowedLifecycleTransitions[currentState] || [];
   if (!allowed.includes(nextState)) {
-    throw new Error(
-      `Invalid state transition: Cannot transition from ${currentState} to ${nextState}`,
-    );
+    throw new Error(`Invalid state transition: Cannot transition from ${currentState} to ${nextState}`);
   }
   return nextState;
 }

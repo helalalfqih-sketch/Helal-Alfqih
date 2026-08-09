@@ -1,28 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Menu,
-  Plus,
-  Search,
-  Bell,
-  ShoppingCart,
-  X,
-  Sparkles,
-  ShieldCheck,
-  Heart,
-  Sun,
-  Moon,
-  History,
-} from "lucide-react";
-import { Product, Currency } from "./types";
-import { formatPrice } from "./currency";
-import {
-  getRecentSearches,
-  saveRecentSearch,
-  removeRecentSearch,
-  clearRecentSearches,
-} from "./searchHistory";
-import { StoreLogo } from "./StoreLogo";
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, Plus, Search, Bell, ShoppingCart, X, Sparkles, ShieldCheck, Heart, Sun, Moon, History } from 'lucide-react';
+import { Product, Currency } from './types';
+import { formatPrice } from './currency';
+import { getRecentSearches, saveRecentSearch, removeRecentSearch, clearRecentSearches } from './searchHistory';
+import { StoreLogo } from './StoreLogo';
 
 interface HeaderProps {
   searchQuery: string;
@@ -33,7 +15,7 @@ interface HeaderProps {
   compareCount?: number;
   products?: Product[];
   currency?: Currency;
-  theme?: "dark" | "light";
+  theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
   onOpenCart: () => void;
   onOpenNotifications: () => void;
@@ -53,8 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
   wishlistCount = 0,
   compareCount = 0,
   products = [],
-  currency = "YER",
-  theme = "dark",
+  currency = 'YER',
+  theme = 'dark',
   onToggleTheme,
   onOpenCart,
   onOpenNotifications,
@@ -91,17 +73,14 @@ export const Header: React.FC<HeaderProps> = ({
     setRecentSearches(updated);
   };
 
-  const autocompleteMatches =
-    searchQuery.trim().length > 0
-      ? products
-          .filter(
-            (p) =>
-              p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              p.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              p.category.toLowerCase().includes(searchQuery.toLowerCase()),
-          )
-          .slice(0, 5)
-      : [];
+  const autocompleteMatches = searchQuery.trim().length > 0
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.category.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 5)
+    : [];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -109,8 +88,8 @@ export const Header: React.FC<HeaderProps> = ({
         setIsAutocompleteOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
@@ -127,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <ShoppingCart className="w-5 h-5 text-[#2F6BFF]" />
           {cartCount > 0 && (
-            <motion.span
+            <motion.span 
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               className="absolute -top-1.5 -right-1.5 bg-[#2F6BFF] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--color-bg)] shadow-md shadow-blue-500/30"
@@ -185,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
               setIsAutocompleteOpen(true);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && searchQuery.trim()) {
+              if (e.key === 'Enter' && searchQuery.trim()) {
                 handleSaveSearch(searchQuery);
                 setIsAutocompleteOpen(false);
               }
@@ -196,14 +175,14 @@ export const Header: React.FC<HeaderProps> = ({
           />
           {/* Right Search Icon */}
           <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] w-4 h-4 pointer-events-none" />
-
+          
           {/* Left Sparkle Icon inside input */}
           <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 w-4 h-4 pointer-events-none" />
 
           {searchQuery && (
             <button
               onClick={() => {
-                onSearchChange("");
+                onSearchChange('');
                 setIsAutocompleteOpen(false);
               }}
               aria-label="مسح البحث"
@@ -299,12 +278,8 @@ export const Header: React.FC<HeaderProps> = ({
                                 className="w-10 h-10 object-contain rounded-lg bg-[var(--color-surface-2)] p-1 border border-[var(--color-border-subtle)]"
                               />
                               <div className="flex-1 min-w-0 text-right">
-                                <div className="text-xs font-bold text-[var(--color-text-primary)] line-clamp-1">
-                                  {product.name}
-                                </div>
-                                <div className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">
-                                  {product.subtitle}
-                                </div>
+                                <div className="text-xs font-bold text-[var(--color-text-primary)] line-clamp-1">{product.name}</div>
+                                <div className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">{product.subtitle}</div>
                               </div>
                               <div className="text-xs font-extrabold text-[var(--color-text-primary)] shrink-0">
                                 {formatPrice(product.priceYER, currency as Currency)}
@@ -327,11 +302,11 @@ export const Header: React.FC<HeaderProps> = ({
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={onToggleTheme}
-            aria-label={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
-            title={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
+            aria-label={theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
+            title={theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
             className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 text-amber-400 shadow-sm"
           >
-            {theme === "dark" ? (
+            {theme === 'dark' ? (
               <Sun className="w-5 h-5 text-amber-400" />
             ) : (
               <Moon className="w-5 h-5 text-blue-600" />
@@ -383,3 +358,5 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
+

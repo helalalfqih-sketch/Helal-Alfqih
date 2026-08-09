@@ -21,9 +21,7 @@ function StoreCustomersPage() {
           <Users className="h-6 w-6 text-primary" /> العملاء
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          {customersQ.isLoading
-            ? "جارٍ التحميل..."
-            : `${customers.length} عميل — مشتق من طلبات متجرك`}
+          {customersQ.isLoading ? "جارٍ التحميل..." : `${customers.length} عميل — مشتق من طلبات متجرك`}
         </p>
       </div>
 
@@ -37,9 +35,7 @@ function StoreCustomersPage() {
         <div className="rounded-2xl glass p-10 text-center space-y-2">
           <Users className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="text-sm font-bold">لا عملاء بعد</p>
-          <p className="text-xs text-muted-foreground">
-            سيظهر العملاء هنا تلقائياً مع أول الطلبات.
-          </p>
+          <p className="text-xs text-muted-foreground">سيظهر العملاء هنا تلقائياً مع أول الطلبات.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -57,9 +53,7 @@ function StoreCustomersPage() {
                     </span>
                   )}
                 </p>
-                <p className="text-[11px] text-muted-foreground" dir="ltr">
-                  {c.phone || "—"}
-                </p>
+                <p className="text-[11px] text-muted-foreground" dir="ltr">{c.phone || "—"}</p>
               </div>
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground">الطلبات</p>
@@ -71,9 +65,7 @@ function StoreCustomersPage() {
               </div>
               <div className="hidden text-center sm:block">
                 <p className="text-[10px] text-muted-foreground">آخر طلب</p>
-                <p className="text-xs font-bold">
-                  {new Date(c.lastOrderAt).toLocaleDateString("ar-EG")}
-                </p>
+                <p className="text-xs font-bold">{new Date(c.lastOrderAt).toLocaleDateString("ar-EG")}</p>
               </div>
             </div>
           ))}

@@ -1,9 +1,5 @@
 import crypto from "crypto";
-import type {
-  IncidentIngestionPayload,
-  IncidentLevel,
-  IncidentRecord,
-} from "@/features/runtime-incidents/types/incident.types";
+import type { IncidentIngestionPayload, IncidentLevel, IncidentRecord } from "@/features/runtime-incidents/types/incident.types";
 
 /**
  * Sanitize sensitive keys and values from context payloads.
@@ -17,15 +13,7 @@ export function sanitizeContextData(obj: any): any {
   }
 
   const sanitized: Record<string, any> = {};
-  const sensitiveKeys = new Set([
-    "password",
-    "token",
-    "secret",
-    "authorization",
-    "apikey",
-    "key",
-    "signature",
-  ]);
+  const sensitiveKeys = new Set(["password", "token", "secret", "authorization", "apikey", "key", "signature"]);
 
   for (const [key, value] of Object.entries(obj)) {
     const lowerKey = key.toLowerCase();
@@ -52,12 +40,7 @@ export function sanitizeContextData(obj: any): any {
 /**
  * Generate a deterministic SHA-256 fingerprint for deduplication.
  */
-export function generateIncidentFingerprint(
-  level: string,
-  source: string,
-  message: string,
-  stack?: string,
-): string {
+export function generateIncidentFingerprint(level: string, source: string, message: string, stack?: string): string {
   const normalizedMsg = message.replace(/0x[0-9a-fA-F]+/g, "[HEX]").replace(/\d+/g, "[NUM]");
   const firstStackLine = stack ? stack.split("\n")[0] || "" : "";
   const raw = `${level}:${source}:${normalizedMsg}:${firstStackLine}`;
@@ -76,8 +59,7 @@ export function isExpectedAuthRedirect(payload: IncidentIngestionPayload): boole
   if (msg.includes("Unauthorized: No token provided")) return true;
   if (msg.includes("REDIRECT_TO_AUTH")) return true;
   if (ctxStr.includes("/auth?next=")) return true;
-  if (payload.statusCode === 401 && (msg.includes("redirect") || msg.includes("login")))
-    return true;
+  if (payload.statusCode === 401 && (msg.includes("redirect") || msg.includes("login"))) return true;
 
   return false;
 }
@@ -88,7 +70,7 @@ export function isExpectedAuthRedirect(payload: IncidentIngestionPayload): boole
 export async function processIngestedIncident(
   db: any,
   tenantId: string | null,
-  payload: IncidentIngestionPayload,
+  payload: IncidentIngestionPayload
 ): Promise<{ ingested: boolean; recordId?: string; reason?: string }> {
   // 1. Ignore normal auth redirects
   if (isExpectedAuthRedirect(payload)) {
@@ -107,12 +89,7 @@ export async function processIngestedIncident(
   }
 
   const sanitizedContext = sanitizeContextData(payload.context || {});
-  const fingerprint = generateIncidentFingerprint(
-    level,
-    payload.source || "server",
-    message,
-    payload.stackTrace,
-  );
+  const fingerprint = generateIncidentFingerprint(level, payload.source || "server", message, payload.stackTrace);
 
   // 3. Upsert incident record for deduplication
   const { data: existing } = await db

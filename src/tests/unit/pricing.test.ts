@@ -6,10 +6,7 @@ export function calculateSubtotal(items: Array<{ price: number; quantity: number
   return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 }
 
-export function applyCoupon(
-  subtotal: number,
-  couponCode: string,
-): { finalTotal: number; discount: number } {
+export function applyCoupon(subtotal: number, couponCode: string): { finalTotal: number; discount: number } {
   if (couponCode.toUpperCase() === "SAVE10") {
     const discount = subtotal * 0.1;
     return { finalTotal: Math.max(0, subtotal - discount), discount };
@@ -36,14 +33,8 @@ export function runPricingUnitTests() {
   console.assert(subtotal === 250, `Expected subtotal 250, got ${subtotal}`);
 
   const percentageRes = applyCoupon(250, "SAVE10");
-  console.assert(
-    percentageRes.discount === 25,
-    `Expected discount 25, got ${percentageRes.discount}`,
-  );
-  console.assert(
-    percentageRes.finalTotal === 225,
-    `Expected total 225, got ${percentageRes.finalTotal}`,
-  );
+  console.assert(percentageRes.discount === 25, `Expected discount 25, got ${percentageRes.discount}`);
+  console.assert(percentageRes.finalTotal === 225, `Expected total 225, got ${percentageRes.finalTotal}`);
 
   const fixedRes = applyCoupon(250, "FLAT50");
   console.assert(fixedRes.discount === 50, `Expected discount 50, got ${fixedRes.discount}`);

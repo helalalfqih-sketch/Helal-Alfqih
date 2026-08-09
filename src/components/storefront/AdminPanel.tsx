@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -39,18 +39,18 @@ import {
   Ticket,
   Boxes,
   Flame,
-  Gift,
-} from "lucide-react";
-import { Product, OrderStatus, Currency } from "./types";
-import { formatPrice } from "./currency";
+  Gift
+} from 'lucide-react';
+import { Product, OrderStatus, Currency } from './types';
+import { formatPrice } from './currency';
 
 const CATEGORIES = [
-  { id: "all", name: "الكل" },
-  { id: "electronics", name: "إلكترونيات" },
-  { id: "audio", name: "صوتيات" },
-  { id: "smartwatches", name: "ساعات ذكية" },
-  { id: "appliances", name: "أجهزة منزلية" },
-  { id: "perfumes", name: "عطور وخلايا" },
+  { id: 'all', name: 'الكل' },
+  { id: 'electronics', name: 'إلكترونيات' },
+  { id: 'audio', name: 'صوتيات' },
+  { id: 'smartwatches', name: 'ساعات ذكية' },
+  { id: 'appliances', name: 'أجهزة منزلية' },
+  { id: 'perfumes', name: 'عطور وخلايا' }
 ];
 
 const saveFirestoreProduct = async (_p: Partial<Product>) => {};
@@ -68,102 +68,41 @@ interface AdminPanelProps {
 
 export function AdminPanel({ products, orders, currency, onClose }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<
-    | "overview"
-    | "products"
-    | "orders"
-    | "categories"
-    | "banners"
-    | "deals"
-    | "coupons"
-    | "customers"
-    | "inventory"
-    | "settings"
-  >("overview");
-
+    'overview' | 'products' | 'orders' | 'categories' | 'banners' | 'deals' | 'coupons' | 'customers' | 'inventory' | 'settings'
+  >('overview');
+  
   // Product Form Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
-
+  
   // Search & Filter
-  const [productSearch, setProductSearch] = useState("");
-  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
-  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
   // Interactive Banners state
   const [banners, setBanners] = useState([
-    {
-      id: "b1",
-      title: "عروض الموسم الكبير",
-      subtitle: "خصم يصل إلى 50% على الإلكترونيات",
-      image:
-        "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=1000&auto=format&fit=crop&q=80",
-      active: true,
-      badge: "خصم حاص",
-    },
-    {
-      id: "b2",
-      title: "أحدث الساعات الذكية 2026",
-      subtitle: "توصيل مجاني لجميع المحافظات اليمنية",
-      image:
-        "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=1000&auto=format&fit=crop&q=80",
-      active: true,
-      badge: "جديد ممتاز",
-    },
+    { id: 'b1', title: 'عروض الموسم الكبير', subtitle: 'خصم يصل إلى 50% على الإلكترونيات', image: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=1000&auto=format&fit=crop&q=80', active: true, badge: 'خصم حاص' },
+    { id: 'b2', title: 'أحدث الساعات الذكية 2026', subtitle: 'توصيل مجاني لجميع المحافظات اليمنية', image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=1000&auto=format&fit=crop&q=80', active: true, badge: 'جديد ممتاز' }
   ]);
-  const [newBannerTitle, setNewBannerTitle] = useState("");
-  const [newBannerSubtitle, setNewBannerSubtitle] = useState("");
-  const [newBannerImage, setNewBannerImage] = useState("");
+  const [newBannerTitle, setNewBannerTitle] = useState('');
+  const [newBannerSubtitle, setNewBannerSubtitle] = useState('');
+  const [newBannerImage, setNewBannerImage] = useState('');
 
   // Interactive Coupons state
   const [coupons, setCoupons] = useState([
-    {
-      id: "c1",
-      code: "INDEXES20",
-      discount: 20,
-      type: "percent",
-      active: true,
-      usageCount: 42,
-      expiry: "2026-12-31",
-    },
-    {
-      id: "c2",
-      code: "YEMEN5000",
-      discount: 5000,
-      type: "fixed",
-      active: true,
-      usageCount: 18,
-      expiry: "2026-09-30",
-    },
-    {
-      id: "c3",
-      code: "FREEWELCOME",
-      discount: 10,
-      type: "percent",
-      active: false,
-      usageCount: 85,
-      expiry: "2026-05-01",
-    },
+    { id: 'c1', code: 'INDEXES20', discount: 20, type: 'percent', active: true, usageCount: 42, expiry: '2026-12-31' },
+    { id: 'c2', code: 'YEMEN5000', discount: 5000, type: 'fixed', active: true, usageCount: 18, expiry: '2026-09-30' },
+    { id: 'c3', code: 'FREEWELCOME', discount: 10, type: 'percent', active: false, usageCount: 85, expiry: '2026-05-01' }
   ]);
-  const [newCouponCode, setNewCouponCode] = useState("");
+  const [newCouponCode, setNewCouponCode] = useState('');
   const [newCouponDiscount, setNewCouponDiscount] = useState<number>(10);
-  const [newCouponType, setNewCouponType] = useState<"percent" | "fixed">("percent");
+  const [newCouponType, setNewCouponType] = useState<'percent' | 'fixed'>('percent');
 
   // Interactive Deals / Flash Offers state
   const [deals, setDeals] = useState([
-    {
-      id: "d1",
-      title: "تخفيضات نهاية الأسبوع الحارقة 🔥",
-      discountPercent: 35,
-      endsInHours: 24,
-      active: true,
-    },
-    {
-      id: "d2",
-      title: "عرض الشحن المجاني لأي طلب فوق 50,000 ريال 🚚",
-      discountPercent: 15,
-      endsInHours: 48,
-      active: true,
-    },
+    { id: 'd1', title: 'تخفيضات نهاية الأسبوع الحارقة 🔥', discountPercent: 35, endsInHours: 24, active: true },
+    { id: 'd2', title: 'عرض الشحن المجاني لأي طلب فوق 50,000 ريال 🚚', discountPercent: 15, endsInHours: 48, active: true }
   ]);
 
   // Saving state indicator
@@ -172,11 +111,11 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem("admin_authenticated") === "true";
+    return sessionStorage.getItem('admin_authenticated') === 'true';
   });
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const showToast = (msg: string) => {
@@ -187,50 +126,45 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    setLoginError("");
+    setLoginError('');
 
     setTimeout(() => {
       const cleanEmail = adminEmail.trim().toLowerCase();
       if (
-        (cleanEmail === "admin" ||
-          cleanEmail === "admin@indexesstore.com" ||
-          cleanEmail === "helal") &&
-        adminPassword === "admin123"
+        (cleanEmail === 'admin' || cleanEmail === 'admin@indexesstore.com' || cleanEmail === 'helal') &&
+        adminPassword === 'admin123'
       ) {
         setIsAuthenticated(true);
-        sessionStorage.setItem("admin_authenticated", "true");
-        showToast("🔓 تم تسجيل الدخول بنجاح إلى لوحة التحكم!");
+        sessionStorage.setItem('admin_authenticated', 'true');
+        showToast('🔓 تم تسجيل الدخول بنجاح إلى لوحة التحكم!');
       } else if (cleanEmail.length > 0 && adminPassword.length >= 4) {
         setIsAuthenticated(true);
-        sessionStorage.setItem("admin_authenticated", "true");
-        showToast("🔓 تم تسجيل الدخول كـ أدمن!");
+        sessionStorage.setItem('admin_authenticated', 'true');
+        showToast('🔓 تم تسجيل الدخول كـ أدمن!');
       } else {
-        setLoginError("اسم المستخدم أو كلمة المرور غير صحيحة. يمكنك استخدام: admin / admin123");
+        setLoginError('اسم المستخدم أو كلمة المرور غير صحيحة. يمكنك استخدام: admin / admin123');
       }
       setIsLoggingIn(false);
     }, 300);
   };
 
   const handleQuickDemoLogin = () => {
-    setAdminEmail("admin@indexesstore.com");
-    setAdminPassword("admin123");
+    setAdminEmail('admin@indexesstore.com');
+    setAdminPassword('admin123');
     setIsAuthenticated(true);
-    sessionStorage.setItem("admin_authenticated", "true");
-    showToast("🔓 تم الدخول السريع كـ أدمن!");
+    sessionStorage.setItem('admin_authenticated', 'true');
+    showToast('🔓 تم الدخول السريع كـ أدمن!');
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem("admin_authenticated");
-    showToast("🔒 تم تسجيل الخروج من لوحة التحكم");
+    sessionStorage.removeItem('admin_authenticated');
+    showToast('🔒 تم تسجيل الخروج من لوحة التحكم');
   };
 
   if (!isAuthenticated) {
     return (
-      <div
-        dir="rtl"
-        className="fixed inset-0 z-50 bg-[#060312] text-white flex items-center justify-center p-4 font-sans overflow-y-auto"
-      >
+      <div dir="rtl" className="fixed inset-0 z-50 bg-[#060312] text-white flex items-center justify-center p-4 font-sans overflow-y-auto">
         {/* Toast Notification */}
         {toastMessage && (
           <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-purple-600 text-white px-6 py-3 rounded-full shadow-2xl border border-purple-300/40 flex items-center gap-2 animate-bounce">
@@ -337,9 +271,9 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
   // Metrics calculation
   const totalRevenueYER = orders.reduce((acc, o) => acc + (o.totalPriceYER || 0), 0);
-  const processingOrdersCount = orders.filter((o) => o.status === "processing").length;
-  const shippingOrdersCount = orders.filter((o) => o.status === "shipped").length;
-  const completedOrdersCount = orders.filter((o) => o.status === "delivered").length;
+  const processingOrdersCount = orders.filter((o) => o.status === 'processing').length;
+  const shippingOrdersCount = orders.filter((o) => o.status === 'shipped').length;
+  const completedOrdersCount = orders.filter((o) => o.status === 'delivered').length;
   const totalProductsCount = products.length;
   const inStockProductsCount = products.filter((p) => p.inStock).length;
 
@@ -347,24 +281,23 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
   const handleOpenNewProduct = () => {
     setEditingProduct({
       id: `p_${Date.now()}`,
-      name: "",
-      subtitle: "",
-      description: "",
+      name: '',
+      subtitle: '',
+      description: '',
       priceYER: 10000,
       originalPriceYER: 12000,
-      category: "electronics",
-      discountBadge: "خصم خاص",
+      category: 'electronics',
+      discountBadge: 'خصم خاص',
       rating: 4.8,
       reviewsCount: 1,
-      image:
-        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
+      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
       gallery: [],
       inStock: true,
       isBestOffer: false,
       isFeatured: true,
       isNewArrival: true,
       specs: {},
-      colors: [],
+      colors: []
     });
     setIsProductModalOpen(true);
   };
@@ -383,108 +316,99 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
       const prodToSave = {
         id: editingProduct.id || `p_${Date.now()}`,
         name: editingProduct.name,
-        subtitle: editingProduct.subtitle || "",
-        description: editingProduct.description || "",
+        subtitle: editingProduct.subtitle || '',
+        description: editingProduct.description || '',
         priceYER: Number(editingProduct.priceYER) || 0,
-        originalPriceYER:
-          Number(editingProduct.originalPriceYER) || Number(editingProduct.priceYER) || 0,
-        category: editingProduct.category || "electronics",
-        discountBadge: editingProduct.discountBadge || "",
+        originalPriceYER: Number(editingProduct.originalPriceYER) || Number(editingProduct.priceYER) || 0,
+        category: editingProduct.category || 'electronics',
+        discountBadge: editingProduct.discountBadge || '',
         rating: editingProduct.rating || 4.8,
         reviewsCount: editingProduct.reviewsCount || 10,
-        image:
-          editingProduct.image ||
-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
+        image: editingProduct.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
         gallery: editingProduct.gallery || [],
         inStock: editingProduct.inStock ?? true,
         isBestOffer: editingProduct.isBestOffer ?? false,
         isFeatured: editingProduct.isFeatured ?? false,
         isNewArrival: editingProduct.isNewArrival ?? false,
         specs: editingProduct.specs || {},
-        colors: editingProduct.colors || [],
+        colors: editingProduct.colors || []
       } as Product;
 
       await saveFirestoreProduct(prodToSave);
-      showToast("✅ تم حفظ المنتج في الفايربيس بنجاح!");
+      showToast('✅ تم حفظ المنتج في الفايربيس بنجاح!');
       setIsProductModalOpen(false);
       setEditingProduct(null);
     } catch (err) {
       console.error(err);
-      showToast("❌ حدث خطأ أثناء الحفظ");
+      showToast('❌ حدث خطأ أثناء الحفظ');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm("هل أنت تأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟")) return;
+    if (!window.confirm('هل أنت تأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟')) return;
     try {
       await deleteFirestoreProduct(productId);
-      showToast("🗑️ تم حذف المنتج من الفايربيس");
+      showToast('🗑️ تم حذف المنتج من الفايربيس');
     } catch (err) {
       console.error(err);
-      showToast("❌ تعذر الحذف");
+      showToast('❌ تعذر الحذف');
     }
   };
 
   // Order status update
-  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus["status"]) => {
-    let statusLabel = "جاري معالجة الطلب ⏳";
-    if (status === "shipped") statusLabel = "تم الشحن وهو في الطريق 🚚";
-    if (status === "delivered") statusLabel = "تم التسليم بنجاح ✅";
-    if (status === "cancelled") statusLabel = "تم إلغاء الطلب ❌";
+  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus['status']) => {
+    let statusLabel = 'جاري معالجة الطلب ⏳';
+    if (status === 'shipped') statusLabel = 'تم الشحن وهو في الطريق 🚚';
+    if (status === 'delivered') statusLabel = 'تم التسليم بنجاح ✅';
+    if (status === 'cancelled') statusLabel = 'تم إلغاء الطلب ❌';
 
     try {
       await updateFirestoreOrderStatus(orderId, status, statusLabel);
-      showToast("⚡ تم تحديث حالة الطلب فوراً في الفايربيس");
+      showToast('⚡ تم تحديث حالة الطلب فوراً في الفايربيس');
     } catch (err) {
       console.error(err);
-      showToast("❌ خطأ في التحديث");
+      showToast('❌ خطأ في التحديث');
     }
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm("هل تريد حذف هذا الطلب من قاعدة البيانات؟")) return;
+    if (!window.confirm('هل تريد حذف هذا الطلب من قاعدة البيانات؟')) return;
     try {
       await deleteFirestoreOrder(orderId);
-      showToast("🗑️ تم حذف الطلب");
+      showToast('🗑️ تم حذف الطلب');
     } catch (err) {
       console.error(err);
-      showToast("❌ خطأ في الحذف");
+      showToast('❌ خطأ في الحذف');
     }
   };
 
   const handleResetCatalog = async () => {
-    if (!window.confirm("هل تريد استيراد وإعادة المزامنة مع الكتالوج الأساسي في الفايربيس؟"))
-      return;
+    if (!window.confirm('هل تريد استيراد وإعادة المزامنة مع الكتالوج الأساسي في الفايربيس؟')) return;
     try {
       await seedInitialProductsIfNeeded();
-      showToast("🔄 تم تحديث المنتجات في الفايربيس بنجاح!");
+      showToast('🔄 تم تحديث المنتجات في الفايربيس بنجاح!');
     } catch (err) {
       console.error(err);
-      showToast("❌ فشلت المزامنة");
+      showToast('❌ فشلت المزامنة');
     }
   };
 
   // Filtered lists
   const filteredProducts = products.filter((p) => {
-    const matchSearch =
-      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-      p.subtitle.toLowerCase().includes(productSearch.toLowerCase());
-    const matchCat = productCategoryFilter === "all" || p.category === productCategoryFilter;
+    const matchSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.subtitle.toLowerCase().includes(productSearch.toLowerCase());
+    const matchCat = productCategoryFilter === 'all' || p.category === productCategoryFilter;
     return matchSearch && matchCat;
   });
 
   const filteredOrders = orders.filter((o) => {
-    if (orderStatusFilter === "all") return true;
+    if (orderStatusFilter === 'all') return true;
     return o.status === orderStatusFilter;
   });
 
   return (
-    <div
-      dir="rtl"
-      className="fixed inset-0 z-50 bg-[#060312] text-white overflow-y-auto flex flex-col font-sans"
-    >
+    <div dir="rtl" className="fixed inset-0 z-50 bg-[#060312] text-white overflow-y-auto flex flex-col font-sans">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-purple-600 text-white px-6 py-3 rounded-full shadow-2xl border border-purple-300/40 flex items-center gap-2 animate-bounce">
@@ -540,16 +464,16 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
       <div className="bg-[#0f0a2e] border-b border-[#3b1e82]/40 px-4 sm:px-8 py-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 min-w-max">
           {[
-            { id: "overview", label: "لوحة التحليلات", icon: LayoutDashboard },
-            { id: "products", label: `إدارة المنتجات (${products.length})`, icon: Package },
-            { id: "inventory", label: "المخزون والكميات", icon: Boxes },
-            { id: "orders", label: `الطلبات (${orders.length})`, icon: ShoppingBag },
-            { id: "categories", label: "الأقسام والفئات", icon: FolderTree },
-            { id: "banners", label: "البانرات الإعلانية", icon: ImageIcon },
-            { id: "deals", label: "العروض الفلاش", icon: Flame },
-            { id: "coupons", label: "كوبونات الخصم", icon: Ticket },
-            { id: "customers", label: "سجلات العملاء", icon: Users },
-            { id: "settings", label: "إعدادات المتجر والربط", icon: Settings },
+            { id: 'overview', label: 'لوحة التحليلات', icon: LayoutDashboard },
+            { id: 'products', label: `إدارة المنتجات (${products.length})`, icon: Package },
+            { id: 'inventory', label: 'المخزون والكميات', icon: Boxes },
+            { id: 'orders', label: `الطلبات (${orders.length})`, icon: ShoppingBag },
+            { id: 'categories', label: 'الأقسام والفئات', icon: FolderTree },
+            { id: 'banners', label: 'البانرات الإعلانية', icon: ImageIcon },
+            { id: 'deals', label: 'العروض الفلاش', icon: Flame },
+            { id: 'coupons', label: 'كوبونات الخصم', icon: Ticket },
+            { id: 'customers', label: 'سجلات العملاء', icon: Users },
+            { id: 'settings', label: 'إعدادات المتجر والربط', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -559,11 +483,11 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   active
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40"
-                    : "text-purple-300/80 hover:text-white hover:bg-purple-900/30"
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40'
+                    : 'text-purple-300/80 hover:text-white hover:bg-purple-900/30'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? "text-white" : "text-purple-400"}`} />
+                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-purple-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -574,7 +498,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
       {/* Main Content Body */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6">
         {/* ==================== TAB 1: OVERVIEW ==================== */}
-        {activeTab === "overview" && (
+        {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Metric Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -596,16 +520,13 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
               <div className="bg-[#0c0824]/80 backdrop-blur-md border border-[#3b1e82]/50 rounded-2xl p-5 relative overflow-hidden group">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-purple-300">
-                    الطلبات النشطة (معالجة/شحن)
-                  </span>
+                  <span className="text-xs font-medium text-purple-300">الطلبات النشطة (معالجة/شحن)</span>
                   <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300">
                     <ShoppingBag className="w-5 h-5" />
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-white mb-1">
-                  {processingOrdersCount + shippingOrdersCount}{" "}
-                  <span className="text-sm text-purple-300/70">طلب</span>
+                  {processingOrdersCount + shippingOrdersCount} <span className="text-sm text-purple-300/70">طلب</span>
                 </div>
                 <p className="text-xs text-amber-300/80 font-medium">
                   {processingOrdersCount} قيد المعالجة • {shippingOrdersCount} جارِ الشحن
@@ -614,9 +535,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
               <div className="bg-[#0c0824]/80 backdrop-blur-md border border-[#3b1e82]/50 rounded-2xl p-5 relative overflow-hidden group">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-purple-300">
-                    إجمالي المنتجات المسجلة
-                  </span>
+                  <span className="text-xs font-medium text-purple-300">إجمالي المنتجات المسجلة</span>
                   <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300">
                     <Package className="w-5 h-5" />
                   </div>
@@ -637,10 +556,11 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-white mb-1">
-                  {completedOrdersCount}{" "}
-                  <span className="text-sm text-purple-300/70">تم التسليم</span>
+                  {completedOrdersCount} <span className="text-sm text-purple-300/70">تم التسليم</span>
                 </div>
-                <p className="text-xs text-emerald-400 font-medium">نسبة إنجاز عالية ✅</p>
+                <p className="text-xs text-emerald-400 font-medium">
+                  نسبة إنجاز عالية ✅
+                </p>
               </div>
             </div>
 
@@ -654,7 +574,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                     <span>أحدث الطلبات القادمة من المتجر</span>
                   </h3>
                   <button
-                    onClick={() => setActiveTab("orders")}
+                    onClick={() => setActiveTab('orders')}
                     className="text-xs text-purple-300 hover:text-white flex items-center gap-1 font-medium"
                   >
                     <span>عرض الكل ({orders.length})</span>
@@ -675,9 +595,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       >
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-sm">
-                              #{order.orderNumber}
-                            </span>
+                            <span className="font-bold text-white text-sm">#{order.orderNumber}</span>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30">
                               {order.customerName}
                             </span>
@@ -694,13 +612,13 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => handleUpdateOrderStatus(order.id, "delivered")}
+                              onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}
                               className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 text-xs font-semibold"
                             >
                               مكتمل ✅
                             </button>
                             <button
-                              onClick={() => handleUpdateOrderStatus(order.id, "shipped")}
+                              onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
                               className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 text-xs font-semibold"
                             >
                               شحن 🚚
@@ -727,9 +645,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-purple-300">معرف قاعدة البيانات:</span>
-                    <span className="font-mono text-[11px] text-purple-200">
-                      ai-studio-indexesstore
-                    </span>
+                    <span className="font-mono text-[11px] text-purple-200">ai-studio-indexesstore</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-purple-300">وضع التحديث:</span>
@@ -763,7 +679,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB 2: PRODUCTS ==================== */}
-        {activeTab === "products" && (
+        {activeTab === 'products' && (
           <div className="space-y-6">
             {/* Search & Actions Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-4">
@@ -835,9 +751,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                               />
                               <div>
                                 <h4 className="font-bold text-white text-sm">{p.name}</h4>
-                                <p className="text-xs text-purple-300/70 line-clamp-1">
-                                  {p.subtitle}
-                                </p>
+                                <p className="text-xs text-purple-300/70 line-clamp-1">{p.subtitle}</p>
                               </div>
                             </div>
                           </td>
@@ -905,7 +819,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB 3: ORDERS ==================== */}
-        {activeTab === "orders" && (
+        {activeTab === 'orders' && (
           <div className="space-y-6">
             {/* Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-4">
@@ -915,13 +829,13 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
               </div>
 
               <div className="flex items-center gap-2">
-                {["all", "processing", "shipped", "delivered", "cancelled"].map((st) => {
+                {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map((st) => {
                   const labels: Record<string, string> = {
-                    all: "الكل",
-                    processing: "⏳ معالجة",
-                    shipped: "🚚 شحن",
-                    delivered: "✅ تم التسليم",
-                    cancelled: "❌ ملغي",
+                    all: 'الكل',
+                    processing: '⏳ معالجة',
+                    shipped: '🚚 شحن',
+                    delivered: '✅ تم التسليم',
+                    cancelled: '❌ ملغي',
                   };
                   return (
                     <button
@@ -929,8 +843,8 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       onClick={() => setOrderStatusFilter(st)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                         orderStatusFilter === st
-                          ? "bg-purple-600 text-white shadow-md"
-                          : "bg-[#140b36] text-purple-300 hover:bg-purple-900/40"
+                          ? 'bg-purple-600 text-white shadow-md'
+                          : 'bg-[#140b36] text-purple-300 hover:bg-purple-900/40'
                       }`}
                     >
                       {labels[st]}
@@ -961,22 +875,22 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       <div className="text-left">
                         <span className="text-xs text-purple-300/70">{order.date}</span>
                         <div className="mt-1">
-                          {order.status === "processing" && (
+                          {order.status === 'processing' && (
                             <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold">
                               ⏳ قيد المعالجة
                             </span>
                           )}
-                          {order.status === "shipped" && (
+                          {order.status === 'shipped' && (
                             <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold">
                               🚚 تم الشحن
                             </span>
                           )}
-                          {order.status === "delivered" && (
+                          {order.status === 'delivered' && (
                             <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
                               ✅ تم التسليم
                             </span>
                           )}
-                          {order.status === "cancelled" && (
+                          {order.status === 'cancelled' && (
                             <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold">
                               ❌ ملغي
                             </span>
@@ -988,21 +902,21 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                     {/* Customer Info */}
                     <div className="grid grid-cols-2 gap-2 text-xs bg-[#140b36]/60 p-3 rounded-xl border border-purple-500/20">
                       <div>
-                        <span className="text-purple-300/70">العميل:</span>{" "}
+                        <span className="text-purple-300/70">العميل:</span>{' '}
                         <span className="font-bold text-white">{order.customerName}</span>
                       </div>
                       <div>
-                        <span className="text-purple-300/70">المحافظة:</span>{" "}
+                        <span className="text-purple-300/70">المحافظة:</span>{' '}
                         <span className="font-medium text-purple-200">{order.governorate}</span>
                       </div>
                       <div className="col-span-2 flex items-center justify-between">
                         <div>
-                          <span className="text-purple-300/70">الهاتف:</span>{" "}
+                          <span className="text-purple-300/70">الهاتف:</span>{' '}
                           <span className="font-mono text-amber-300">{order.phone}</span>
                         </div>
                         {order.phone && (
                           <a
-                            href={`https://wa.me/967${order.phone.replace(/[^0-9]/g, "")}`}
+                            href={`https://wa.me/967${order.phone.replace(/[^0-9]/g, '')}`}
                             target="_blank"
                             rel="noreferrer"
                             className="px-2 py-0.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[11px] font-semibold border border-emerald-500/30"
@@ -1015,9 +929,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
                     {/* Order Items */}
                     <div className="space-y-1.5">
-                      <span className="text-xs text-purple-300/80 font-medium">
-                        المنتجات المطلوبة:
-                      </span>
+                      <span className="text-xs text-purple-300/80 font-medium">المنتجات المطلوبة:</span>
                       <div className="space-y-1 max-h-28 overflow-y-auto pr-1 text-xs">
                         {order.items.map((item, idx) => (
                           <div
@@ -1046,13 +958,13 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
                       <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => handleUpdateOrderStatus(order.id, "delivered")}
+                          onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}
                           className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/30 text-xs font-semibold"
                         >
                           تأكيد التسليم ✅
                         </button>
                         <button
-                          onClick={() => handleUpdateOrderStatus(order.id, "shipped")}
+                          onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
                           className="px-2.5 py-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-500/30 text-xs font-semibold"
                         >
                           شحن 🚚
@@ -1074,7 +986,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB 4: CATEGORIES ==================== */}
-        {activeTab === "categories" && (
+        {activeTab === 'categories' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1112,7 +1024,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB: INVENTORY ==================== */}
-        {activeTab === "inventory" && (
+        {activeTab === 'inventory' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1121,16 +1033,14 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                     <Boxes className="w-5 h-5 text-purple-400" />
                     <span>مراقبة وإدارة كميات المخزون</span>
                   </h3>
-                  <p className="text-xs text-purple-300/70 mt-0.5">
-                    تتبع المنتجات المتوفرة وغير المتوفرة بلمسة واحدة
-                  </p>
+                  <p className="text-xs text-purple-300/70 mt-0.5">تتبع المنتجات المتوفرة وغير المتوفرة بلمسة واحدة</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold">
-                    المتوفر: {products.filter((p) => p.inStock !== false).length}
+                    المتوفر: {products.filter(p => p.inStock !== false).length}
                   </span>
                   <span className="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold">
-                    نفذت الكمية: {products.filter((p) => p.inStock === false).length}
+                    نفذت الكمية: {products.filter(p => p.inStock === false).length}
                   </span>
                 </div>
               </div>
@@ -1152,34 +1062,25 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       return (
                         <tr key={product.id} className="hover:bg-purple-900/20 transition-colors">
                           <td className="p-3 flex items-center gap-3">
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded-xl border border-purple-500/30"
-                            />
+                            <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-xl border border-purple-500/30" />
                             <div>
                               <div className="font-bold text-white">{product.name}</div>
-                              <div className="text-[11px] text-purple-300/70">
-                                {product.subtitle}
-                              </div>
+                              <div className="text-[11px] text-purple-300/70">{product.subtitle}</div>
                             </div>
                           </td>
                           <td className="p-3 font-medium">
-                            {CATEGORIES.find((c) => c.id === product.category)?.name ||
-                              product.category}
+                            {CATEGORIES.find(c => c.id === product.category)?.name || product.category}
                           </td>
                           <td className="p-3 font-bold text-amber-300">
                             {formatPrice(product.priceYER, currency)}
                           </td>
                           <td className="p-3">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                                isAvailable
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                  : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                              }`}
-                            >
-                              {isAvailable ? "متوفر بالمخزن ✅" : "نفذت الكمية ❌"}
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                              isAvailable
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            }`}>
+                              {isAvailable ? 'متوفر بالمخزن ✅' : 'نفذت الكمية ❌'}
                             </span>
                           </td>
                           <td className="p-3 text-center">
@@ -1193,7 +1094,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                               }}
                               className="px-3 py-1.5 rounded-xl bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-500/30 font-semibold text-xs"
                             >
-                              {isAvailable ? "تعيين كـ غير متوفر" : "توفير بالمخزن"}
+                              {isAvailable ? 'تعيين كـ غير متوفر' : 'توفير بالمخزن'}
                             </button>
                           </td>
                         </tr>
@@ -1207,7 +1108,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB: BANNERS ==================== */}
-        {activeTab === "banners" && (
+        {activeTab === 'banners' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1216,9 +1117,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                     <ImageIcon className="w-5 h-5 text-purple-400" />
                     <span>إدارة البانرات والشرائح الإعلانية</span>
                   </h3>
-                  <p className="text-xs text-purple-300/70 mt-0.5">
-                    خصص العروض البصرية واجذب زوار المتجر
-                  </p>
+                  <p className="text-xs text-purple-300/70 mt-0.5">خصص العروض البصرية واجذب زوار المتجر</p>
                 </div>
               </div>
 
@@ -1251,24 +1150,24 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 <button
                   onClick={() => {
                     if (!newBannerTitle || !newBannerImage) {
-                      showToast("يرجى إدخال عنوان ورابط صورة البانر");
+                      showToast('يرجى إدخال عنوان ورابط صورة البانر');
                       return;
                     }
                     setBanners([
                       ...banners,
                       {
-                        id: "b" + Date.now(),
+                        id: 'b' + Date.now(),
                         title: newBannerTitle,
-                        subtitle: newBannerSubtitle || "عرض مميز",
+                        subtitle: newBannerSubtitle || 'عرض مميز',
                         image: newBannerImage,
                         active: true,
-                        badge: "جديد",
-                      },
+                        badge: 'جديد'
+                      }
                     ]);
-                    setNewBannerTitle("");
-                    setNewBannerSubtitle("");
-                    setNewBannerImage("");
-                    showToast("تمت إضافة البانر الإعلاني بنجاح 🎉");
+                    setNewBannerTitle('');
+                    setNewBannerSubtitle('');
+                    setNewBannerImage('');
+                    showToast('تمت إضافة البانر الإعلاني بنجاح 🎉');
                   }}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md"
                 >
@@ -1279,15 +1178,8 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
               {/* Active Banners Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {banners.map((banner) => (
-                  <div
-                    key={banner.id}
-                    className="relative rounded-2xl overflow-hidden border border-purple-500/30 bg-[#140b36] group"
-                  >
-                    <img
-                      src={banner.image}
-                      alt={banner.title}
-                      className="w-full h-40 object-cover opacity-75 group-hover:opacity-90 transition-opacity"
-                    />
+                  <div key={banner.id} className="relative rounded-2xl overflow-hidden border border-purple-500/30 bg-[#140b36] group">
+                    <img src={banner.image} alt={banner.title} className="w-full h-40 object-cover opacity-75 group-hover:opacity-90 transition-opacity" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-end">
                       <div className="flex items-center justify-between">
                         <div>
@@ -1299,8 +1191,8 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                         </div>
                         <button
                           onClick={() => {
-                            setBanners(banners.filter((b) => b.id !== banner.id));
-                            showToast("تم حذف البانر");
+                            setBanners(banners.filter(b => b.id !== banner.id));
+                            showToast('تم حذف البانر');
                           }}
                           className="p-2 rounded-xl bg-rose-500/30 hover:bg-rose-500/60 text-rose-200 border border-rose-500/40"
                           title="حذف البانر"
@@ -1317,7 +1209,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB: DEALS ==================== */}
-        {activeTab === "deals" && (
+        {activeTab === 'deals' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-6">
               <div>
@@ -1325,17 +1217,12 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <Flame className="w-5 h-5 text-amber-400" />
                   <span>عروض التخفيضات الفلاش والخصومات الحارقة</span>
                 </h3>
-                <p className="text-xs text-purple-300/70 mt-0.5">
-                  تحكم بجدولة الحملات الترويجية الموقوتة
-                </p>
+                <p className="text-xs text-purple-300/70 mt-0.5">تحكم بجدولة الحملات الترويجية الموقوتة</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {deals.map((deal) => (
-                  <div
-                    key={deal.id}
-                    className="bg-[#140b36] border border-purple-500/30 rounded-2xl p-5 space-y-3"
-                  >
+                  <div key={deal.id} className="bg-[#140b36] border border-purple-500/30 rounded-2xl p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <h4 className="font-bold text-white text-sm">{deal.title}</h4>
                       <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
@@ -1350,18 +1237,16 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       </span>
                       <button
                         onClick={() => {
-                          setDeals(
-                            deals.map((d) => (d.id === deal.id ? { ...d, active: !d.active } : d)),
-                          );
-                          showToast("تم تحديث حالة العرض");
+                          setDeals(deals.map(d => d.id === deal.id ? { ...d, active: !d.active } : d));
+                          showToast('تم تحديث حالة العرض');
                         }}
                         className={`px-3 py-1 rounded-xl text-xs font-semibold ${
                           deal.active
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                            : "bg-gray-800 text-gray-400"
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-gray-800 text-gray-400'
                         }`}
                       >
-                        {deal.active ? "العرض نشط ✅" : "معطل ⏸️"}
+                        {deal.active ? 'العرض نشط ✅' : 'معطل ⏸️'}
                       </button>
                     </div>
                   </div>
@@ -1372,7 +1257,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB: COUPONS ==================== */}
-        {activeTab === "coupons" && (
+        {activeTab === 'coupons' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-6">
               <div>
@@ -1380,9 +1265,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <Ticket className="w-5 h-5 text-purple-400" />
                   <span>كوبونات الخصم وقسائم الشراء</span>
                 </h3>
-                <p className="text-xs text-purple-300/70 mt-0.5">
-                  أنشئ رموز ترويجية وحفّز الزوار على إتمام الشراء
-                </p>
+                <p className="text-xs text-purple-300/70 mt-0.5">أنشئ رموز ترويجية وحفّز الزوار على إتمام الشراء</p>
               </div>
 
               {/* Add Coupon Form */}
@@ -1415,22 +1298,22 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 <button
                   onClick={() => {
                     if (!newCouponCode) {
-                      showToast("يرجى كتابة رمز الكوبون");
+                      showToast('يرجى كتابة رمز الكوبون');
                       return;
                     }
                     setCoupons([
                       ...coupons,
                       {
-                        id: "c" + Date.now(),
+                        id: 'c' + Date.now(),
                         code: newCouponCode,
                         discount: newCouponDiscount,
                         type: newCouponType,
                         active: true,
                         usageCount: 0,
-                        expiry: "2026-12-31",
-                      },
+                        expiry: '2026-12-31'
+                      }
                     ]);
-                    setNewCouponCode("");
+                    setNewCouponCode('');
                     showToast(`تم إنشاء الكوبون ${newCouponCode} بنجاح 🎉`);
                   }}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md"
@@ -1454,36 +1337,36 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <tbody className="divide-y divide-[#3b1e82]/30">
                     {coupons.map((c) => (
                       <tr key={c.id} className="hover:bg-purple-900/20 transition-colors">
-                        <td className="p-3 font-mono font-bold text-amber-300 text-sm">{c.code}</td>
-                        <td className="p-3 font-semibold text-white">
-                          {c.type === "percent"
-                            ? `${c.discount}% خصم`
-                            : `${c.discount.toLocaleString()} ريال YER`}
+                        <td className="p-3 font-mono font-bold text-amber-300 text-sm">
+                          {c.code}
                         </td>
-                        <td className="p-3 text-purple-300">{c.usageCount} مرة</td>
-                        <td className="p-3 font-mono text-purple-300">{c.expiry}</td>
+                        <td className="p-3 font-semibold text-white">
+                          {c.type === 'percent' ? `${c.discount}% خصم` : `${c.discount.toLocaleString()} ريال YER`}
+                        </td>
+                        <td className="p-3 text-purple-300">
+                          {c.usageCount} مرة
+                        </td>
+                        <td className="p-3 font-mono text-purple-300">
+                          {c.expiry}
+                        </td>
                         <td className="p-3 text-center space-x-2 space-x-reverse">
                           <button
                             onClick={() => {
-                              setCoupons(
-                                coupons.map((cp) =>
-                                  cp.id === c.id ? { ...cp, active: !cp.active } : cp,
-                                ),
-                              );
-                              showToast("تم تغيير حالة الكوبون");
+                              setCoupons(coupons.map(cp => cp.id === c.id ? { ...cp, active: !cp.active } : cp));
+                              showToast('تم تغيير حالة الكوبون');
                             }}
                             className={`px-2.5 py-1 rounded-xl text-[11px] font-bold ${
                               c.active
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                : "bg-gray-800 text-gray-400 border border-gray-700"
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-gray-800 text-gray-400 border border-gray-700'
                             }`}
                           >
-                            {c.active ? "نشط" : "معطل"}
+                            {c.active ? 'نشط' : 'معطل'}
                           </button>
                           <button
                             onClick={() => {
-                              setCoupons(coupons.filter((cp) => cp.id !== c.id));
-                              showToast("تم حذف الكوبون");
+                              setCoupons(coupons.filter(cp => cp.id !== c.id));
+                              showToast('تم حذف الكوبون');
                             }}
                             className="p-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900 text-rose-300 border border-rose-500/30 inline-flex items-center align-middle"
                           >
@@ -1500,7 +1383,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB: CUSTOMERS ==================== */}
-        {activeTab === "customers" && (
+        {activeTab === 'customers' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-6">
               <div>
@@ -1508,9 +1391,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <Users className="w-5 h-5 text-purple-400" />
                   <span>سجلات العملاء والطلبات المباشرة</span>
                 </h3>
-                <p className="text-xs text-purple-300/70 mt-0.5">
-                  سجل تواصل العملاء وإحصائيات المشتريات
-                </p>
+                <p className="text-xs text-purple-300/70 mt-0.5">سجل تواصل العملاء وإحصائيات المشتريات</p>
               </div>
 
               <div className="overflow-x-auto">
@@ -1535,18 +1416,20 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                       orders.map((order) => (
                         <tr key={order.id} className="hover:bg-purple-900/20 transition-colors">
                           <td className="p-3 font-bold text-white">
-                            {order.customerName || "عميل المتجر"}
+                            {order.customerName || 'عميل المتجر'}
                           </td>
                           <td className="p-3 font-mono text-amber-300 dir-ltr text-right">
                             {order.phone}
                           </td>
                           <td className="p-3 text-purple-200">
-                            {order.governorate || "صنعاء"} - {order.address || "الرئيسي"}
+                            {order.governorate || 'صنعاء'} - {order.address || 'الرئيسي'}
                           </td>
-                          <td className="p-3 font-bold text-purple-200">1 طلب</td>
+                          <td className="p-3 font-bold text-purple-200">
+                            1 طلب
+                          </td>
                           <td className="p-3 text-center">
                             <a
-                              href={`https://wa.me/967${(order.phone || "").replace(/[^0-9]/g, "")}`}
+                              href={`https://wa.me/967${(order.phone || '').replace(/[^0-9]/g, '')}`}
                               target="_blank"
                               rel="noreferrer"
                               className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-emerald-600/30"
@@ -1566,7 +1449,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
         )}
 
         {/* ==================== TAB 5: SETTINGS ==================== */}
-        {activeTab === "settings" && (
+        {activeTab === 'settings' && (
           <div className="space-y-6">
             <div className="bg-[#0c0824]/80 border border-[#3b1e82]/50 rounded-2xl p-6 space-y-6">
               <div>
@@ -1607,9 +1490,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-300">Database ID:</span>
-                      <span className="font-mono text-purple-200">
-                        ai-studio-indexesstore-f5de7c0e...
-                      </span>
+                      <span className="font-mono text-purple-200">ai-studio-indexesstore-f5de7c0e...</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-300">قواعد الأمان (Rules):</span>
@@ -1630,7 +1511,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
             <div className="flex items-center justify-between border-b border-[#3b1e82]/50 pb-3">
               <h3 className="font-bold text-white text-lg flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                <span>{editingProduct.id ? "تعديل بيانات المنتج" : "إضافة منتج جديد"}</span>
+                <span>{editingProduct.id ? 'تعديل بيانات المنتج' : 'إضافة منتج جديد'}</span>
               </h3>
               <button
                 onClick={() => setIsProductModalOpen(false)}
@@ -1646,7 +1527,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 <input
                   type="text"
                   required
-                  value={editingProduct.name || ""}
+                  value={editingProduct.name || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
                   placeholder="مثال: ساعة ذكية فاخرة"
                   className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white focus:outline-none focus:border-purple-400"
@@ -1657,10 +1538,8 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 <label className="block text-purple-200 font-semibold mb-1">الوصف القصير</label>
                 <input
                   type="text"
-                  value={editingProduct.subtitle || ""}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, subtitle: e.target.value })
-                  }
+                  value={editingProduct.subtitle || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, subtitle: e.target.value })}
                   placeholder="مثال: شاشة AMOLED ومقاومة للماء"
                   className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white focus:outline-none focus:border-purple-400"
                 />
@@ -1668,33 +1547,22 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-purple-200 font-semibold mb-1">
-                    السعر الحالي (YER)
-                  </label>
+                  <label className="block text-purple-200 font-semibold mb-1">السعر الحالي (YER)</label>
                   <input
                     type="number"
                     required
-                    value={editingProduct.priceYER || ""}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, priceYER: Number(e.target.value) })
-                    }
+                    value={editingProduct.priceYER || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, priceYER: Number(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white font-bold focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-purple-200 font-semibold mb-1">
-                    السعر السابق (YER)
-                  </label>
+                  <label className="block text-purple-200 font-semibold mb-1">السعر السابق (YER)</label>
                   <input
                     type="number"
-                    value={editingProduct.originalPriceYER || ""}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        originalPriceYER: Number(e.target.value),
-                      })
-                    }
+                    value={editingProduct.originalPriceYER || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, originalPriceYER: Number(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white focus:outline-none"
                   />
                 </div>
@@ -1704,10 +1572,8 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 <div>
                   <label className="block text-purple-200 font-semibold mb-1">القسم</label>
                   <select
-                    value={editingProduct.category || "electronics"}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, category: e.target.value })
-                    }
+                    value={editingProduct.category || 'electronics'}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white focus:outline-none"
                   >
                     {CATEGORIES.map((c) => (
@@ -1719,15 +1585,11 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                 </div>
 
                 <div>
-                  <label className="block text-purple-200 font-semibold mb-1">
-                    شارة الخصم (إن وجدت)
-                  </label>
+                  <label className="block text-purple-200 font-semibold mb-1">شارة الخصم (إن وجدت)</label>
                   <input
                     type="text"
-                    value={editingProduct.discountBadge || ""}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, discountBadge: e.target.value })
-                    }
+                    value={editingProduct.discountBadge || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, discountBadge: e.target.value })}
                     placeholder="خصم 25%"
                     className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white focus:outline-none"
                   />
@@ -1735,13 +1597,11 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
               </div>
 
               <div>
-                <label className="block text-purple-200 font-semibold mb-1">
-                  رابط صورة المنتج (URL)
-                </label>
+                <label className="block text-purple-200 font-semibold mb-1">رابط صورة المنتج (URL)</label>
                 <input
                   type="text"
                   required
-                  value={editingProduct.image || ""}
+                  value={editingProduct.image || ''}
                   onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-[#140b36] border border-purple-500/30 text-white font-mono text-[11px] focus:outline-none"
                 />
@@ -1752,9 +1612,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <input
                     type="checkbox"
                     checked={editingProduct.inStock ?? true}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, inStock: e.target.checked })
-                    }
+                    onChange={(e) => setEditingProduct({ ...editingProduct, inStock: e.target.checked })}
                     className="w-4 h-4 rounded text-purple-600 accent-purple-600"
                   />
                   <span>متوفر بالمخزن</span>
@@ -1764,9 +1622,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   <input
                     type="checkbox"
                     checked={editingProduct.isBestOffer ?? false}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, isBestOffer: e.target.checked })
-                    }
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isBestOffer: e.target.checked })}
                     className="w-4 h-4 rounded text-purple-600 accent-purple-600"
                   />
                   <span>عرض مميز جداً 🔥</span>
@@ -1786,7 +1642,7 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
                   disabled={isSaving}
                   className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold shadow-lg shadow-purple-600/30 hover:scale-105 transition-all disabled:opacity-50"
                 >
-                  {isSaving ? "جاري الحفظ..." : "حفظ المنتج في الفايربيس"}
+                  {isSaving ? 'جاري الحفظ...' : 'حفظ المنتج في الفايربيس'}
                 </button>
               </div>
             </form>

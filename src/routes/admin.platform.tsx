@@ -301,9 +301,7 @@ function VendorManagementList() {
           </div>
         </div>
       ))}
-      {vendors.length === 0 && (
-        <p className="text-xs text-muted-foreground">لا يوجد تجار حالياً.</p>
-      )}
+      {vendors.length === 0 && <p className="text-xs text-muted-foreground">لا يوجد تجار حالياً.</p>}
     </div>
   );
 }

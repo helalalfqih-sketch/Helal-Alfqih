@@ -1,8 +1,8 @@
-import React from "react";
-import { Currency, OrderStatus, Product } from "./types";
-import { STORE_INFO } from "./constants";
-import { formatPrice } from "./currency";
-import { StoreLogo } from "./StoreLogo";
+import React from 'react';
+import { Currency, OrderStatus, Product } from './types';
+import { STORE_INFO } from './constants';
+import { formatPrice } from './currency';
+import { StoreLogo } from './StoreLogo';
 
 interface AccountDrawerProps {
   isOpen: boolean;
@@ -40,12 +40,8 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             <div className="flex items-center gap-3">
               <StoreLogo variant="icon" className="w-11 h-11" />
               <div>
-                <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
-                  حسابي في إندكس
-                </h3>
-                <span className="text-xs text-[var(--color-text-secondary)]">
-                  عميل متجر إندكس المتميز
-                </span>
+                <h3 className="text-lg font-bold text-[var(--color-text-primary)]">حسابي في إندكس</h3>
+                <span className="text-xs text-[var(--color-text-secondary)]">عميل متجر إندكس المتميز</span>
               </div>
             </div>
 
@@ -70,9 +66,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                 <span className="text-xl">🛡️</span>
                 <div className="text-right">
                   <span className="font-bold text-sm block">لوحة تحكم الأدمن</span>
-                  <span className="text-[11px] text-[var(--color-text-secondary)]">
-                    إدارة المنتجات، الطلبات، والكتالوج
-                  </span>
+                  <span className="text-[11px] text-[var(--color-text-secondary)]">إدارة المنتجات، الطلبات، والكتالوج</span>
                 </div>
               </div>
               <span className="material-symbols-outlined text-[var(--color-text-secondary)] group-hover:text-[var(--color-primary)] text-[20px] transition-colors">
@@ -88,33 +82,33 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             </span>
             <div className="grid grid-cols-3 gap-2 text-xs font-bold">
               <button
-                onClick={() => onSelectCurrency("YER")}
+                onClick={() => onSelectCurrency('YER')}
                 className={`py-2 px-3 rounded-xl border transition-all cursor-pointer ${
-                  currency === "YER"
-                    ? "bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md"
-                    : "bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  currency === 'YER'
+                    ? 'bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md'
+                    : 'bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 ريال يمني (YER)
               </button>
 
               <button
-                onClick={() => onSelectCurrency("SAR")}
+                onClick={() => onSelectCurrency('SAR')}
                 className={`py-2 px-3 rounded-xl border transition-all cursor-pointer ${
-                  currency === "SAR"
-                    ? "bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md"
-                    : "bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  currency === 'SAR'
+                    ? 'bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md'
+                    : 'bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 ريال سعودي (SAR)
               </button>
 
               <button
-                onClick={() => onSelectCurrency("USD")}
+                onClick={() => onSelectCurrency('USD')}
                 className={`py-2 px-3 rounded-xl border transition-all cursor-pointer ${
-                  currency === "USD"
-                    ? "bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md"
-                    : "bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  currency === 'USD'
+                    ? 'bg-[#2F6BFF] border-[#2F6BFF] text-white shadow-md'
+                    : 'bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 دولار (USD $)
@@ -163,9 +157,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
           {/* Order History */}
           <div>
-            <h4 className="text-xs font-bold text-[var(--color-text-secondary)] mb-3">
-              سجل طلباتي السابقة:
-            </h4>
+            <h4 className="text-xs font-bold text-[var(--color-text-secondary)] mb-3">سجل طلباتي السابقة:</h4>
             {userOrders.length === 0 ? (
               <div className="bg-[var(--color-surface-2)] p-4 rounded-2xl border border-[var(--color-border-default)] text-center text-xs text-[var(--color-text-muted)]">
                 لا توجد طلبات مسجلة حالياً
@@ -185,7 +177,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                     </div>
 
                     <p className="text-[var(--color-text-secondary)]">
-                      <strong>الحالة:</strong>{" "}
+                      <strong>الحالة:</strong>{' '}
                       <span className="text-[#2F6BFF] font-bold">{ord.statusLabel}</span>
                     </p>
 

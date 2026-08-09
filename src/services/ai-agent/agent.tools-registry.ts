@@ -85,10 +85,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     inputSchema: z.object({ query: z.string(), targetDir: z.string().optional() }),
     execute: async ({ query, targetDir = "src" }) => {
       try {
-        const { stdout } = await execAsync(
-          `npx ripgrep-bin "${query}" ${targetDir} --max-count 50`,
-          { cwd: process.cwd() },
-        );
+        const { stdout } = await execAsync(`npx ripgrep-bin "${query}" ${targetDir} --max-count 50`, { cwd: process.cwd() });
         return { matches: stdout.split("\n").filter(Boolean) };
       } catch (e: any) {
         return { matches: [], note: e.message || "No matches found" };
@@ -133,10 +130,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Create a new timestamped SQL migration file in supabase/migrations/",
     inputSchema: z.object({ title: z.string(), sql: z.string() }),
     execute: async ({ title, sql }) => {
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[-:T.Z]/g, "")
-        .slice(0, 14);
+      const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
       const cleanTitle = title.toLowerCase().replace(/[^a-z0-9_]/g, "_");
       const filename = `${timestamp}_${cleanTitle}.sql`;
       const fullPath = path.resolve(process.cwd(), `supabase/migrations/${filename}`);
@@ -152,11 +146,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Verify Row Level Security policy status for a table",
     inputSchema: z.object({ tableName: z.string() }),
     execute: async ({ tableName }) => {
-      return {
-        tableName,
-        rlsEnabled: true,
-        defaultPolicy: "FOR ALL USING (true) WITH CHECK (true)",
-      };
+      return { tableName, rlsEnabled: true, defaultPolicy: "FOR ALL USING (true) WITH CHECK (true)" };
     },
   },
 
@@ -179,10 +169,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Analyze index coverage for target database table",
     inputSchema: z.object({ tableName: z.string() }),
     execute: async ({ tableName }) => {
-      return {
-        tableName,
-        recommendedIndexes: [`idx_${tableName}_tenant`, `idx_${tableName}_created_at`],
-      };
+      return { tableName, recommendedIndexes: [`idx_${tableName}_tenant`, `idx_${tableName}_created_at`] };
     },
   },
 
@@ -192,8 +179,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
   run_validation: {
     category: "Testing",
     name: "run_validation",
-    description:
-      "Run configured package.json scripts (typecheck, lint, build, test) in an isolated execution environment with a 120s timeout.",
+    description: "Run configured package.json scripts (typecheck, lint, build, test) in an isolated execution environment with a 120s timeout.",
     inputSchema: z.object({
       check_type: z.enum(["typecheck", "lint", "build", "test", "all"]).default("all"),
     }),
@@ -201,40 +187,32 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
       const { execFile } = await import("node:child_process");
       const { promisify } = await import("node:util");
       const { resolveValidationCommands } = await import("./validation.resolver");
-
+      
       const execAsyncFile = promisify(execFile);
       const tasks = resolveValidationCommands(process.cwd());
-      const requestedTypes =
-        check_type === "all" ? ["typecheck", "lint", "build", "test"] : [check_type];
-
+      const requestedTypes = check_type === "all" ? ["typecheck", "lint", "build", "test"] : [check_type];
+      
       let outputs: Record<string, string> = {};
-
+      
       for (const task of tasks) {
         const actionType = task.action.toLowerCase().replace("_validation", "");
         if (requestedTypes.includes(actionType) || check_type === "all") {
-          const [cmd, ...args] = task.command.split(" ");
-          try {
-            const { stdout } = await execAsyncFile(cmd, args, {
-              cwd: process.cwd(),
-              timeout: 120000,
-            });
-            outputs[task.action] = stdout || "Passed";
-          } catch (execErr: any) {
-            const errorMsg = execErr.stdout + "\n" + execErr.stderr;
-            throw new Error(`Command ${task.command} failed: ${execErr.message}\n${errorMsg}`);
-          }
+           const [cmd, ...args] = task.command.split(" ");
+           try {
+              const { stdout } = await execAsyncFile(cmd, args, { cwd: process.cwd(), timeout: 120000 });
+              outputs[task.action] = stdout || "Passed";
+           } catch (execErr: any) {
+              const errorMsg = execErr.stdout + "\n" + execErr.stderr;
+              throw new Error(`Command ${task.command} failed: ${execErr.message}\n${errorMsg}`);
+           }
         }
       }
 
       if (Object.keys(outputs).length === 0) {
-        outputs["status"] = "No validation scripts configured for this project.";
+          outputs["status"] = "No validation scripts configured for this project.";
       }
 
-      return {
-        status: "success",
-        message: "Validation scripts executed successfully",
-        details: outputs,
-      };
+      return { status: "success", message: "Validation scripts executed successfully", details: outputs };
     },
   },
 
@@ -299,11 +277,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     inputSchema: z.object({ limit: z.number().optional() }),
     execute: async ({ limit = 20 }) => {
       const db = await getAgentDb({});
-      const { data } = await db
-        .from("agent_execution_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      const { data } = await db.from("agent_execution_logs").select("*").order("created_at", { ascending: false }).limit(limit);
       return { logs: data || [] };
     },
   },
@@ -311,8 +285,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
   whatsapp_catalog_sync: {
     category: "Runtime",
     name: "whatsapp_catalog_sync",
-    description:
-      "Synchronize products between Indexes Store database and WhatsApp Catalog via Meta Graph API",
+    description: "Synchronize products between Indexes Store database and WhatsApp Catalog via Meta Graph API",
     inputSchema: z.object({
       action: z.enum([
         "create_product",
@@ -322,15 +295,13 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
         "update_video",
         "update_inventory",
         "disable_product",
-        "sync_status",
+        "sync_status"
       ]),
       productId: z.string().optional(),
     }),
     execute: async ({ action, productId }) => {
       // Real Meta API calls will be implemented later
-      throw new Error(
-        `501: NOT_IMPLEMENTED - WhatsApp Catalog Sync via Meta Graph API is not yet implemented.`,
-      );
+      throw new Error(`501: NOT_IMPLEMENTED - WhatsApp Catalog Sync via Meta Graph API is not yet implemented.`);
     },
   },
 
@@ -341,12 +312,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     inputSchema: z.object({ taskId: z.string().optional() }),
     execute: async ({ taskId }) => {
       const db = await getAgentDb({});
-      let query = db
-        .from("agent_execution_logs")
-        .select("*")
-        .eq("status", "FAILED")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      let query = db.from("agent_execution_logs").select("*").eq("status", "FAILED").order("created_at", { ascending: false }).limit(10);
       if (taskId) query = query.eq("task_id", taskId);
       const { data } = await query;
       return { failedLogs: data || [] };
@@ -359,20 +325,14 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
     description: "Check system and API endpoint health status",
     inputSchema: z.object({}),
     execute: async () => {
-      return {
-        status: "HEALTHY",
-        uptime: "99.99%",
-        latencyMs: 24,
-        timestamp: new Date().toISOString(),
-      };
+      return { status: "HEALTHY", uptime: "99.99%", latencyMs: 24, timestamp: new Date().toISOString() };
     },
   },
 
   architecture_audit: {
     category: "Runtime",
     name: "architecture_audit",
-    description:
-      "Audit project architectural health, RLS compliance, and generate Architecture Score (0-100)",
+    description: "Audit project architectural health, RLS compliance, and generate Architecture Score (0-100)",
     inputSchema: z.object({}),
     execute: async () => {
       const { auditProjectArchitecture } = await import("./architecture.service");
@@ -383,8 +343,7 @@ export const agentToolRegistry: Record<string, ToolDefinition> = {
   multi_agent_pipeline: {
     category: "Runtime",
     name: "multi_agent_pipeline",
-    description:
-      "Run multi-agent orchestration pipeline (Planner, Architect, Backend, Frontend, Reviewer, Deployer)",
+    description: "Run multi-agent orchestration pipeline (Planner, Architect, Backend, Frontend, Reviewer, Deployer)",
     inputSchema: z.object({ sessionId: z.string(), prompt: z.string() }),
     execute: async ({ sessionId, prompt }) => {
       const { runMultiAgentPipeline } = await import("./multi-agent.engine");
@@ -448,10 +407,10 @@ export function buildCanonicalAiSdkTools(
   agentRole: AgentRole,
   tenantId: string,
   sendEvent: (e: any) => void,
-  context: any = {},
+  context: any = {}
 ) {
   const aiTools: Record<string, any> = {};
-
+  
   const ROLE_RANK: Record<AgentRole, number> = { owner: 4, admin: 3, developer: 2, viewer: 1 };
   const userRank = ROLE_RANK[agentRole] || 0;
 
@@ -459,7 +418,7 @@ export function buildCanonicalAiSdkTools(
     // Assuming category dictates implicit risk/role for now.
     // In a full implementation, minimumRole would be on the ToolDefinition
     const requiredRank = ["FileSystem", "Git", "Testing"].includes(tool.category) ? 2 : 3; // developer vs admin
-
+    
     // Enforce strictly fail-closed RBAC: only generate tool if user has minimum required role
     if (userRank >= requiredRank) {
       aiTools[name] = {
@@ -470,9 +429,9 @@ export function buildCanonicalAiSdkTools(
             type: "tool_call",
             tool: name,
             message: `🛠️ ${tool.description}`,
-            metadata: { category: tool.category },
+            metadata: { category: tool.category }
           });
-
+          
           try {
             return await tool.execute(input, { ...context, tenantId, agentRole, sendEvent });
           } catch (e: any) {
@@ -485,19 +444,17 @@ export function buildCanonicalAiSdkTools(
 
   // Double check that NO human-control approval tools leak into the SDK model's tools
   const blockedTools = [
-    "approve_execution_plan",
-    "reject_execution_plan",
-    "startApprovedExecution",
-    "gitPush",
-    "applyMigration",
-    "deployProduction",
+    "approve_execution_plan", 
+    "reject_execution_plan", 
+    "startApprovedExecution", 
+    "gitPush", 
+    "applyMigration", 
+    "deployProduction"
   ];
 
   for (const blocked of blockedTools) {
     if (aiTools[blocked]) {
-      throw new Error(
-        `SECURITY_VIOLATION: Human-control tool '${blocked}' leaked into AI SDK tool list.`,
-      );
+      throw new Error(`SECURITY_VIOLATION: Human-control tool '${blocked}' leaked into AI SDK tool list.`);
     }
   }
 

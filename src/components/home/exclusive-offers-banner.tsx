@@ -20,7 +20,10 @@ export function OfferContent({ compact, width }: { compact: boolean; width?: num
       >
         عروض حصرية
       </h2>
-      <p className="text-ink-muted" style={{ fontSize: compact ? "clamp(11px, 3.2vw, 15px)" : 26 }}>
+      <p
+        className="text-ink-muted"
+        style={{ fontSize: compact ? "clamp(11px, 3.2vw, 15px)" : 26 }}
+      >
         خصومات تصل إلى
       </p>
       <p

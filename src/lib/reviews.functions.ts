@@ -19,19 +19,18 @@ export const listTenantReviews = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<ReviewRow[]> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };
     const tenantId = await resolveCurrentTenant(supabase, { userId });
-
+    
     const { data: allowed } = await supabase.rpc("has_tenant_permission", {
       _tenant_id: tenantId,
       _user_id: userId,
       _required_role: "staff",
     });
-
+    
     if (!allowed) return [];
 
     const { data, error } = await supabase
       .from("product_reviews")
-      .select(
-        `
+      .select(`
         id,
         product_id,
         customer_name,
@@ -40,8 +39,7 @@ export const listTenantReviews = createServerFn({ method: "GET" })
         status,
         created_at,
         products ( name )
-      `,
-      )
+      `)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
 
@@ -60,25 +58,23 @@ export const listTenantReviews = createServerFn({ method: "GET" })
   });
 
 export const moderateReview = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        status: z.enum(["approved", "rejected"]),
-      })
-      .parse(raw),
+  .inputValidator((raw: unknown) => 
+    z.object({
+      id: z.string().uuid(),
+      status: z.enum(["approved", "rejected"]),
+    }).parse(raw)
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };
     const tenantId = await resolveCurrentTenant(supabase, { userId });
-
+    
     const { data: allowed } = await supabase.rpc("has_tenant_permission", {
       _tenant_id: tenantId,
       _user_id: userId,
       _required_role: "manager",
     });
-
+    
     if (!allowed) {
       return { success: false, message: "غير مصرح لك بمراجعة التقييمات" };
     }
@@ -96,24 +92,22 @@ export const moderateReview = createServerFn({ method: "POST" })
   });
 
 export const deleteReview = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
-    z
-      .object({
-        id: z.string().uuid(),
-      })
-      .parse(raw),
+  .inputValidator((raw: unknown) => 
+    z.object({
+      id: z.string().uuid(),
+    }).parse(raw)
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };
     const tenantId = await resolveCurrentTenant(supabase, { userId });
-
+    
     const { data: allowed } = await supabase.rpc("has_tenant_permission", {
       _tenant_id: tenantId,
       _user_id: userId,
       _required_role: "manager",
     });
-
+    
     if (!allowed) {
       return { success: false, message: "غير مصرح لك بحذف التقييمات" };
     }

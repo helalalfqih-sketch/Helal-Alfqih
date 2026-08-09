@@ -24,12 +24,10 @@
    - explicit user approval (quote or link)
 
 ## QA evidence
-
 Screenshot evidence lives in `docs/design-reference/qa/` using the naming pattern
 `<role>-<width>x<height>-implementation.png` and `<role>-<width>x<height>-overlay.png`
 (e.g. `mobile-390x844-overlay.png`). QA captures must contain the application viewport only —
 no browser chrome, no editor UI.
 
 ## Required viewports
-
 360×800 · 375×812 · 390×844 · 412×915 · 711×1536 · 768×1024 · 1024×1536 · 1366×768 · 1440×900

@@ -23,11 +23,7 @@ export interface CodePatchRecord {
 /**
  * Formats a clean Git-like unified diff string between beforeContent and afterContent.
  */
-export function generateGitDiff(
-  filePath: string,
-  beforeContent: string,
-  afterContent: string,
-): string {
+export function generateGitDiff(filePath: string, beforeContent: string, afterContent: string): string {
   const normPath = filePath.replace(/\\/g, "/");
   const beforeLines = beforeContent ? beforeContent.split("\n") : [];
   const afterLines = afterContent ? afterContent.split("\n") : [];
@@ -47,10 +43,7 @@ export function generateGitDiff(
       diffLines.push(` ${beforeLines[i]}`);
       i++;
       j++;
-    } else if (
-      j < afterLines.length &&
-      (!beforeLines.includes(afterLines[j]) || i >= beforeLines.length)
-    ) {
+    } else if (j < afterLines.length && (!beforeLines.includes(afterLines[j]) || i >= beforeLines.length)) {
       diffLines.push(`+${afterLines[j]}`);
       j++;
     } else if (i < beforeLines.length) {
@@ -72,13 +65,7 @@ export async function createPatchRecord(options: {
   filePath: string;
   operation: "create" | "modify" | "delete";
   afterContent: string;
-}): Promise<{
-  success: boolean;
-  patchId: string;
-  diff: string;
-  record?: CodePatchRecord;
-  error?: string;
-}> {
+}): Promise<{ success: boolean; patchId: string; diff: string; record?: CodePatchRecord; error?: string }> {
   try {
     const { db, tenantId, sessionId, filePath, operation, afterContent } = options;
     const sanitizedRelPath = filePath.replace(/^(\.\.[\/\\])+/, "").replace(/\\/g, "/");
@@ -183,7 +170,10 @@ export async function applyPatchRecord(options: {
     const finalStatus = patchRes.success ? "APPLIED" : "FAILED";
 
     if (db && patchId) {
-      await db.from("ai_code_changes").update({ status: finalStatus }).eq("id", patchId);
+      await db
+        .from("ai_code_changes")
+        .update({ status: finalStatus })
+        .eq("id", patchId);
     }
 
     return {

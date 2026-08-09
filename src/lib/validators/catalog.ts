@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 export const productInputBase = z.object({
-  slug: z
-    .string()
-    .min(1, "الرابط مطلوب")
-    .regex(/^[\p{L}\p{N}-]+$/iu, "الرابط يجب أن يحوي أحرف وأرقام و - فقط"),
+  slug: z.string().min(1, "الرابط مطلوب").regex(/^[\p{L}\p{N}-]+$/ui, "الرابط يجب أن يحوي أحرف وأرقام و - فقط"),
   name: z.string().min(1, "اسم المنتج مطلوب"),
   description: z.string().default(""),
   price: z.number({ message: "أدخل قيمة رقمية بالسعر" }).positive("يجب أن يكون السعر أكبر من صفر"),
@@ -14,11 +11,7 @@ export const productInputBase = z.object({
   brand: z.string().nullable().optional(),
   images: z.array(z.string()).default([]),
   model_url: z.string().nullable().optional(),
-  stock: z
-    .number()
-    .int("المخزون يجب أن يكون عددًا صحيحًا")
-    .min(0, "المخزون لا يمكن أن يكون سالبًا")
-    .default(0),
+  stock: z.number().int("المخزون يجب أن يكون عددًا صحيحًا").min(0, "المخزون لا يمكن أن يكون سالبًا").default(0),
   tags: z.array(z.string()).default([]),
   badge: z.string().nullable().optional(),
   is_published: z.boolean().default(true),
@@ -28,20 +21,12 @@ export const productInputBase = z.object({
   source_url: z.string().nullable().optional(),
   sku: z.string().nullable().optional(),
   barcode: z.string().nullable().optional(),
-  compare_at_price: z
-    .number()
-    .positive("سعر المقارنة يجب أن يكون أكبر من صفر")
-    .nullable()
-    .optional(),
+  compare_at_price: z.number().positive("سعر المقارنة يجب أن يكون أكبر من صفر").nullable().optional(),
   cost_price: z.number().min(0, "تكلفة المنتج لا يمكن أن تكون سالبة").nullable().optional(),
   model_3d_url: z.string().nullable().optional(),
   model_3d_thumbnail: z.string().nullable().optional(),
   model_3d_status: z.string().nullable().optional(),
-  meta_sync_status: z
-    .enum(["not_synced", "syncing", "synced", "failed"])
-    .default("not_synced")
-    .nullable()
-    .optional(),
+  meta_sync_status: z.enum(["not_synced", "syncing", "synced", "failed"]).default("not_synced").nullable().optional(),
   // V3 CMS fields
   featured: z.boolean().default(false).optional(),
   is_deal: z.boolean().default(false).optional(),
@@ -69,11 +54,7 @@ export const productInputSchema = productInputBase.superRefine((data, ctx) => {
 
 export const productUpdateBase = z.object({
   id: z.string().min(1),
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[\p{L}\p{N}-]+$/iu, "الرابط يجب أن يحوي أحرف وأرقام و - فقط")
-    .optional(),
+  slug: z.string().min(1).regex(/^[\p{L}\p{N}-]+$/ui, "الرابط يجب أن يحوي أحرف وأرقام و - فقط").optional(),
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   price: z.number().positive("يجب أن يكون السعر أكبر من صفر").optional(),
@@ -93,11 +74,7 @@ export const productUpdateBase = z.object({
   source_url: z.string().nullable().optional(),
   sku: z.string().nullable().optional(),
   barcode: z.string().nullable().optional(),
-  compare_at_price: z
-    .number()
-    .positive("سعر المقارنة يجب أن يكون أكبر من صفر")
-    .nullable()
-    .optional(),
+  compare_at_price: z.number().positive("سعر المقارنة يجب أن يكون أكبر من صفر").nullable().optional(),
   cost_price: z.number().min(0).nullable().optional(),
   model_3d_url: z.string().nullable().optional(),
   model_3d_thumbnail: z.string().nullable().optional(),
@@ -128,10 +105,7 @@ export const productUpdateSchema = productUpdateBase.superRefine((data, ctx) => 
 });
 
 export const categoryInputSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[\p{L}\p{N}-]+$/iu, "الرابط يجب أن يحوي أحرف وأرقام و - فقط"),
+  slug: z.string().min(1).regex(/^[\p{L}\p{N}-]+$/ui, "الرابط يجب أن يحوي أحرف وأرقام و - فقط"),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   image_url: z.string().url().nullable().optional(),
