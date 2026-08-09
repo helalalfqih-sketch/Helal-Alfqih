@@ -3,18 +3,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SortOption } from "./types";
 import {
   Grid,
-  Shirt,
-  Sparkles,
-  Heart,
+  Watch,
   Headphones,
+  Sparkles,
   Home,
+  Smartphone,
   SlidersHorizontal,
   TrendingUp,
   TrendingDown,
   Flame,
   CheckCircle2,
   ChevronDown,
-  type LucideIcon,
+  X,
+  Filter,
 } from "lucide-react";
 
 interface CategoryBarProps {
@@ -25,15 +26,20 @@ interface CategoryBarProps {
 }
 
 const CATEGORY_ITEMS = [
-  { id: "all", name: "المزيد", icon: Grid },
-  { id: "fashion", name: "الأزياء", icon: Shirt },
-  { id: "perfumes", name: "العطور", icon: Sparkles },
-  { id: "beauty", name: "العناية", icon: Heart },
-  { id: "electronics", name: "الإلكترونيات", icon: Headphones },
-  { id: "home", name: "المنزل", icon: Home },
+  { id: "all", name: "الكل", icon: Grid },
+  { id: "smartwatches", name: "ساعات ذكية", icon: Watch },
+  { id: "audio", name: "صوتيات", icon: Headphones },
+  { id: "perfumes", name: "عطور وبخور", icon: Sparkles },
+  { id: "appliances", name: "أجهزة منزلية", icon: Home },
+  { id: "accessories", name: "إكسسوارات", icon: Smartphone },
 ];
 
-const SORT_OPTIONS: { id: SortOption; label: string; icon: LucideIcon; badge?: string }[] = [
+const SORT_OPTIONS: {
+  id: SortOption;
+  label: string;
+  icon: React.ElementType<{ className?: string }>;
+  badge?: string;
+}[] = [
   { id: "default", label: "الترتيب الافتراضي", icon: SlidersHorizontal },
   { id: "price-high", label: "الأعلى سعراً", icon: TrendingUp },
   { id: "price-low", label: "الأقل سعراً", icon: TrendingDown },
@@ -74,24 +80,26 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
           return (
             <motion.button
               key={cat.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.03 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              transition={{ delay: idx * 0.02 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl border transition-all cursor-pointer backdrop-blur-md relative overflow-hidden ${
+              className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
                 isSelected
-                  ? "bg-[#7B3FFF]/20 border-[#7B3FFF] text-white shadow-sm"
-                  : "bg-[#100B1A]/80 border-gray-800 text-gray-300 hover:border-gray-700 hover:text-white hover:bg-[#18112B]"
+                  ? "bg-[var(--color-surface-2)] border-[#2F6BFF] text-[var(--color-text-primary)] shadow-sm"
+                  : "bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-2)]"
               }`}
             >
               <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-1 transition-transform ${
-                  isSelected ? "bg-[#7B3FFF] text-white scale-110" : "bg-[#18112B] text-gray-400"
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center mb-1 transition-all ${
+                  isSelected
+                    ? "bg-[#2F6BFF] text-white shadow-sm"
+                    : "bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                 }`}
               >
-                <IconComp className="w-4 h-4 sm:w-5 sm:h-5" />
+                <IconComp className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
               <span className="text-[10px] sm:text-xs font-bold text-center line-clamp-1">
                 {cat.name}
@@ -102,32 +110,65 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
       </div>
 
       {/* Sorting Filter Bar */}
-      <div className="bg-[#100B1A]/80 border border-gray-800 rounded-2xl p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shadow-sm backdrop-blur-md relative">
+      <div className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-sm relative">
         {/* Left Side: Filter Label & Interactive Dropdown Trigger */}
-        <div
-          className="flex items-center justify-between sm:justify-start gap-2.5 w-full sm:w-auto relative"
-          ref={dropdownRef}
-        >
+        <div className="flex items-center gap-2.5 flex-wrap relative" ref={dropdownRef}>
+          <span className="text-xs font-bold text-[var(--color-text-secondary)] hidden sm:inline">
+            ترتيب حسب:
+          </span>
+
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 bg-[#18112B] hover:bg-[#201838] border border-gray-800 hover:border-[#7B3FFF] px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-md active:scale-95 group"
+            className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-97 group ${
+              selectedSort !== "default"
+                ? "bg-[#2F6BFF]/10 text-[#2F6BFF] border-[#2F6BFF]/50 shadow-sm"
+                : "bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-primary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]"
+            }`}
           >
-            <CurrentIcon className="w-3.5 h-3.5 text-[#7B3FFF] group-hover:rotate-12 transition-transform" />
-            <span className="text-gray-300">{currentSortObj.label}</span>
+            <CurrentIcon className="w-3.5 h-3.5 text-[#2F6BFF]" />
+            <span>{currentSortObj.label}</span>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
             />
           </button>
+
+          {/* Visible 'Sort Applied' Indicator Pill */}
+          <AnimatePresence>
+            {selectedSort !== "default" && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, x: -6 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.9, x: -6 }}
+                className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#2F6BFF] to-cyan-500 text-white px-2.5 py-1 rounded-full text-[11px] font-black shadow-md border border-white/20 dir-rtl"
+              >
+                <Filter className="w-3 h-3 text-cyan-200 animate-pulse" />
+                <span>الترتيب المطبق: {currentSortObj.label}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectSort("default");
+                  }}
+                  className="p-0.5 rounded-full hover:bg-white/20 transition-colors cursor-pointer mr-0.5 text-white/90 hover:text-white"
+                  title="إلغاء الترتيب الإرجاع للافتراضي"
+                  aria-label="إلغاء الترتيب"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Animated Dropdown Menu */}
           <AnimatePresence>
             {isDropdownOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                key="category-sort-dropdown"
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full right-0 mt-2 w-52 bg-[#120D22] border border-gray-800 rounded-2xl p-1.5 shadow-xl z-50 backdrop-blur-xl space-y-1 dir-rtl"
+                className="absolute top-full right-0 mt-2 w-52 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-1.5 shadow-xl z-50 space-y-1 dir-rtl"
               >
                 {SORT_OPTIONS.map((opt) => {
                   const isOptSelected = selectedSort === opt.id;
@@ -136,13 +177,13 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                     <button
                       key={opt.id}
                       onClick={() => {
-                        onSelectSort(opt.id as SortOption);
+                        onSelectSort(opt.id);
                         setIsDropdownOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isOptSelected
-                          ? "bg-[#7B3FFF] text-white shadow-md"
-                          : "text-gray-300 hover:bg-[#1C1632] hover:text-white"
+                          ? "bg-[#2F6BFF] text-white shadow-sm"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-primary)]"
                       }`}
                     >
                       <div className="flex items-center gap-2">

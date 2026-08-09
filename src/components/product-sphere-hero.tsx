@@ -18,6 +18,7 @@ import { formatPrice } from "@/lib/store-data";
 import { useWebglQuality, type WebglQuality } from "@/lib/use-webgl-quality";
 import { useLoadableProducts } from "@/lib/use-loadable-products";
 import { getPublishedStorefrontAppearance } from "@/lib/actions/appearance.actions";
+import { HolographicGlobe } from "./storefront/HolographicGlobe";
 
 const DARK = "#000209";
 const LIGHT = "#EEEEEE";
@@ -748,26 +749,27 @@ export function ProductGlobeCanvas({
   // The globe shell (core, wireframe, atmosphere, orbits) renders as soon as
   // WebGL is available — it never waits for products or textures.
   if (!mounted || !quality.supported) {
+    const globeProducts = pool.map((p) => ({
+      id: p.id,
+      slug: p.slug || p.id,
+      name: p.name,
+      image: p.image,
+      price: p.price,
+    }));
+
     return (
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="relative h-[86%] w-[86%] rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(124,58,237,0.55),rgba(5,3,15,0.9)_70%)] shadow-[0_0_80px_-10px_var(--neon)]">
-          {pool.slice(0, 8).map((p, i) => {
-            const a = (i / 8) * Math.PI * 2;
-            return (
-              <img
-                key={`${p.id}-${i}`}
-                src={p.image}
-                alt={p.name}
-                loading="lazy"
-                className="absolute h-10 w-10 rounded-lg border border-ink-line bg-ink-card/80 object-contain p-1"
-                style={{
-                  left: `${50 + Math.cos(a) * 36 - 6}%`,
-                  top: `${50 + Math.sin(a) * 36 - 6}%`,
-                }}
-              />
-            );
-          })}
-        </div>
+      <div className="absolute inset-0 grid place-items-center overflow-hidden">
+        <HolographicGlobe
+          products={globeProducts}
+          onSelectProduct={(prod) => {
+            if (prod?.slug) {
+              navigate({ to: "/product/$slug", params: { slug: prod.slug } });
+            }
+          }}
+          size={380}
+          showTitleBadge={false}
+          paused={paused || hidden}
+        />
       </div>
     );
   }

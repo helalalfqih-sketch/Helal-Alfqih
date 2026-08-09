@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { STORE_INFO } from "./constants";
 import {
   MessageCircle,
   MapPin,
@@ -9,13 +10,14 @@ import {
   Instagram,
   PhoneCall,
 } from "lucide-react";
+import { StoreLogo } from "./StoreLogo";
 
 interface StoreFooterProps {
   onOpenTracker: () => void;
 }
 
 export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
-  const whatsappUrl = `https://wa.me/967771370740?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${STORE_INFO.whatsappNumber}?text=${encodeURIComponent(
     "السلام عليكم، أود الاستفسار عن منتجات متجر إندكس",
   )}`;
 
@@ -25,9 +27,9 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className="px-4 sm:px-6 py-8 mb-24 border-t border-gray-800 bg-[#08060F]/80 backdrop-blur-md"
+      className="px-4 sm:px-6 py-8 mb-24 border-t border-[var(--color-border-default)] bg-[var(--color-surface-1)]/80 backdrop-blur-md"
     >
-      <div className="bg-[#100B1A]/80 backdrop-blur-md border border-gray-800 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="bg-[var(--color-surface-2)]/80 backdrop-blur-md border border-[var(--color-border-default)] rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-8">
         {/* Contact Info List (Right / Main) */}
         <div className="flex-1 flex flex-col gap-3.5 text-right w-full">
           {/* WhatsApp Contact */}
@@ -35,11 +37,11 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-end gap-2.5 text-gray-300 text-xs sm:text-sm hover:text-[#7B3FFF] transition-colors cursor-pointer group"
+            className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm hover:text-[var(--color-primary)] transition-colors cursor-pointer group"
           >
             <span>
               للطلب والاستفسار (واتساب):{" "}
-              <strong className="text-white dir-ltr inline-block group-hover:text-emerald-500 transition-colors">
+              <strong className="text-[var(--color-text-primary)] dir-ltr inline-block group-hover:text-emerald-500 transition-colors">
                 967771370740
               </strong>
             </span>
@@ -49,10 +51,10 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
           </a>
 
           {/* Location */}
-          <div className="flex items-center justify-end gap-2.5 text-gray-300 text-xs sm:text-sm">
+          <div className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm">
             <span>
               العنوان:{" "}
-              <strong className="text-white">
+              <strong className="text-[var(--color-text-primary)]">
                 صنعاء - شارع بيون - مقابل صيدلية الرعاية الصحية
               </strong>
             </span>
@@ -62,7 +64,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
           </div>
 
           {/* Delivery */}
-          <div className="flex items-center justify-end gap-2.5 text-gray-300 text-xs sm:text-sm">
+          <div className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm">
             <span>متوفر لدينا خدمة التوصيل السريع لجميع المحافظات</span>
             <div className="w-8 h-8 rounded-full bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shrink-0">
               <Truck className="w-4 h-4" />
@@ -72,10 +74,10 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
           {/* Track Order */}
           <div
             onClick={onOpenTracker}
-            className="flex items-center justify-end gap-2.5 text-gray-300 text-xs sm:text-sm cursor-pointer group"
+            className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm cursor-pointer group"
           >
             <span>
-              <strong className="text-white underline decoration-[#7B3FFF] group-hover:text-[#7B3FFF] transition-colors">
+              <strong className="text-[var(--color-text-primary)] underline decoration-[#2F6BFF] group-hover:text-[#2F6BFF] transition-colors">
                 تتبع طلبك
               </strong>{" "}
               - برقم الطلب وآخر 4 أرقام من هاتفك
@@ -101,7 +103,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
               <a
                 href="#"
                 aria-label="فيسبوك"
-                className="w-9 h-9 rounded-full border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#7B3FFF] bg-[#120D22] transition-all"
+                className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-primary)] bg-[var(--color-surface-1)] transition-all"
               >
                 <Facebook className="w-4 h-4" />
               </a>
@@ -109,15 +111,15 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
               <a
                 href="#"
                 aria-label="انستغرام"
-                className="w-9 h-9 rounded-full border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:border-pink-500 bg-[#120D22] transition-all"
+                className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-pink-500 bg-[var(--color-surface-1)] transition-all"
               >
                 <Instagram className="w-4 h-4" />
               </a>
 
               <a
-                href="tel:967771370740"
+                href={`tel:${STORE_INFO.whatsappNumber}`}
                 aria-label="اتصال مباشر"
-                className="w-9 h-9 rounded-full border border-gray-800 flex items-center justify-center text-emerald-500 hover:border-emerald-500 bg-[#120D22] transition-all"
+                className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-emerald-500 hover:border-emerald-500 bg-[var(--color-surface-1)] transition-all"
               >
                 <PhoneCall className="w-4 h-4" />
               </a>
@@ -125,21 +127,12 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
           </div>
         </div>
 
-        {/* Circular Gold Badge Logo ("INDEXES STORE") */}
+        {/* Circular Gold Badge Store Logo ("INDEXES STORE") */}
         <div className="shrink-0 flex justify-center">
-          <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-full border border-[#FFB800]/70 flex items-center justify-center bg-transparent p-1.5 shadow-[0_0_20px_rgba(255,184,0,0.15)]">
-            <div className="w-full h-full rounded-full border-2 border-dashed border-[#FFB800]/80 flex flex-col items-center justify-center text-center p-2">
-              <Package className="w-7 h-7 text-[#FFB800] mb-0.5" />
-              <h4 className="text-white font-black text-[18px] sm:text-[20px] leading-tight tracking-wider">
-                INDEXES
-                <br />
-                STORE
-              </h4>
-              <p className="text-[#FFB800] text-[8px] font-bold tracking-widest mt-0.5">
-                PREMIUM QUALITY
-              </p>
-            </div>
-          </div>
+          <StoreLogo
+            variant="full"
+            className="p-4 bg-[var(--color-surface-2)]/60 border border-[var(--color-border-default)] rounded-3xl shadow-xl backdrop-blur-md"
+          />
         </div>
       </div>
 

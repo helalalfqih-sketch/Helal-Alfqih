@@ -20,6 +20,11 @@ export interface Product {
   isFeatured?: boolean;
   specs?: Record<string, string>;
   colors?: string[];
+  secondaryImage?: string;
+  isBestSeller?: boolean;
+  isLowStock?: boolean;
+  stockCount?: number;
+  videoUrl?: string;
 }
 
 export interface Category {

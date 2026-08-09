@@ -17,10 +17,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn text-right dir-rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#100B1A] border border-gray-800 rounded-[32px] w-full max-w-md p-6 relative shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
+        className="bg-[#0F0C1B] border border-gray-800 rounded-[32px] w-full max-w-md p-6 relative shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
       >
         <div className="flex items-center justify-between pb-4 border-b border-gray-800 mb-4">
           <div className="flex items-center gap-2">
@@ -32,7 +32,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-[#18112B] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white"
+            className="w-9 h-9 rounded-full bg-[#151025] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -56,7 +56,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               <div
                 key={n.id}
                 className={`p-4 rounded-2xl border text-right transition-all ${
-                  !n.read ? "bg-[#18112B] border-[#7B3FFF]/50" : "bg-[#120D22] border-gray-800/80"
+                  !n.read ? "bg-[#1A142D] border-[#7B3FFF]/50" : "bg-[#151025] border-gray-800/80"
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">

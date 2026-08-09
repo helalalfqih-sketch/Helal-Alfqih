@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { MessageCircle, Phone, X, Sparkles, Send, ShieldCheck } from "lucide-react";
+import { STORE_INFO } from "./constants";
+import { MessageCircle, Phone, X, Sparkles, Send, ShieldCheck, Clock } from "lucide-react";
 
 export const FloatingWhatsAppButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [quickMsg, setQuickMsg] = useState("");
 
-  const whatsappNumber = "967771370740";
+  const whatsappNumber = STORE_INFO.whatsappNumber || "967771370740";
 
   const sendWhatsAppMsg = (text?: string) => {
     const message =

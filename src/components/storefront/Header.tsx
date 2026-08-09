@@ -12,9 +12,17 @@ import {
   Heart,
   Sun,
   Moon,
+  History,
 } from "lucide-react";
 import { Product, Currency } from "./types";
 import { formatPrice } from "./currency";
+import {
+  getRecentSearches,
+  saveRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} from "./searchHistory";
+import { StoreLogo } from "./StoreLogo";
 
 interface HeaderProps {
   searchQuery: string;
@@ -58,7 +66,30 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectProduct,
 }) => {
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
+
+  const handleSaveSearch = (term: string) => {
+    if (!term.trim()) return;
+    const updated = saveRecentSearch(term);
+    setRecentSearches(updated);
+  };
+
+  const handleRemoveSearch = (e: React.MouseEvent, term: string) => {
+    e.stopPropagation();
+    const updated = removeRecentSearch(term);
+    setRecentSearches(updated);
+  };
+
+  const handleClearAllSearches = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = clearRecentSearches();
+    setRecentSearches(updated);
+  };
 
   const autocompleteMatches =
     searchQuery.trim().length > 0
@@ -83,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#08060F]/90 backdrop-blur-xl px-3 sm:px-6 py-2 border-b border-gray-800/80 shadow-md transition-colors dir-rtl">
+    <header className="sticky top-0 z-40 bg-[var(--glass-bg)] backdrop-blur-xl px-3 sm:px-6 py-2 border-b border-[var(--color-border-default)] shadow-[var(--shadow-sm)] transition-colors dir-rtl">
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
         {/* 1. Leftmost: Shopping Cart Button with Badge */}
         <motion.button
@@ -92,15 +123,14 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenCart}
           aria-label="سلة التسوق"
           title="سلة التسوق"
-          className="relative w-10 h-10 sm:w-11 sm:h-11 text-white flex items-center justify-center rounded-2xl border border-gray-800 bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 shadow-sm"
+          className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
         >
-          <ShoppingCart className="w-5 h-5 text-[#7B3FFF]" />
+          <ShoppingCart className="w-5 h-5 text-[#2F6BFF]" />
           {cartCount > 0 && (
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              key={cartCount}
-              className="absolute -top-1.5 -right-1.5 bg-[#7B3FFF] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#08060F] shadow-md shadow-purple-500/30"
+              className="absolute -top-1.5 -right-1.5 bg-[#2F6BFF] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--color-bg)] shadow-md shadow-blue-500/30"
             >
               {cartCount}
             </motion.span>
@@ -115,11 +145,11 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenWishlist}
             aria-label="المفضلة"
             title="المفضلة"
-            className="relative w-10 h-10 sm:w-11 sm:h-11 text-white flex items-center justify-center rounded-2xl border border-gray-800 bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 shadow-sm"
+            className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
           >
             <Heart className="w-5 h-5 text-rose-400" />
             {wishlistCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-[#08060F]">
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-[var(--color-bg)]">
                 {wishlistCount}
               </span>
             )}
@@ -133,11 +163,11 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenNotifications}
           aria-label="الإشعارات"
           title="الإشعارات"
-          className="relative w-10 h-10 sm:w-11 sm:h-11 text-white flex items-center justify-center rounded-2xl border border-gray-800 bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 shadow-sm"
+          className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
         >
-          <Bell className="w-5 h-5 text-gray-400" />
+          <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
           {unreadNotificationsCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 bg-amber-400 border-2 border-[#08060F] w-2.5 h-2.5 rounded-full" />
+            <span className="absolute top-1.5 right-1.5 bg-amber-400 border-2 border-[var(--color-bg)] w-2.5 h-2.5 rounded-full" />
           )}
         </motion.button>
 
@@ -146,20 +176,29 @@ export const Header: React.FC<HeaderProps> = ({
           <input
             type="text"
             value={searchQuery}
-            onFocus={() => setIsAutocompleteOpen(true)}
+            onFocus={() => {
+              setRecentSearches(getRecentSearches());
+              setIsAutocompleteOpen(true);
+            }}
             onChange={(e) => {
               onSearchChange(e.target.value);
               setIsAutocompleteOpen(true);
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && searchQuery.trim()) {
+                handleSaveSearch(searchQuery);
+                setIsAutocompleteOpen(false);
+              }
+            }}
             placeholder="ابحث عن المنتجات، الساعات، الإلكترونيات..."
             aria-label="بحث عن المنتجات"
-            className="w-full h-full bg-[#120D22] border border-gray-800 focus:border-[#7B3FFF] rounded-full pr-10 pl-10 text-xs sm:text-sm text-white placeholder-gray-500 text-right focus:outline-none focus:ring-2 focus:ring-[#7B3FFF]/20 transition-all shadow-inner"
+            className="w-full h-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] focus:border-[var(--color-primary)] rounded-full pr-10 pl-10 text-xs sm:text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] text-right focus:outline-none focus:ring-2 focus:ring-[#2F6BFF]/20 transition-all shadow-inner"
           />
           {/* Right Search Icon */}
-          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] w-4 h-4 pointer-events-none" />
 
           {/* Left Sparkle Icon inside input */}
-          <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 text-purple-400 w-4 h-4 pointer-events-none" />
+          <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 w-4 h-4 pointer-events-none" />
 
           {searchQuery && (
             <button
@@ -168,58 +207,114 @@ export const Header: React.FC<HeaderProps> = ({
                 setIsAutocompleteOpen(false);
               }}
               aria-label="مسح البحث"
-              className="absolute left-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              className="absolute left-9 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* Autocomplete Dropdown */}
+          {/* Autocomplete & Recent Searches Dropdown */}
           <AnimatePresence>
-            {isAutocompleteOpen && searchQuery.trim().length > 0 && (
+            {isAutocompleteOpen && (searchQuery.trim().length > 0 || recentSearches.length > 0) && (
               <motion.div
+                key="header-autocomplete-dropdown"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
-                className="absolute top-12 left-0 right-0 bg-[#120D22] border border-gray-800 rounded-2xl shadow-xl p-2 z-50 divide-y divide-gray-800/60"
+                className="absolute top-12 left-0 right-0 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl shadow-xl p-3 z-50 space-y-3"
               >
-                {autocompleteMatches.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-gray-400">
-                    لا توجد نتائج مطابقة لـ &quot;{searchQuery}&quot; 🔍
-                  </div>
-                ) : (
-                  <>
-                    <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 text-right">
-                      اقتراحات البحث السريعة ({autocompleteMatches.length})
-                    </div>
-                    {autocompleteMatches.map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => {
-                          if (onSelectProduct) onSelectProduct(product);
-                          setIsAutocompleteOpen(false);
-                        }}
-                        className="p-2 flex items-center gap-3 hover:bg-[#1C1632] rounded-xl cursor-pointer transition-colors"
+                {/* 1. Recent Search Quick-Access Chips */}
+                {recentSearches.length > 0 && (
+                  <div className="border-b border-[var(--color-border-subtle)] pb-2.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-[var(--color-text-muted)] mb-2">
+                      <span className="flex items-center gap-1.5 text-[#2F6BFF]">
+                        <History className="w-3.5 h-3.5" />
+                        <span>عمليات البحث الأخيرة (آخر 5)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleClearAllSearches}
+                        className="text-[10px] text-rose-400 hover:underline cursor-pointer"
                       >
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-10 h-10 object-contain rounded-lg bg-[#08060F] p-1 border border-gray-800"
-                        />
-                        <div className="flex-1 min-w-0 text-right">
-                          <div className="text-xs font-bold text-white line-clamp-1">
-                            {product.name}
-                          </div>
-                          <div className="text-[10px] text-gray-400 line-clamp-1">
-                            {product.subtitle}
-                          </div>
+                        مسح الكل
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 dir-rtl">
+                      {recentSearches.map((term, index) => (
+                        <div
+                          key={index}
+                          className="inline-flex items-center gap-1 bg-[var(--color-surface-2)] hover:bg-[#2F6BFF]/15 text-[var(--color-text-primary)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/40 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer group"
+                        >
+                          <span
+                            onClick={() => {
+                              onSearchChange(term);
+                              handleSaveSearch(term);
+                              setIsAutocompleteOpen(false);
+                            }}
+                            className="flex items-center gap-1"
+                          >
+                            <span>{term}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemoveSearch(e, term)}
+                            className="text-[var(--color-text-muted)] hover:text-rose-400 p-0.5 rounded-full transition-colors"
+                            title="حذف"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                         </div>
-                        <div className="text-xs font-extrabold text-white shrink-0">
-                          {formatPrice(product.priceYER, currency as Currency)}
-                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Autocomplete Product Suggestions */}
+                {searchQuery.trim().length > 0 && (
+                  <div>
+                    {autocompleteMatches.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-[var(--color-text-secondary)]">
+                        لا توجد نتائج مطابقة لـ &quot;{searchQuery}&quot; 🔍
                       </div>
-                    ))}
-                  </>
+                    ) : (
+                      <>
+                        <div className="px-1 py-1 text-[11px] font-bold text-[var(--color-text-muted)] text-right">
+                          اقتراحات المنتجات ({autocompleteMatches.length})
+                        </div>
+                        <div className="space-y-1">
+                          {autocompleteMatches.map((product) => (
+                            <div
+                              key={product.id}
+                              onClick={() => {
+                                handleSaveSearch(product.name);
+                                if (onSelectProduct) onSelectProduct(product);
+                                setIsAutocompleteOpen(false);
+                              }}
+                              className="p-2 flex items-center gap-3 hover:bg-[var(--color-surface-2)] rounded-xl cursor-pointer transition-colors"
+                            >
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                className="w-10 h-10 object-contain rounded-lg bg-[var(--color-surface-2)] p-1 border border-[var(--color-border-subtle)]"
+                              />
+                              <div className="flex-1 min-w-0 text-right">
+                                <div className="text-xs font-bold text-[var(--color-text-primary)] line-clamp-1">
+                                  {product.name}
+                                </div>
+                                <div className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">
+                                  {product.subtitle}
+                                </div>
+                              </div>
+                              <div className="text-xs font-extrabold text-[var(--color-text-primary)] shrink-0">
+                                {formatPrice(product.priceYER, currency as Currency)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </motion.div>
             )}
@@ -234,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
             title={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center border border-gray-800 rounded-2xl bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 text-amber-400 shadow-sm"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 text-amber-400 shadow-sm"
           >
             {theme === "dark" ? (
               <Sun className="w-5 h-5 text-amber-400" />
@@ -250,7 +345,7 @@ export const Header: React.FC<HeaderProps> = ({
           whileTap={{ scale: 0.97 }}
           onClick={onOpenTracker}
           aria-label="تتبع الطلب"
-          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white border border-purple-500/30 rounded-2xl bg-[#7B3FFF] hover:bg-[#682BDD] transition-all cursor-pointer shrink-0 shadow-md shadow-purple-600/20"
+          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white border border-blue-500/30 rounded-2xl bg-[#2F6BFF] hover:bg-[#2458D8] transition-all cursor-pointer shrink-0 shadow-md shadow-blue-600/20"
           title="تتبع طلبي المباشر"
         >
           <Plus className="w-5 h-5 text-white" />
@@ -263,24 +358,27 @@ export const Header: React.FC<HeaderProps> = ({
             whileTap={{ scale: 0.97 }}
             onClick={onOpenAdmin}
             aria-label="لوحة الأدمن"
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-emerald-400 border border-gray-800 rounded-2xl bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 shadow-sm"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-emerald-400 border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
             title="لوحة تحكم الأدمن"
           >
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
           </motion.button>
         )}
 
-        {/* 8. Rightmost: Hamburger Menu Toggle Button */}
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={onOpenMenu}
-          aria-label="القائمة الرئيسية"
-          title="القائمة الرئيسية"
-          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white border border-gray-800 rounded-2xl bg-[#120D22] hover:bg-[#1A1430] transition-all cursor-pointer shrink-0 shadow-sm"
-        >
-          <Menu className="w-5 h-5 text-gray-400" />
-        </motion.button>
+        {/* 8. Rightmost: Hamburger Menu Toggle & Store Logo */}
+        <div className="flex items-center gap-2 shrink-0">
+          <StoreLogo variant="header" />
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onOpenMenu}
+            aria-label="القائمة الرئيسية"
+            title="القائمة الرئيسية"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+          >
+            <Menu className="w-5 h-5 text-[var(--color-text-secondary)]" />
+          </motion.button>
+        </div>
       </div>
     </header>
   );

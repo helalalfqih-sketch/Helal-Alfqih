@@ -28,6 +28,7 @@ import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
 import { CategoryBar } from "@/components/storefront/CategoryBar";
+import { BestOffersSection } from "@/components/storefront/BestOffersSection";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { TrustBar } from "@/components/storefront/TrustBar";
 import { LoyaltyBanner } from "@/components/storefront/LoyaltyBanner";
@@ -42,6 +43,7 @@ import {
 } from "@/components/storefront/SkeletonLoader";
 
 import { ProductDetailModal } from "@/components/storefront/ProductDetailModal";
+import { CinematicProductDeconstruction } from "@/components/storefront/CinematicProductDeconstruction";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { CheckoutModal } from "@/components/storefront/CheckoutModal";
 import { OrderTrackerModal } from "@/components/storefront/OrderTrackerModal";
@@ -225,6 +227,7 @@ function HomePage() {
 
   // Modal / Drawer States
   const [selectedProductModal, setSelectedProductModal] = useState<DesignProduct | null>(null);
+  const [isDeconstructionOpen, setIsDeconstructionOpen] = useState<boolean>(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrackerModalOpen, setIsTrackerModalOpen] = useState(false);
@@ -374,8 +377,10 @@ function HomePage() {
             <HeroCarouselSkeleton />
           ) : (
             <HeroCarousel
+              products={products}
               onSelectCategory={handleSelectCategoryWithLoading}
               onSelectProduct={(prod) => setSelectedProductModal(prod)}
+              onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
             />
           )}
 
@@ -389,67 +394,16 @@ function HomePage() {
 
           {/* 5. Best Offers Section (أفضل العروض 🔥) */}
           {selectedCategory === "all" && !searchQuery && (
-            <section className="py-2 relative">
-              <div className="px-4 sm:px-6 flex justify-between items-center mb-3">
-                <h3 className="text-xl sm:text-2xl font-black flex items-center gap-2 text-white">
-                  <span>أفضل العروض</span>
-                  <span className="text-xl sm:text-2xl">🔥</span>
-                </h3>
-                <button
-                  onClick={() => handleSelectCategoryWithLoading("all")}
-                  className="text-[#7B3FFF] text-xs sm:text-sm flex items-center gap-1 font-bold hover:underline cursor-pointer"
-                >
-                  <span>عرض الكل</span>
-                  <span className="material-symbols-outlined text-[16px]">chevron_left</span>
-                </button>
-              </div>
-
-              {/* Horizontal Snap Scroll / Responsive 4-Card Grid Container */}
-              <div className="relative group/scroll">
-                <div
-                  id="best-offers-scroll"
-                  className="px-3 sm:px-6 flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar snap-x pb-2 pt-1"
-                >
-                  {isLoading
-                    ? [1, 2, 3, 4].map((idx) => (
-                        <ProductCardSkeleton key={idx} variant="horizontal" />
-                      ))
-                    : (bestOffers.length ? bestOffers : products.slice(0, 6)).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          currency={currency}
-                          isFavorite={favorites.includes(product.id)}
-                          onToggleFavorite={handleToggleFavorite}
-                          onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                          onSelectProduct={(prod) => setSelectedProductModal(prod)}
-                          variant="horizontal"
-                        />
-                      ))}
-                </div>
-
-                {/* Scroll Right Arrow Button */}
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("best-offers-scroll");
-                    if (el) el.scrollBy({ left: -220, behavior: "smooth" });
-                  }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-[#100B1A]/95 border border-[#7B3FFF]/60 text-white flex items-center justify-center shadow-[0_0_15px_rgba(123,63,255,0.4)] hover:bg-[#7B3FFF] hover:border-purple-400 transition-all cursor-pointer"
-                  aria-label="التمرير لليمين"
-                >
-                  <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                </button>
-
-                {/* Pagination Dots Indicator */}
-                <div className="flex items-center justify-center gap-1.5 mt-3">
-                  <span className="w-5 h-1.5 bg-[#7B3FFF] rounded-full shadow-[0_0_8px_#7B3FFF]" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                </div>
-              </div>
-            </section>
+            <BestOffersSection
+              bestOffers={bestOffers.length ? bestOffers : products.slice(0, 6)}
+              currency={currency}
+              favorites={favorites}
+              isLoading={isLoading}
+              onToggleFavorite={handleToggleFavorite}
+              onAddToCart={(prod) => handleAddToCart(prod, 1)}
+              onSelectProduct={(prod) => setSelectedProductModal(prod)}
+              onViewAll={() => handleSelectCategoryWithLoading("all")}
+            />
           )}
 
           {/* 6. AI-Powered Smart Search Section */}
@@ -563,7 +517,23 @@ function HomePage() {
             }
             setIsCompareModalOpen(true);
           }}
+          onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
         />
+
+        {/* Cinematic 3D Product Deconstruction Modal */}
+        {isDeconstructionOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/90 backdrop-blur-xl animate-fadeIn">
+            <div className="relative w-full max-w-6xl max-h-[96vh]">
+              <CinematicProductDeconstruction
+                onClose={() => setIsDeconstructionOpen(false)}
+                productName={selectedProductModal?.name || "ساعة ذكية AMOLED Ultra 8"}
+                productImage={selectedProductModal?.image}
+                category={selectedProductModal?.category}
+                product={selectedProductModal || undefined}
+              />
+            </div>
+          </div>
+        )}
 
         <CartDrawer
           isOpen={isCartDrawerOpen}
