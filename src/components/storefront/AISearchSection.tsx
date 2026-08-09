@@ -98,7 +98,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
       products: matchingProducts,
       categories: Array.from(categoriesSet),
     };
-  }, [trimmedQuery]);
+  }, [trimmedQuery, products]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

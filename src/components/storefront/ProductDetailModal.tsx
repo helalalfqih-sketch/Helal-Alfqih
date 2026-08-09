@@ -125,13 +125,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setSelectedMediaIndex(0);
     setQuantity(1);
     setSelectedColor(product?.colors?.[0]);
-  }, [product?.id]);
+  }, [product?.id, product?.colors]);
 
   // Rating breakdown chart data
   const ratingData = useMemo(() => {
     if (!product) return [];
     return getStarBreakdown(product.rating, product.reviewsCount, product.id);
-  }, [product?.rating, product?.reviewsCount, product?.id]);
+  }, [product]);
 
   if (!product) return null;
 

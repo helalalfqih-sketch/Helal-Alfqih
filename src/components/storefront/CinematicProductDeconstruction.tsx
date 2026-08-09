@@ -60,6 +60,7 @@ interface CinematicProps {
 }
 
 // Helper to determine category type based on name & category string
+// eslint-disable-next-line react-refresh/only-export-components
 export const getProductCategoryType = (name: string, category?: string): CategoryType => {
   const cat = (category || "").toLowerCase();
   const n = (name || "").toLowerCase();
