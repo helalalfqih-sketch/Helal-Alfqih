@@ -1,10 +1,30 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
-import { Product, Currency } from './types';
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from "framer-motion";
+import { Product, Currency } from "./types";
 
-import { formatPrice } from './currency';
-import { Bot, Sparkles, Search, Headphones, Radio, Camera, Watch, Gamepad2, Zap, Tag, ChevronLeft, ArrowLeft, History, X } from 'lucide-react';
-import { getRecentSearches, saveRecentSearch, removeRecentSearch, clearRecentSearches } from './searchHistory';
+import { formatPrice } from "./currency";
+import {
+  Bot,
+  Sparkles,
+  Search,
+  Headphones,
+  Radio,
+  Camera,
+  Watch,
+  Gamepad2,
+  Zap,
+  Tag,
+  ChevronLeft,
+  ArrowLeft,
+  History,
+  X,
+} from "lucide-react";
+import {
+  getRecentSearches,
+  saveRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} from "./searchHistory";
 
 interface AISearchSectionProps {
   products?: Product[];
@@ -20,7 +40,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
   currency,
   onSearchQuerySubmit,
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -64,12 +84,15 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
       }
     });
 
-    const matchingProducts = products.filter((p: Product) =>
-      p.name.toLowerCase().includes(trimmedQuery) ||
-      p.category.toLowerCase().includes(trimmedQuery) ||
-      p.subtitle.toLowerCase().includes(trimmedQuery) ||
-      p.description.toLowerCase().includes(trimmedQuery)
-    ).slice(0, 5);
+    const matchingProducts = products
+      .filter(
+        (p: Product) =>
+          p.name.toLowerCase().includes(trimmedQuery) ||
+          p.category.toLowerCase().includes(trimmedQuery) ||
+          p.subtitle.toLowerCase().includes(trimmedQuery) ||
+          p.description.toLowerCase().includes(trimmedQuery),
+      )
+      .slice(0, 5);
 
     return {
       products: matchingProducts,
@@ -86,17 +109,17 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
         setShowSuggestions(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const presetChips = [
-    { label: 'سماعات بلوتوث', icon: Headphones },
-    { label: 'سماعات مراقبة', icon: Radio },
-    { label: 'كاميرات مراقبة', icon: Camera },
-    { label: 'ساعات ذكيه', icon: Watch },
-    { label: 'كروت وشحن ألعاب', icon: Gamepad2 },
-    { label: 'شواحن سريعه', icon: Zap },
+    { label: "سماعات بلوتوث", icon: Headphones },
+    { label: "سماعات مراقبة", icon: Radio },
+    { label: "كاميرات مراقبة", icon: Camera },
+    { label: "ساعات ذكيه", icon: Watch },
+    { label: "كروت وشحن ألعاب", icon: Gamepad2 },
+    { label: "شواحن سريعه", icon: Zap },
   ];
 
   const handleAISearch = async (searchPrompt?: string) => {
@@ -114,16 +137,16 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
     }
 
     try {
-      const res = await fetch('/api/ai-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/ai-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: textToSearch,
           products: products,
         }),
       });
 
-      if (!res.ok) throw new Error('API request failed');
+      if (!res.ok) throw new Error("API request failed");
 
       const data = await res.json();
 
@@ -134,36 +157,34 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
 
       // If no exact matches from AI array, perform smart keyword search
       if (matchedProds.length === 0) {
-        const terms = textToSearch.toLowerCase().split(' ');
+        const terms = textToSearch.toLowerCase().split(" ");
         matchedProds = products.filter((p: Product) =>
           terms.some(
             (term) =>
               p.name.toLowerCase().includes(term) ||
               p.subtitle.toLowerCase().includes(term) ||
               p.description.toLowerCase().includes(term) ||
-              p.category.toLowerCase().includes(term)
-          )
+              p.category.toLowerCase().includes(term),
+          ),
         );
       }
 
       setAiResult({
-        aiSummary:
-          data.aiSummary ||
-          `تم تحليل طلبك "${textToSearch}" وعرض المنتجات الأكثر ملاءمة.`,
+        aiSummary: data.aiSummary || `تم تحليل طلبك "${textToSearch}" وعرض المنتجات الأكثر ملاءمة.`,
         matchedProducts: matchedProds.length > 0 ? matchedProds : products.slice(0, 4),
-        recommendedKeywords: data.recommendedKeywords || ['ضمان متجر إندكس', 'أصلي 100%'],
+        recommendedKeywords: data.recommendedKeywords || ["ضمان متجر إندكس", "أصلي 100%"],
       });
     } catch (err) {
-      console.error('AI Search Error:', err);
+      console.error("AI Search Error:", err);
       // Smart Fallback
-      const terms = textToSearch.toLowerCase().split(' ');
+      const terms = textToSearch.toLowerCase().split(" ");
       const matchedProds = products.filter((p: Product) =>
         terms.some(
           (term) =>
             p.name.toLowerCase().includes(term) ||
             p.subtitle.toLowerCase().includes(term) ||
-            p.description.toLowerCase().includes(term)
-        )
+            p.description.toLowerCase().includes(term),
+        ),
       );
 
       setAiResult({
@@ -179,7 +200,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
-    offset: ['start end', 'end start'],
+    offset: ["start end", "end start"],
   });
   const yParallax = useTransform(scrollYProgress, [0, 1], [15, -15]);
   const y = shouldReduceMotion ? 0 : yParallax;
@@ -205,12 +226,10 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-blue-400" />
               <span>مساعد إندكس الذكي</span>
             </div>
-            
+
             <h3 className="text-lg sm:text-2xl font-black text-[var(--color-text-primary)] leading-tight">
               <span>البحث الذكي </span>
-              <span className="text-[#2F6BFF]">
-                بالذكاء الاصطناعي
-              </span>
+              <span className="text-[#2F6BFF]">بالذكاء الاصطناعي</span>
             </h3>
 
             <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
@@ -263,7 +282,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
                   if (query.trim()) setShowSuggestions(true);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') setShowSuggestions(false);
+                  if (e.key === "Escape") setShowSuggestions(false);
                 }}
                 placeholder="مثال : أريد ساعة ذكية مقاومة للماء مع بطارية قوية"
                 className="w-full bg-transparent border-none text-[var(--color-text-primary)] text-xs sm:text-sm px-2 focus:outline-none placeholder-[var(--color-text-muted)] font-medium text-right"
@@ -506,4 +525,3 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
     </section>
   );
 };
-

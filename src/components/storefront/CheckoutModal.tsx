@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { CartItem, Currency, OrderStatus } from './types';
-import { formatPrice } from './currency';
-import { STORE_INFO } from './constants';
+import React, { useState } from "react";
+import { CartItem, Currency, OrderStatus } from "./types";
+import { formatPrice } from "./currency";
+import { STORE_INFO } from "./constants";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -20,18 +20,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   couponDiscountPercent,
   onOrderPlaced,
 }) => {
-  const [customerName, setCustomerName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [customerName, setCustomerName] = useState("");
+  const [phone, setPhone] = useState("");
   const [governorate, setGovernorate] = useState(STORE_INFO.governorates[0]);
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [placedOrder, setPlacedOrder] = useState<OrderStatus | null>(null);
 
   if (!isOpen) return null;
 
   const subtotalYER = cartItems.reduce(
     (sum, item) => sum + item.product.priceYER * item.quantity,
-    0
+    0,
   );
 
   const isFreeShipping = subtotalYER >= STORE_INFO.freeShippingThresholdYER;
@@ -46,10 +46,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const newOrderNumber = `IND-${randomNum}`;
 
-    let paymentLabel = 'الدفع عند الاستلام (نقداً)';
-    if (paymentMethod === 'kuraimi') paymentLabel = 'حساب بنك الكريمي (حاسب)';
-    if (paymentMethod === 'jawalpay') paymentLabel = 'محفظة جوال بي / وان كاش';
-    if (paymentMethod === 'transfer') paymentLabel = 'حوالة صرافة (النجم / المميز)';
+    let paymentLabel = "الدفع عند الاستلام (نقداً)";
+    if (paymentMethod === "kuraimi") paymentLabel = "حساب بنك الكريمي (حاسب)";
+    if (paymentMethod === "jawalpay") paymentLabel = "محفظة جوال بي / وان كاش";
+    if (paymentMethod === "transfer") paymentLabel = "حوالة صرافة (النجم / المميز)";
 
     const order: OrderStatus = {
       id: `ord-${Date.now()}`,
@@ -64,12 +64,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         price: i.product.priceYER,
       })),
       totalPriceYER: totalYER,
-      status: 'received',
-      statusLabel: 'تم استلام طلبك بنجاح! جاري التجهيز',
-      date: new Date().toLocaleDateString('ar-YE', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      status: "received",
+      statusLabel: "تم استلام طلبك بنجاح! جاري التجهيز",
+      date: new Date().toLocaleDateString("ar-YE", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       }),
       paymentMethod: paymentLabel,
     };
@@ -81,7 +81,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const getWhatsappMsg = (order: OrderStatus) => {
     const itemsText = order.items
       .map((i) => `• ${i.productName} (الكمية: ${i.quantity})`)
-      .join('\n');
+      .join("\n");
 
     return encodeURIComponent(
       `🛍️ *طلب جديد من متجر إندكس*\n` +
@@ -93,20 +93,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         `💳 *طريقة الدفع:* ${order.paymentMethod}\n\n` +
         `📦 *المنتجات:*\n${itemsText}\n\n` +
         `💰 *الإجمالي النهائي:* ${formatPrice(order.totalPriceYER, currency)}\n` +
-        `يرجى تأكيد الشحن والتوصيل، شكراً لكم!`
+        `يرجى تأكيد الشحن والتوصيل، شكراً لكم!`,
     );
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-[28px] sm:rounded-[32px] w-full max-w-lg max-h-[90vh] overflow-y-auto no-scrollbar p-5 sm:p-7 relative shadow-2xl dir-rtl"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--color-border-default)] mb-5">
           <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#2F6BFF] text-[26px]">local_shipping</span>
+            <span className="material-symbols-outlined text-[#2F6BFF] text-[26px]">
+              local_shipping
+            </span>
             <span>إتمام الطلب والتوصيل</span>
           </h3>
           <button
@@ -125,9 +127,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <span className="material-symbols-outlined text-[40px]">check_circle</span>
             </div>
 
-            <h3 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">تم تسجيل طلبك بنجاح! 🎉</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
+              تم تسجيل طلبك بنجاح! 🎉
+            </h3>
             <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm">
-              رقم الطلب الخاص بك هو:{' '}
+              رقم الطلب الخاص بك هو:{" "}
               <strong className="text-[#2F6BFF] bg-[#2F6BFF]/10 border border-[#2F6BFF]/20 px-3 py-1 rounded-lg text-base sm:text-lg font-mono font-extrabold dir-ltr inline-block">
                 {placedOrder.orderNumber}
               </strong>
@@ -135,20 +139,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             <div className="bg-[var(--color-surface-2)] p-4 rounded-2xl border border-[var(--color-border-default)] text-right text-xs space-y-2 text-[var(--color-text-secondary)]">
               <p>
-                <strong className="text-[var(--color-text-primary)]">الاسم:</strong> {placedOrder.customerName}
+                <strong className="text-[var(--color-text-primary)]">الاسم:</strong>{" "}
+                {placedOrder.customerName}
               </p>
               <p>
-                <strong className="text-[var(--color-text-primary)]">المحافظة:</strong> {placedOrder.governorate}
+                <strong className="text-[var(--color-text-primary)]">المحافظة:</strong>{" "}
+                {placedOrder.governorate}
               </p>
               <p>
-                <strong className="text-[var(--color-text-primary)]">العنوان:</strong> {placedOrder.address}
+                <strong className="text-[var(--color-text-primary)]">العنوان:</strong>{" "}
+                {placedOrder.address}
               </p>
               <p>
-                <strong className="text-[var(--color-text-primary)]">طريقة الدفع:</strong> {placedOrder.paymentMethod}
+                <strong className="text-[var(--color-text-primary)]">طريقة الدفع:</strong>{" "}
+                {placedOrder.paymentMethod}
               </p>
               <p className="text-sm font-bold text-[#2F6BFF] pt-2 border-t border-[var(--color-border-subtle)] flex justify-between items-center">
                 <span>المبلغ الإجمالي:</span>
-                <span className="text-base font-extrabold">{formatPrice(placedOrder.totalPriceYER, currency)}</span>
+                <span className="text-base font-extrabold">
+                  {formatPrice(placedOrder.totalPriceYER, currency)}
+                </span>
               </p>
             </div>
 
@@ -159,7 +169,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="space-y-2.5 pt-1">
               <a
                 href={`https://wa.me/${STORE_INFO.whatsappNumber}?text=${getWhatsappMsg(
-                  placedOrder
+                  placedOrder,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -196,7 +206,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             <div>
               <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1.5">
-                رقم الهاتف (الواتساب) * <span className="text-[var(--color-text-muted)] font-normal">(رقم يمني 9 أرقام)</span>
+                رقم الهاتف (الواتساب) *{" "}
+                <span className="text-[var(--color-text-muted)] font-normal">
+                  (رقم يمني 9 أرقام)
+                </span>
               </label>
               <input
                 type="tel"
@@ -218,7 +231,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 className="w-full h-11 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3.5 text-xs sm:text-sm text-[var(--color-text-primary)] focus:border-[#2F6BFF] focus:ring-1 focus:ring-[#2F6BFF] outline-none cursor-pointer transition-all"
               >
                 {STORE_INFO.governorates.map((gov) => (
-                  <option key={gov} value={gov} className="bg-[var(--color-surface-1)] text-[var(--color-text-primary)]">
+                  <option
+                    key={gov}
+                    value={gov}
+                    className="bg-[var(--color-surface-1)] text-[var(--color-text-primary)]"
+                  >
                     {gov}
                   </option>
                 ))}
@@ -247,54 +264,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="grid grid-cols-2 gap-2.5 text-xs">
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('cash')}
+                  onClick={() => setPaymentMethod("cash")}
                   className={`p-3 rounded-xl border text-right transition-all flex flex-col gap-1 cursor-pointer ${
-                    paymentMethod === 'cash'
-                      ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm'
-                      : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]'
+                    paymentMethod === "cash"
+                      ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm"
+                      : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
                   }`}
                 >
-                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">💵 عند الاستلام</span>
-                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">تسليم المبلغ يداً بيد للمندوب</span>
+                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">
+                    💵 عند الاستلام
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">
+                    تسليم المبلغ يداً بيد للمندوب
+                  </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('kuraimi')}
+                  onClick={() => setPaymentMethod("kuraimi")}
                   className={`p-3 rounded-xl border text-right transition-all flex flex-col gap-1 cursor-pointer ${
-                    paymentMethod === 'kuraimi'
-                      ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm'
-                      : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]'
+                    paymentMethod === "kuraimi"
+                      ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm"
+                      : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
                   }`}
                 >
-                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">🏦 بنك الكريمي</span>
-                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">تطبيق حاسب / إيداع</span>
+                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">
+                    🏦 بنك الكريمي
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">
+                    تطبيق حاسب / إيداع
+                  </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('jawalpay')}
+                  onClick={() => setPaymentMethod("jawalpay")}
                   className={`p-3 rounded-xl border text-right transition-all flex flex-col gap-1 cursor-pointer ${
-                    paymentMethod === 'jawalpay'
-                      ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm'
-                      : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]'
+                    paymentMethod === "jawalpay"
+                      ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm"
+                      : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
                   }`}
                 >
-                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">📱 جوال بي / وان كاش</span>
-                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">محفظة إلكترونية فورية</span>
+                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">
+                    📱 جوال بي / وان كاش
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">
+                    محفظة إلكترونية فورية
+                  </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('transfer')}
+                  onClick={() => setPaymentMethod("transfer")}
                   className={`p-3 rounded-xl border text-right transition-all flex flex-col gap-1 cursor-pointer ${
-                    paymentMethod === 'transfer'
-                      ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm'
-                      : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]'
+                    paymentMethod === "transfer"
+                      ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold shadow-sm"
+                      : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
                   }`}
                 >
-                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">✉️ حوالة صرافة</span>
-                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">النجم / المميز / الصيفي</span>
+                  <span className="font-semibold text-xs sm:text-sm flex items-center gap-1">
+                    ✉️ حوالة صرافة
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">
+                    النجم / المميز / الصيفي
+                  </span>
                 </button>
               </div>
             </div>

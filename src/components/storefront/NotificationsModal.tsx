@@ -1,5 +1,5 @@
-import React from 'react';
-import { NotificationItem } from './types';
+import React from "react";
+import { NotificationItem } from "./types";
 
 interface NotificationsModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className="bg-[#0F0C1B] border border-gray-800 rounded-[32px] w-full max-w-md p-6 relative shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
       >
@@ -39,9 +39,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         </div>
 
         {notifications.length === 0 ? (
-          <div className="py-12 text-center text-gray-400 text-sm">
-            لا توجد إشعارات حالياً
-          </div>
+          <div className="py-12 text-center text-gray-400 text-sm">لا توجد إشعارات حالياً</div>
         ) : (
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs text-gray-400 pb-2">
@@ -58,9 +56,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               <div
                 key={n.id}
                 className={`p-4 rounded-2xl border text-right transition-all ${
-                  !n.read
-                    ? 'bg-[#1A142D] border-[#7B3FFF]/50'
-                    : 'bg-[#151025] border-gray-800/80'
+                  !n.read ? "bg-[#1A142D] border-[#7B3FFF]/50" : "bg-[#151025] border-gray-800/80"
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">

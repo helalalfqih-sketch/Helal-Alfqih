@@ -1,13 +1,13 @@
-import React from 'react';
+import React from "react";
 
 // Product Card Skeleton Loader
-export const ProductCardSkeleton: React.FC<{ variant?: 'horizontal' | 'grid' }> = ({
-  variant = 'grid',
+export const ProductCardSkeleton: React.FC<{ variant?: "horizontal" | "grid" }> = ({
+  variant = "grid",
 }) => {
   const containerClasses =
-    variant === 'horizontal'
-      ? 'snap-start flex-shrink-0 w-[165px] sm:w-[195px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between h-[280px] sm:h-[310px] animate-pulse'
-      : 'bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between w-full h-[280px] sm:h-[310px] animate-pulse';
+    variant === "horizontal"
+      ? "snap-start flex-shrink-0 w-[165px] sm:w-[195px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between h-[280px] sm:h-[310px] animate-pulse"
+      : "bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between w-full h-[280px] sm:h-[310px] animate-pulse";
 
   return (
     <div className={containerClasses}>
