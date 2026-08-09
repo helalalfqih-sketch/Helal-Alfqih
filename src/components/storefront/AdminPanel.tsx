@@ -55,7 +55,7 @@ const CATEGORIES = [
 
 const saveFirestoreProduct = async (_p: Partial<Product>) => {};
 const deleteFirestoreProduct = async (_id: string) => {};
-const updateFirestoreOrderStatus = async (_id: string, _status: string) => {};
+const updateFirestoreOrderStatus = async (_id: string, _status: string, _label?: string) => {};
 const deleteFirestoreOrder = async (_id: string) => {};
 const seedInitialProductsIfNeeded = async () => {};
 

@@ -58,13 +58,13 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
     if (!trimmedQuery) return { products: [], categories: [] };
 
     const categoriesSet = new Set<string>();
-    PRODUCTS.forEach((p) => {
+    products.forEach((p: Product) => {
       if (p.category && p.category.toLowerCase().includes(trimmedQuery)) {
         categoriesSet.add(p.category);
       }
     });
 
-    const matchingProducts = PRODUCTS.filter((p) =>
+    const matchingProducts = products.filter((p: Product) =>
       p.name.toLowerCase().includes(trimmedQuery) ||
       p.category.toLowerCase().includes(trimmedQuery) ||
       p.subtitle.toLowerCase().includes(trimmedQuery) ||
@@ -119,7 +119,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: textToSearch,
-          products: PRODUCTS,
+          products: products,
         }),
       });
 
@@ -129,13 +129,13 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
 
       let matchedProds: Product[] = [];
       if (Array.isArray(data.matchedProductIds) && data.matchedProductIds.length > 0) {
-        matchedProds = PRODUCTS.filter((p) => data.matchedProductIds.includes(p.id));
+        matchedProds = products.filter((p: Product) => data.matchedProductIds.includes(p.id));
       }
 
       // If no exact matches from AI array, perform smart keyword search
       if (matchedProds.length === 0) {
         const terms = textToSearch.toLowerCase().split(' ');
-        matchedProds = PRODUCTS.filter((p) =>
+        matchedProds = products.filter((p: Product) =>
           terms.some(
             (term) =>
               p.name.toLowerCase().includes(term) ||
@@ -150,14 +150,14 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
         aiSummary:
           data.aiSummary ||
           `تم تحليل طلبك "${textToSearch}" وعرض المنتجات الأكثر ملاءمة.`,
-        matchedProducts: matchedProds.length > 0 ? matchedProds : PRODUCTS.slice(0, 4),
+        matchedProducts: matchedProds.length > 0 ? matchedProds : products.slice(0, 4),
         recommendedKeywords: data.recommendedKeywords || ['ضمان متجر إندكس', 'أصلي 100%'],
       });
     } catch (err) {
       console.error('AI Search Error:', err);
       // Smart Fallback
       const terms = textToSearch.toLowerCase().split(' ');
-      const matchedProds = PRODUCTS.filter((p) =>
+      const matchedProds = products.filter((p: Product) =>
         terms.some(
           (term) =>
             p.name.toLowerCase().includes(term) ||
@@ -168,7 +168,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
 
       setAiResult({
         aiSummary: `نتائج البحث الذكي عن "${textToSearch}": إندكس يقدم أفضل الخيارات المتطابقة.`,
-        matchedProducts: matchedProds.length > 0 ? matchedProds : PRODUCTS.slice(0, 3),
+        matchedProducts: matchedProds.length > 0 ? matchedProds : products.slice(0, 3),
       });
     } finally {
       setLoading(false);
@@ -376,7 +376,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({
                       <span>اقتراحات المنتجات ({suggestions.products.length})</span>
                       <span className="text-[10px] text-[#2F6BFF]">انقر للمعاينة والطلب</span>
                     </div>
-                    {suggestions.products.map((prod) => (
+                    {suggestions.products.map((prod: Product) => (
                       <div
                         key={prod.id}
                         onClick={() => {
