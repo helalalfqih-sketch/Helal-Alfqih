@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 
 export const ScrollHelmetBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -20,11 +20,11 @@ export const ScrollHelmetBackground: React.FC = () => {
       setScrollProgress(progress);
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -36,15 +36,15 @@ export const ScrollHelmetBackground: React.FC = () => {
       mousePos.current.targetY = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   // Canvas drawing loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animationFrameId: number;
@@ -54,7 +54,7 @@ export const ScrollHelmetBackground: React.FC = () => {
       canvas.height = window.innerHeight;
     };
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
 
     // Initialize 60 floating neon particles
     const particles = Array.from({ length: 60 }).map(() => ({
@@ -64,7 +64,7 @@ export const ScrollHelmetBackground: React.FC = () => {
       speedX: (Math.random() - 0.5) * 0.6,
       speedY: -Math.random() * 0.8 - 0.2,
       alpha: Math.random() * 0.7 + 0.3,
-      color: Math.random() > 0.4 ? "#ff3b00" : Math.random() > 0.5 ? "#a855f7" : "#38bdf8",
+      color: Math.random() > 0.4 ? '#ff3b00' : Math.random() > 0.5 ? '#a855f7' : '#38bdf8',
     }));
 
     let time = 0;
@@ -108,16 +108,16 @@ export const ScrollHelmetBackground: React.FC = () => {
       scanLineY = (scanLineY + 2.5) % (h + 100);
       ctx.save();
       const scanGrad = ctx.createLinearGradient(0, scanLineY - 20, 0, scanLineY + 20);
-      scanGrad.addColorStop(0, "transparent");
-      scanGrad.addColorStop(0.5, "rgba(123, 63, 255, 0.15)");
-      scanGrad.addColorStop(0.8, "rgba(255, 59, 0, 0.25)");
-      scanGrad.addColorStop(1, "transparent");
+      scanGrad.addColorStop(0, 'transparent');
+      scanGrad.addColorStop(0.5, 'rgba(123, 63, 255, 0.15)');
+      scanGrad.addColorStop(0.8, 'rgba(255, 59, 0, 0.25)');
+      scanGrad.addColorStop(1, 'transparent');
       ctx.fillStyle = scanGrad;
       ctx.fillRect(0, scanLineY - 20, w, 40);
 
-      ctx.strokeStyle = "rgba(255, 59, 0, 0.4)";
+      ctx.strokeStyle = 'rgba(255, 59, 0, 0.4)';
       ctx.lineWidth = 1;
-      ctx.shadowColor = "#ff3b00";
+      ctx.shadowColor = '#ff3b00';
       ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(0, scanLineY);
@@ -126,9 +126,9 @@ export const ScrollHelmetBackground: React.FC = () => {
       ctx.restore();
 
       // --- 3. HELMET 3D CALCULATION & PARALLAX ---
-      const yaw = -75 + p * 75 + mousePos.current.x * 8; // degrees
-      const pitch = Math.sin(p * Math.PI) * 12 + mousePos.current.y * 6;
-      const scale = 1.05 + Math.sin(p * Math.PI * 0.85) * 0.28;
+      let yaw = -75 + p * 75 + mousePos.current.x * 8; // degrees
+      let pitch = Math.sin(p * Math.PI) * 12 + mousePos.current.y * 6;
+      let scale = 1.05 + Math.sin(p * Math.PI * 0.85) * 0.28;
 
       const floatY = Math.sin(time * 1.6) * 10;
 
@@ -147,14 +147,14 @@ export const ScrollHelmetBackground: React.FC = () => {
       ctx.rotate(time * 0.2);
       ctx.beginPath();
       ctx.ellipse(0, 0, 190, 190, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(123, 63, 255, 0.15)";
+      ctx.strokeStyle = 'rgba(123, 63, 255, 0.15)';
       ctx.lineWidth = 1;
       ctx.setLineDash([8, 12]);
       ctx.stroke();
 
       ctx.beginPath();
       ctx.ellipse(0, 0, 220, 220, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
       ctx.lineWidth = 1.2;
       ctx.setLineDash([20, 40]);
       ctx.stroke();
@@ -162,9 +162,9 @@ export const ScrollHelmetBackground: React.FC = () => {
 
       // Shadow Floor
       const shadowGrad = ctx.createRadialGradient(0, 175, 10, 0, 175, 230);
-      shadowGrad.addColorStop(0, "rgba(123, 63, 255, 0.3)");
-      shadowGrad.addColorStop(0.5, "rgba(255, 59, 0, 0.18)");
-      shadowGrad.addColorStop(1, "transparent");
+      shadowGrad.addColorStop(0, 'rgba(123, 63, 255, 0.3)');
+      shadowGrad.addColorStop(0.5, 'rgba(255, 59, 0, 0.18)');
+      shadowGrad.addColorStop(1, 'transparent');
       ctx.fillStyle = shadowGrad;
       ctx.beginPath();
       ctx.ellipse(0, 175, 220, 50, 0, 0, Math.PI * 2);
@@ -178,28 +178,33 @@ export const ScrollHelmetBackground: React.FC = () => {
       ctx.beginPath();
       ctx.moveTo(-125 * Math.cos(radYaw), -135);
       ctx.bezierCurveTo(
-        -165 * Math.cos(radYaw - 0.2),
-        -65,
-        -155 * Math.cos(radYaw),
-        85,
-        -85 * Math.cos(radYaw),
-        135,
+        -165 * Math.cos(radYaw - 0.2), -65,
+        -155 * Math.cos(radYaw), 85,
+        -85 * Math.cos(radYaw), 135
       );
-      ctx.bezierCurveTo(0, 155, 85 * Math.cos(radYaw), 135, 155 * Math.cos(radYaw), 85);
-      ctx.bezierCurveTo(165 * Math.cos(radYaw + 0.2), -65, 125 * Math.cos(radYaw), -135, 0, -155);
+      ctx.bezierCurveTo(
+        0, 155,
+        85 * Math.cos(radYaw), 135,
+        155 * Math.cos(radYaw), 85
+      );
+      ctx.bezierCurveTo(
+        165 * Math.cos(radYaw + 0.2), -65,
+        125 * Math.cos(radYaw), -135,
+        0, -155
+      );
       ctx.closePath();
 
       const shellGrad = ctx.createLinearGradient(-120, -120, 120, 120);
-      shellGrad.addColorStop(0, "#ffffff");
-      shellGrad.addColorStop(0.35, "#cbd5e1");
-      shellGrad.addColorStop(0.75, "#475569");
-      shellGrad.addColorStop(1, "#090714");
+      shellGrad.addColorStop(0, '#ffffff');
+      shellGrad.addColorStop(0.35, '#cbd5e1');
+      shellGrad.addColorStop(0.75, '#475569');
+      shellGrad.addColorStop(1, '#090714');
 
       ctx.fillStyle = shellGrad;
       ctx.globalAlpha = 0.5 + p * 0.15;
       ctx.fill();
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.lineWidth = 1.8;
       ctx.stroke();
 
@@ -210,7 +215,7 @@ export const ScrollHelmetBackground: React.FC = () => {
       ctx.lineTo(45 * Math.cos(radYaw), 125);
       ctx.lineTo(75 * Math.cos(radYaw), 65);
       ctx.closePath();
-      ctx.fillStyle = "#05030a";
+      ctx.fillStyle = '#05030a';
       ctx.globalAlpha = 0.8;
       ctx.fill();
 
@@ -218,27 +223,21 @@ export const ScrollHelmetBackground: React.FC = () => {
       ctx.beginPath();
       ctx.moveTo(-115 * Math.cos(radYaw), -42);
       ctx.bezierCurveTo(
-        -105 * Math.cos(radYaw),
-        -85,
-        105 * Math.cos(radYaw),
-        -85,
-        115 * Math.cos(radYaw),
-        -42,
+        -105 * Math.cos(radYaw), -85,
+        105 * Math.cos(radYaw), -85,
+        115 * Math.cos(radYaw), -42
       );
       ctx.bezierCurveTo(
-        125 * Math.cos(radYaw),
-        22,
-        -125 * Math.cos(radYaw),
-        22,
-        -115 * Math.cos(radYaw),
-        -42,
+        125 * Math.cos(radYaw), 22,
+        -125 * Math.cos(radYaw), 22,
+        -115 * Math.cos(radYaw), -42
       );
       ctx.closePath();
 
       const visorGrad = ctx.createLinearGradient(0, -65, 0, 35);
-      visorGrad.addColorStop(0, "rgba(10, 8, 25, 0.98)");
-      visorGrad.addColorStop(0.5, "rgba(40, 20, 85, 0.92)");
-      visorGrad.addColorStop(1, "rgba(5, 3, 12, 0.98)");
+      visorGrad.addColorStop(0, 'rgba(10, 8, 25, 0.98)');
+      visorGrad.addColorStop(0.5, 'rgba(40, 20, 85, 0.92)');
+      visorGrad.addColorStop(1, 'rgba(5, 3, 12, 0.98)');
 
       ctx.fillStyle = visorGrad;
       ctx.globalAlpha = 0.92;
@@ -246,40 +245,34 @@ export const ScrollHelmetBackground: React.FC = () => {
 
       // --- ICONIC VIRAL NEON ORANGE/RED LIGHTING STRIP ---
       ctx.save();
-      ctx.shadowColor = "#ff3b00";
+      ctx.shadowColor = '#ff3b00';
       ctx.shadowBlur = 30 + Math.sin(time * 3.5) * 8;
 
       ctx.beginPath();
       // Visor Top Light Strip
       ctx.moveTo(-110 * Math.cos(radYaw), -38);
       ctx.bezierCurveTo(
-        -85 * Math.cos(radYaw),
-        -68,
-        85 * Math.cos(radYaw),
-        -68,
-        110 * Math.cos(radYaw),
-        -38,
+        -85 * Math.cos(radYaw), -68,
+        85 * Math.cos(radYaw), -68,
+        110 * Math.cos(radYaw), -38
       );
 
       // Chin Bottom Light Strip
       ctx.moveTo(-135 * Math.cos(radYaw), 32);
       ctx.bezierCurveTo(
-        -85 * Math.cos(radYaw),
-        88,
-        85 * Math.cos(radYaw),
-        88,
-        135 * Math.cos(radYaw),
-        32,
+        -85 * Math.cos(radYaw), 88,
+        85 * Math.cos(radYaw), 88,
+        135 * Math.cos(radYaw), 32
       );
 
-      ctx.strokeStyle = "#ff3b00";
+      ctx.strokeStyle = '#ff3b00';
       ctx.lineWidth = 5.5;
-      ctx.lineCap = "round";
+      ctx.lineCap = 'round';
       ctx.globalAlpha = 1.0;
       ctx.stroke();
 
       // Hot White Core
-      ctx.strokeStyle = "#fffaf0";
+      ctx.strokeStyle = '#fffaf0';
       ctx.lineWidth = 2.2;
       ctx.stroke();
       ctx.restore();
@@ -296,8 +289,8 @@ export const ScrollHelmetBackground: React.FC = () => {
         ctx.save();
         ctx.beginPath();
         ctx.arc(fp.x, fp.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.shadowColor = "#ff3b00";
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ff3b00';
         ctx.shadowBlur = 20;
         ctx.fill();
         ctx.restore();
@@ -309,17 +302,17 @@ export const ScrollHelmetBackground: React.FC = () => {
       const discY = -12;
       ctx.beginPath();
       ctx.arc(discX, discY, 17, 0, Math.PI * 2);
-      ctx.fillStyle = "#334155";
+      ctx.fillStyle = '#334155';
       ctx.fill();
-      ctx.strokeStyle = "#38bdf8";
+      ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 1.8;
-      ctx.shadowColor = "#38bdf8";
+      ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 12;
       ctx.stroke();
 
       ctx.beginPath();
       ctx.arc(discX, discY, 8, 0, Math.PI * 2);
-      ctx.fillStyle = "#0f172a";
+      ctx.fillStyle = '#0f172a';
       ctx.fill();
       ctx.restore();
 
@@ -328,20 +321,20 @@ export const ScrollHelmetBackground: React.FC = () => {
 
       // --- 6. VIRAL CYBER HUD & METRICS OVERLAY ---
       ctx.save();
-      ctx.font = "10px monospace";
-      ctx.fillStyle = "rgba(168, 85, 247, 0.7)";
-
+      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.7)';
+      
       if (w > 768) {
-        ctx.shadowColor = "#a855f7";
+        ctx.shadowColor = '#a855f7';
         ctx.shadowBlur = 6;
 
         ctx.fillText(`⚡ HELMET_SCROLL: ${(p * 100).toFixed(0)}%`, 35, h - 50);
-        ctx.fillText(`📐 YAW_ROTATION: ${yaw.toFixed(1)}°`, 35, h - 32);
+        ctx.fillText(`📐 YAW_ROTATION: ${(yaw).toFixed(1)}°`, 35, h - 32);
         ctx.fillText(`🔥 NEON_CORE: ONLINE [ACTIVE]`, 35, h - 14);
 
-        ctx.textAlign = "right";
-        ctx.fillStyle = "rgba(56, 189, 248, 0.7)";
-        ctx.shadowColor = "#38bdf8";
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.shadowColor = '#38bdf8';
         ctx.fillText(`SYS: CYBER_SUITE_M1`, w - 35, h - 32);
         ctx.fillText(`FPS: 60 // PARALLAX_SYNC`, w - 35, h - 14);
       }
@@ -354,7 +347,7 @@ export const ScrollHelmetBackground: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener('resize', resizeCanvas);
     };
   }, [scrollProgress]);
 
@@ -368,3 +361,4 @@ export const ScrollHelmetBackground: React.FC = () => {
     />
   );
 };
+
