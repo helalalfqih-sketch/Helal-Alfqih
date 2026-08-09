@@ -2,20 +2,19 @@ import React, { useEffect, useRef, useState } from "react";
 
 export interface HolographicGlobeProduct {
   id: string;
-  name?: string;
-  title?: string;
+  slug: string;
+  name: string;
   image?: string;
-  image_url?: string;
   price?: number | string;
-  [key: string]: any;
 }
 
 export interface HolographicGlobeProps {
-  products?: any[];
-  onSelectProduct?: (product: any) => void;
+  products?: readonly HolographicGlobeProduct[];
+  onSelectProduct?: (product: HolographicGlobeProduct) => void;
   size?: number;
   showTitleBadge?: boolean;
   className?: string;
+  paused?: boolean;
 }
 
 export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
@@ -24,20 +23,13 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
   size = 420,
   showTitleBadge = true,
   className = "",
+  paused = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [activeProducts, setActiveProducts] = useState<
-    {
-      product: HolographicGlobeProduct;
-      px: number;
-      py: number;
-      scale: number;
-      opacity: number;
-      isFront: boolean;
-    }[]
-  >([]);
-
-  const [hoveredProduct, setHoveredProduct] = useState<HolographicGlobeProduct | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const badgeRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tooltipRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const rotYRef = useRef(0);
   const rotXRef = useRef(0.2);
@@ -72,9 +64,27 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
       { lat: 45, lon: 330 },
     ];
 
-    let animationFrameId: number;
+    let animationFrameId: number | null = null;
+
+    const checkShouldPause = () => {
+      if (paused) return true;
+      if (typeof document !== "undefined" && document.hidden) return true;
+      if (
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        return true;
+      }
+      return false;
+    };
 
     const render = () => {
+      if (checkShouldPause()) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
       ctx.clearRect(0, 0, size, size);
 
       if (!isDraggingRef.current) {
@@ -191,32 +201,24 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
         });
       });
 
-      const projectedProducts: {
-        product: HolographicGlobeProduct;
-        px: number;
-        py: number;
-        scale: number;
-        opacity: number;
-        isFront: boolean;
-      }[] = [];
+      // Imperative DOM overlay positioning without React setState
+      products.slice(0, 7).forEach((_, idx) => {
+        const btn = badgeRefs.current[idx];
+        if (!btn) return;
 
-      products.slice(0, 7).forEach((prod, idx) => {
         const coord = productCoords[idx % productCoords.length];
         const { px, py, z } = project(coord.lat, coord.lon);
         const scale = 0.65 + 0.35 * ((z + radius) / (2 * radius));
         const opacity = z > 0 ? Math.min(1, 0.4 + (z / radius) * 0.6) : 0.25;
+        const isFront = z > 0;
 
-        projectedProducts.push({
-          product: prod,
-          px,
-          py,
-          scale,
-          opacity,
-          isFront: z > 0,
-        });
+        btn.style.left = `${px}px`;
+        btn.style.top = `${py}px`;
+        btn.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        btn.style.opacity = `${opacity}`;
+        btn.style.pointerEvents = isFront ? "auto" : "none";
+        btn.tabIndex = isFront ? 0 : -1;
       });
-
-      setActiveProducts(projectedProducts);
 
       ctx.restore();
       animationFrameId = requestAnimationFrame(render);
@@ -225,9 +227,11 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
     render();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
-  }, [products, size]);
+  }, [products, size, paused]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;
@@ -256,12 +260,13 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
-      // Ignored if pointer capture release fails
+      // Ignore if pointer capture fails
     }
   };
 
   return (
     <div
+      ref={containerRef}
       className={`relative flex flex-col items-center justify-center select-none ${className}`}
       style={{ width: size, height: size }}
     >
@@ -283,38 +288,40 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
         style={{ width: size, height: size }}
       />
 
-      {activeProducts.map(({ product, px, py, scale, opacity, isFront }) => {
-        const badgeSize = Math.round(44 * scale);
-
+      {products.slice(0, 7).map((product, idx) => {
         return (
-          <div
+          <button
             key={product.id}
+            type="button"
+            ref={(el) => {
+              badgeRefs.current[idx] = el;
+            }}
+            aria-label={`عرض تفاصيل ${product.name}`}
             onClick={(e) => {
               e.stopPropagation();
-              if (onSelectProduct && isFront) {
+              if (onSelectProduct) {
                 onSelectProduct(product);
               }
             }}
-            onMouseEnter={() => setHoveredProduct(product)}
-            onMouseLeave={() => setHoveredProduct(null)}
-            className={`absolute z-20 transition-transform duration-75 cursor-pointer flex flex-col items-center ${
-              isFront ? "pointer-events-auto hover:scale-125" : "pointer-events-none"
-            }`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (onSelectProduct) {
+                  onSelectProduct(product);
+                }
+              }
+            }}
+            onMouseEnter={() => setHoveredIndex(idx)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            onFocus={() => setHoveredIndex(idx)}
+            onBlur={() => setHoveredIndex(null)}
+            className="absolute z-20 transition-transform duration-75 cursor-pointer flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-[#2F6BFF] rounded-2xl"
             style={{
-              left: px,
-              top: py,
-              transform: `translate(-50%, -50%) scale(${scale})`,
-              opacity: opacity,
+              width: 44,
+              height: 44,
             }}
           >
-            <div
-              className={`rounded-2xl p-0.5 border shadow-md transition-all ${
-                isFront
-                  ? "bg-[var(--color-surface-1)] border-[#2F6BFF] shadow-blue-500/20"
-                  : "bg-[var(--color-surface-2)]/60 border-[var(--color-border-subtle)]"
-              }`}
-              style={{ width: badgeSize, height: badgeSize }}
-            >
+            <div className="w-full h-full rounded-2xl p-0.5 border shadow-md bg-[var(--color-surface-1)] border-[#2F6BFF] shadow-blue-500/20">
               {product.image ? (
                 <img
                   src={product.image}
@@ -328,12 +335,17 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
               )}
             </div>
 
-            {hoveredProduct?.id === product.id && isFront && (
-              <div className="absolute top-full mt-1 bg-[var(--color-surface-1)] border border-[#2F6BFF] text-[var(--color-text-primary)] text-[10px] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap shadow-xl z-30 pointer-events-none">
+            {hoveredIndex === idx && (
+              <div
+                ref={(el) => {
+                  tooltipRefs.current[idx] = el;
+                }}
+                className="absolute top-full mt-1 bg-[var(--color-surface-1)] border border-[#2F6BFF] text-[var(--color-text-primary)] text-[10px] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap shadow-xl z-30 pointer-events-none"
+              >
                 {product.name}
               </div>
             )}
-          </div>
+          </button>
         );
       })}
     </div>

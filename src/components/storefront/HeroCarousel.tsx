@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "./types";
-import { HolographicGlobe } from "./HolographicGlobe";
+import { HolographicGlobe, type HolographicGlobeProduct } from "./HolographicGlobe";
 import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit } from "lucide-react";
 
 interface HeroCarouselProps {
@@ -27,6 +27,26 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
   }, []);
 
   const floatingProducts = products.slice(0, 8);
+  const globeProducts: readonly HolographicGlobeProduct[] = React.useMemo(
+    () =>
+      floatingProducts.map((p) => ({
+        id: p.id,
+        slug: p.slug || p.id,
+        name: p.name,
+        image: p.image,
+        price: p.priceYER,
+      })),
+    [floatingProducts],
+  );
+
+  const handleGlobeSelect = (prod: HolographicGlobeProduct) => {
+    const matched = floatingProducts.find(
+      (p) => p.id === prod.id || (p.slug && p.slug === prod.slug),
+    );
+    if (matched) {
+      onSelectProduct(matched);
+    }
+  };
 
   return (
     <div className="px-3 sm:px-6 py-2">
@@ -77,16 +97,16 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
                 >
                   <div className="hidden sm:block">
                     <HolographicGlobe
-                      products={floatingProducts}
-                      onSelectProduct={onSelectProduct}
+                      products={globeProducts}
+                      onSelectProduct={handleGlobeSelect}
                       size={240}
                       showTitleBadge={false}
                     />
                   </div>
                   <div className="block sm:hidden">
                     <HolographicGlobe
-                      products={floatingProducts}
-                      onSelectProduct={onSelectProduct}
+                      products={globeProducts}
+                      onSelectProduct={handleGlobeSelect}
                       size={170}
                       showTitleBadge={false}
                     />
@@ -164,16 +184,16 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
               <div className="my-2 flex items-center justify-center">
                 <div className="hidden sm:block">
                   <HolographicGlobe
-                    products={floatingProducts}
-                    onSelectProduct={onSelectProduct}
+                    products={globeProducts}
+                    onSelectProduct={handleGlobeSelect}
                     size={330}
                     showTitleBadge={false}
                   />
                 </div>
                 <div className="block sm:hidden">
                   <HolographicGlobe
-                    products={floatingProducts}
-                    onSelectProduct={onSelectProduct}
+                    products={globeProducts}
+                    onSelectProduct={handleGlobeSelect}
                     size={265}
                     showTitleBadge={false}
                   />

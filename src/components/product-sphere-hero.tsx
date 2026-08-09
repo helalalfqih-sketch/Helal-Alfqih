@@ -751,6 +751,7 @@ export function ProductGlobeCanvas({
   if (!mounted || !quality.supported) {
     const globeProducts = pool.map((p) => ({
       id: p.id,
+      slug: p.slug || p.id,
       name: p.name,
       image: p.image,
       price: p.price,
@@ -761,12 +762,13 @@ export function ProductGlobeCanvas({
         <HolographicGlobe
           products={globeProducts}
           onSelectProduct={(prod) => {
-            if (prod?.id) {
-              navigate({ to: "/product/$slug", params: { slug: prod.id } });
+            if (prod?.slug) {
+              navigate({ to: "/product/$slug", params: { slug: prod.slug } });
             }
           }}
           size={380}
           showTitleBadge={false}
+          paused={paused || hidden}
         />
       </div>
     );
