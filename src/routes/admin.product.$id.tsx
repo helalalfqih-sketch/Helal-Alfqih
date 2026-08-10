@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidateCatalogCache } from "@/lib/utils/cache-invalidation";
 import { useI18n } from "@/lib/i18n";
 import {
   getAdminProduct,
@@ -451,7 +452,7 @@ function ProductDetailPage() {
       }
 
       toast.success(isNew ? "تم إنشاء المنتج بنجاح" : "تم حفظ التغييرات");
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      invalidateCatalogCache(qc);
       qc.invalidateQueries({ queryKey: ["admin-product", id] });
       if (isNew && res && "id" in res) {
         navigate({
@@ -470,7 +471,7 @@ function ProductDetailPage() {
     mutationFn: () => deleteAdminProduct(id),
     onSuccess: () => {
       toast.success("تم الحذف");
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      invalidateCatalogCache(qc);
       navigate({ to: "/admin/products", replace: true });
     },
     onError: (e: Error) => toast.error(e.message),

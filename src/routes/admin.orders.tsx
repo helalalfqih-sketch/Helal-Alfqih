@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidateOrdersCache } from "@/lib/utils/cache-invalidation";
 import {
   Search,
   Loader2,
@@ -88,7 +89,7 @@ function AdminOrdersPage() {
     onSuccess: (res) => {
       toast.success(`تم تحديث الحالة: ${orderStatusLabel(res.from)} ← ${orderStatusLabel(res.to)}`);
       setNote("");
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      invalidateOrdersCache(qc);
       if (openId) qc.invalidateQueries({ queryKey: ["admin-order-details", openId] });
     },
     onError: (e: Error) => toast.error(e.message),

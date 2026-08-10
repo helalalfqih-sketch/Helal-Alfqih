@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { CartItem, Currency, OrderStatus } from "./types";
 import { formatPrice } from "./currency";
 import { STORE_INFO } from "./constants";
+import { useAppearance } from "@/components/appearance-provider";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   couponDiscountPercent,
   onOrderPlaced,
 }) => {
+  const { settings } = useAppearance();
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [governorate, setGovernorate] = useState(STORE_INFO.governorates[0]);
@@ -29,13 +31,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   if (!isOpen) return null;
 
+  const freeThreshold = settings.cart_config?.freeShippingThreshold || STORE_INFO.freeShippingThresholdYER;
+  const defaultFee = settings.cart_config?.defaultShippingFee || 3000;
+
   const subtotalYER = cartItems.reduce(
     (sum, item) => sum + item.product.priceYER * item.quantity,
     0,
   );
 
-  const isFreeShipping = subtotalYER >= STORE_INFO.freeShippingThresholdYER;
-  const shippingFeeYER = isFreeShipping ? 0 : 3000;
+  const isFreeShipping = freeThreshold > 0 && subtotalYER >= freeThreshold;
+  const shippingFeeYER = isFreeShipping ? 0 : defaultFee;
   const discountAmountYER = (subtotalYER * couponDiscountPercent) / 100;
   const totalYER = subtotalYER - discountAmountYER + shippingFeeYER;
 
