@@ -36,6 +36,7 @@ interface AccountDrawerProps {
   favoritesCount: number;
   onOpenWishlist: () => void;
   onOpenTrackerForOrder?: (orderNumber: string) => void;
+  onOpenTracker?: () => void;
   onOpenAdmin?: () => void;
 }
 
