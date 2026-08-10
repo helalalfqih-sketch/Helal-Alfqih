@@ -6,7 +6,7 @@
  * Rules:
  *  - UI never imports server fns / repos / supabase directly for catalog reads.
  *  - Returns legacy UI shapes (LegacyProductShape) so existing components
- *    keep working without changes. DTO-native components can call the raw
+ *  keep working without changes. DTO-native components can call the raw
  *    server fns.
  *  - Falls back to seed data (store-data.ts) on error or empty DB — the
  *    data-adapter safety net stays until Phase C removes it.
@@ -55,10 +55,40 @@ const enrichLegacy = (p: LegacyProductShape): LegacyProductShape => {
   };
 };
 
+// NOTE: Previous implementation filtered rows by `typeof r.price === "number" && r.price > 0`.
+// That caused products with a missing `price` field to be silently dropped even if they
+// had a valid fallback price in `compare_at_price`, `old_price`, or `cost_price`.
+// We normalize and resolve a price before converting to the legacy shape so that
+// products with an alternate stored price are not lost from the storefront.
 const dtoToLegacy = (rows: ProductDTO[]): LegacyProductShape[] =>
   rows
-    .filter((r) => typeof r.price === "number" && r.price > 0)
-    .map((r) => enrichLegacy(toLegacyProduct(r)));
+    .map((r) => {
+      // Resolve a usable price for display / legacy conversion.
+      let resolvedPrice: number | null = null;
+
+      if (typeof r.price === "number" && !Number.isNaN(r.price) && r.price > 0) {
+        resolvedPrice = r.price;
+      } else if (typeof r.compare_at_price === "number" && r.compare_at_price > 0) {
+        resolvedPrice = r.compare_at_price;
+      } else if (typeof (r as any).old_price === "number" && (r as any).old_price > 0) {
+        // Some DTOs use old_price (snake_case) — accept it as fallback.
+        resolvedPrice = (r as any).old_price as number;
+      } else if (typeof (r as any).cost_price === "number" && (r as any).cost_price > 0) {
+        resolvedPrice = (r as any).cost_price as number;
+      } else {
+        resolvedPrice = null;
+      }
+
+      return { original: r, resolvedPrice } as const;
+    })
+    // Keep rows where we could resolve a reasonable price.
+    .filter((entry) => entry.resolvedPrice !== null)
+    .map((entry) => {
+      // Inject the resolved price into a normalized DTO so `toLegacyProduct`
+      // and downstream UI code always see a numeric `price` field.
+      const normalized: ProductDTO = { ...entry.original, price: entry.resolvedPrice as number };
+      return enrichLegacy(toLegacyProduct(normalized));
+    });
 
 // ---------- Actions ----------
 
