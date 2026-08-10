@@ -96,6 +96,23 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
   const mainImage = resolveProductImage(p);
   const gallery = resolveProductGallery(p);
 
+  // Video extraction from production media/playback/source_url
+  let videoUrl: string | undefined = undefined;
+  if (p.videos && p.videos.length > 0 && p.videos[0]) {
+    videoUrl = p.videos[0];
+  } else if (p.media) {
+    const vMedia = p.media.find((m) => m.type === "video" && m.url);
+    if (vMedia?.url) videoUrl = vMedia.url;
+  }
+  if (!videoUrl && p.source_url && isVideoUrl(p.source_url)) {
+    videoUrl = p.source_url;
+  }
+  if (!videoUrl && p.video_playback_id) {
+    videoUrl = p.video_playback_id.startsWith("http")
+      ? p.video_playback_id
+      : `https://stream.mux.com/${p.video_playback_id}.m3u8`;
+  }
+
   return {
     id: p.id,
     slug: p.slug,
@@ -113,6 +130,7 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
     reviewsCount: p.reviews || 12,
     image: mainImage,
     gallery,
+    videoUrl,
     category: p.categoryId || "all",
     inStock: p.stock > 0,
     isBestOffer: p.isDeal || Boolean(rawOldPrice && rawOldPrice > priceYER),

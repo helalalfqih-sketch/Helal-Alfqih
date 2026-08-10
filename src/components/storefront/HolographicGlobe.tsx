@@ -167,30 +167,31 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
     return pos;
   }, []);
 
-  // Calm, steady rotation animation with pause on touch/hover & prefers-reduced-motion support
-  useFrame((_state, delta) => {
-    if (isPaused || prefersReducedMotion) return;
+  // Animate Sphere Rings & Rotation smoothly
+  useFrame((_, delta) => {
+    if (prefersReducedMotion || isPaused) return;
 
     if (pointsRef.current) {
-      pointsRef.current.rotation.y += delta * 0.15;
+      pointsRef.current.rotation.y += delta * 0.12;
+      pointsRef.current.rotation.x = Math.sin(Date.now() * 0.0003) * 0.08;
     }
     if (coreRef.current) {
-      coreRef.current.rotation.y -= delta * 0.1;
-      coreRef.current.rotation.x += delta * 0.05;
+      coreRef.current.rotation.y -= delta * 0.18;
+      coreRef.current.rotation.z += delta * 0.05;
     }
     if (ring1Ref.current) {
-      ring1Ref.current.rotation.z += delta * 0.18;
-      ring1Ref.current.rotation.x += delta * 0.06;
+      ring1Ref.current.rotation.z += delta * 0.25;
+      ring1Ref.current.rotation.x += delta * 0.1;
     }
     if (ring2Ref.current) {
-      ring2Ref.current.rotation.z -= delta * 0.15;
-      ring2Ref.current.rotation.y += delta * 0.08;
+      ring2Ref.current.rotation.z -= delta * 0.2;
+      ring2Ref.current.rotation.y += delta * 0.15;
     }
   });
 
   return (
     <group>
-      {/* Outer 3D CGI Particle Sphere Cloud */}
+      {/* Outer Glowing Holographic Shell */}
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -203,17 +204,17 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.07}
-          map={particleTexture}
+          size={0.065}
           vertexColors
+          map={particleTexture}
           transparent
-          opacity={0.92}
+          opacity={0.88}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </points>
 
-      {/* Hollow Core Stardust Particle Sphere (Replaces solid sphere mesh) */}
+      {/* Inner Dense Core Cloud */}
       <points ref={coreRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -222,33 +223,36 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.03}
-          color="#38bdf8"
-          transparent={true}
-          opacity={0.8}
+          size={0.045}
+          color="#00f0ff"
+          map={particleTexture}
+          transparent
+          opacity={0.6}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </points>
 
-      {/* Glowing Equatorial Orbital Ring 1 (Cyan Accent) */}
+      {/* Orbital Ring 1 - Cyan Cyber Ring */}
       <mesh ref={ring1Ref} rotation={[Math.PI / 3, 0, 0]}>
-        <torusGeometry args={[3.1, 0.007, 12, 80]} />
+        <ringGeometry args={[2.5, 2.53, 64]} />
         <meshBasicMaterial
           color="#00f0ff"
+          side={THREE.DoubleSide}
           transparent
-          opacity={0.55}
+          opacity={0.4}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* Glowing Equatorial Orbital Ring 2 (Magenta Accent) */}
-      <mesh ref={ring2Ref} rotation={[-Math.PI / 4, Math.PI / 5, 0]}>
-        <torusGeometry args={[2.95, 0.007, 12, 80]} />
+      {/* Orbital Ring 2 - Magenta Cyber Ring */}
+      <mesh ref={ring2Ref} rotation={[-Math.PI / 4, Math.PI / 6, 0]}>
+        <ringGeometry args={[2.8, 2.82, 64]} />
         <meshBasicMaterial
           color="#ff007f"
+          side={THREE.DoubleSide}
           transparent
-          opacity={0.45}
+          opacity={0.3}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
@@ -256,86 +260,86 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
   );
 };
 
-// 3D Glassmorphic Squircle Product Card Overlay
-interface ProductNodeProps {
+// Interactive Hotspot Badge Attached to 3D Sphere Surface
+const ProductNode: React.FC<{
   product: Product;
   lat: number;
   lon: number;
-  onSelectProduct?: (product: Product) => void;
-}
+  onSelect?: (product: Product) => void;
+  index: number;
+}> = ({ product, lat, lon, onSelect, index }) => {
+  const [hovered, setHovered] = useState(false);
 
-const ProductNode: React.FC<ProductNodeProps> = ({
-  product,
-  lat,
-  lon,
-  onSelectProduct,
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Convert Spherical Lat/Lon to 3D Cartesian coordinates on sphere radius ~2.55
+  // Convert lat/lon to 3D Cartesian Position on sphere surface (r=2.25)
   const position = useMemo(() => {
-    const radius = 2.55;
-    const latRad = (lat * Math.PI) / 180;
-    const lonRad = (lon * Math.PI) / 180;
-
-    const x = radius * Math.cos(latRad) * Math.sin(lonRad);
-    const y = radius * Math.sin(latRad);
-    const z = radius * Math.cos(latRad) * Math.cos(lonRad);
-    return [x, y, z] as [number, number, number];
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+    const r = 2.26;
+    return new THREE.Vector3(
+      -(r * Math.sin(phi) * Math.cos(theta)),
+      r * Math.cos(phi),
+      r * Math.sin(phi) * Math.sin(theta)
+    );
   }, [lat, lon]);
+
+  const displayPrice = product.priceYER ? `${product.priceYER.toLocaleString('ar-YE')} ر.ي` : '';
 
   return (
     <group position={position}>
       <Html
-        center
-        distanceFactor={9}
+        distanceFactor={8}
         zIndexRange={[100, 0]}
-        style={{ pointerEvents: 'auto' }}
+        transform
+        sprite
       >
         <div
+          className="relative group cursor-pointer select-none dir-rtl"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           onClick={(e) => {
             e.stopPropagation();
-            if (onSelectProduct) onSelectProduct(product);
+            if (onSelect) onSelect(product);
           }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          className="relative cursor-pointer group flex flex-col items-center select-none"
         >
-          {/* Glassmorphic Squircle Container as specified */}
-          <div className="w-14 h-14 bg-[#0B0D14]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-1 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 group-hover:scale-110 active:scale-95 group-hover:border-purple-400/80 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]">
-            <img
-              src={product.image || FALLBACK_IMAGE}
-              alt={product.name}
-              onError={handleImageError}
-              className="w-full h-full object-contain bg-transparent transition-transform duration-300 group-hover:scale-105"
-            />
+          {/* Pulsing Target Ring */}
+          <div className="relative flex items-center justify-center">
+            <div className="absolute -inset-2 rounded-full bg-cyan-500/30 animate-ping opacity-75" />
+            <div className="w-8 h-8 rounded-full bg-[#0d091f]/90 border-2 border-cyan-400 p-0.5 shadow-[0_0_15px_rgba(0,240,255,0.8)] overflow-hidden transition-transform duration-300 group-hover:scale-125 group-hover:border-magenta-500">
+              <img
+                src={product.image || FALLBACK_IMAGE}
+                alt={product.name}
+                onError={handleImageError}
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
           </div>
 
-          {/* Interactive Hover Tooltip */}
+          {/* Hover Card Preview Popup */}
           <AnimatePresence>
-            {isHovered && (
+            {hovered && (
               <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.92 }}
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.92 }}
-                transition={{ duration: 0.18 }}
-                className="absolute top-full mt-2.5 z-50 bg-[#050514]/95 border border-white/20 text-white p-3 rounded-2xl shadow-2xl shadow-black/95 backdrop-blur-xl pointer-events-none whitespace-nowrap text-right min-w-[140px] flex flex-col gap-1 dir-rtl"
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-44 p-2.5 rounded-2xl bg-[#090514]/95 border border-cyan-500/40 shadow-[0_10px_30px_rgba(0,240,255,0.3)] backdrop-blur-md pointer-events-none text-right z-50"
               >
-                <div className="text-xs font-bold text-white leading-tight truncate max-w-[160px]">
-                  {product.name}
+                <div className="relative aspect-video rounded-xl overflow-hidden mb-1.5 border border-white/10">
+                  <img
+                    src={product.image || FALLBACK_IMAGE}
+                    alt={product.name}
+                    onError={handleImageError}
+                    className="w-full h-full object-cover"
+                  />
+                  {product.discountBadge && (
+                    <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-magenta-600 text-white">
+                      {product.discountBadge}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-cyan-300 font-bold font-mono">
-                    {product.priceYER.toLocaleString('ar-YE')} ر.س
-                  </span>
-                  <span className="text-slate-300 text-[9px] bg-white/10 px-1.5 py-0.5 rounded border border-white/10">
-                    {product.category}
-                  </span>
-                </div>
-                <div className="text-[9px] text-purple-300 font-medium flex items-center gap-1 justify-end pt-1 border-t border-white/10 mt-0.5">
-                  <span>عرض التفاصيل</span>
-                  <span className="text-[11px]">←</span>
-                </div>
+                <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{product.name}</h4>
+                {displayPrice && (
+                  <p className="text-[11px] font-extrabold text-cyan-300">{displayPrice}</p>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -345,214 +349,154 @@ const ProductNode: React.FC<ProductNodeProps> = ({
   );
 };
 
-// Sleek 2D Holographic Fallback for Devices without WebGL support
-const HolographicFallback: React.FC<{
+// Lite Mode Fallback Component (for low-power mobile or disabled WebGL)
+const LiteGlobeFallback: React.FC<{
   products: Product[];
-  onSelectProduct?: (p: Product) => void;
-}> = ({ products, onSelectProduct }) => {
+  onSelectProduct?: (product: Product) => void;
+  showTitleBadge?: boolean;
+}> = ({ products, onSelectProduct, showTitleBadge = true }) => {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4 relative">
-      <div className="w-48 h-48 sm:w-60 sm:h-60 rounded-full border border-cyan-400/40 bg-gradient-to-tr from-cyan-900/30 via-purple-900/30 to-fuchsia-900/30 shadow-[0_0_50px_rgba(0,240,255,0.2)] animate-pulse flex items-center justify-center relative">
-        <div className="absolute inset-2 rounded-full border border-dashed border-fuchsia-400/30 animate-[spin_20s_linear_infinite]" />
-        <div className="absolute inset-6 rounded-full border border-cyan-300/20" />
-        <div className="text-center p-2 z-10">
-          <div className="text-cyan-300 text-xs font-bold mb-1">معرض إندكس التفاعلي</div>
-          <div className="text-slate-400 text-[10px]">استعرض أحدث المنتجات</div>
+    <div className="relative w-full h-full min-h-[320px] flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#0f0926] via-[#090517] to-[#04020a] rounded-3xl border border-cyan-500/20 shadow-[0_0_50px_rgba(0,240,255,0.15)] overflow-hidden">
+      {/* Background Cyber Ambient Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.15)_0%,transparent_70%)]" />
+
+      {showTitleBadge && (
+        <div className="relative z-10 text-center mb-6">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            استكشاف المنتجات ثلاثي الأبعاد 🌐
+          </span>
         </div>
-      </div>
-      <div className="absolute inset-0 flex items-center justify-around p-2 pointer-events-auto">
+      )}
+
+      {/* Grid of Highlighted Products */}
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-lg">
         {products.slice(0, 4).map((p) => (
-          <button
+          <motion.div
             key={p.id}
-            onClick={() => onSelectProduct?.(p)}
-            className="w-12 h-12 rounded-[1.2rem] bg-[#050514]/80 border border-white/15 p-1.5 shadow-lg backdrop-blur-md hover:scale-110 active:scale-95 transition-transform"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onSelectProduct && onSelectProduct(p)}
+            className="p-2.5 rounded-2xl bg-[#140b33]/80 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer shadow-lg backdrop-blur-sm text-center flex flex-col items-center group"
           >
-            <img src={p.image} alt={p.name} className="w-full h-full object-contain" />
-          </button>
+            <div className="w-14 h-14 rounded-xl overflow-hidden mb-2 border border-white/10 group-hover:border-cyan-400 transition-colors">
+              <img
+                src={p.image || FALLBACK_IMAGE}
+                alt={p.name}
+                onError={handleImageError}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <h4 className="text-[11px] font-bold text-white line-clamp-1 mb-0.5">{p.name}</h4>
+            <span className="text-[10px] font-extrabold text-cyan-300">
+              {p.priceYER ? `${p.priceYER.toLocaleString('ar-YE')} ر.ي` : ''}
+            </span>
+          </motion.div>
         ))}
       </div>
     </div>
   );
 };
 
-// Smart Touch-Aware OrbitControls to allow smooth vertical page scrolling on touch devices
-interface SmartOrbitControlsProps {
-  autoRotate?: boolean;
-  autoRotateSpeed?: number;
-  enableZoom?: boolean;
-  enablePan?: boolean;
-  rotateSpeed?: number;
-}
-
-const SmartOrbitControls: React.FC<SmartOrbitControlsProps> = (props) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const controlsRef = useRef<any>(null);
-  const { gl } = useThree();
-
-  useEffect(() => {
-    const canvas = gl.domElement;
-    if (!canvas) return;
-
-    // Set touchAction to pan-y so browser native vertical scroll is prioritized
-    canvas.style.touchAction = 'pan-y';
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isVerticalScroll = false;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        isVerticalScroll = false;
-        if (controlsRef.current) {
-          controlsRef.current.enabled = true;
-        }
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && !isVerticalScroll) {
-        const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
-        const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-
-        // If swipe gesture is predominantly vertical (> deltaX and > 5px threshold),
-        // disable OrbitControls touch capture so the browser scrolls the page
-        if (deltaY > deltaX && deltaY > 5) {
-          isVerticalScroll = true;
-          if (controlsRef.current) {
-            controlsRef.current.enabled = false;
-          }
-        }
-      }
-    };
-
-    const handleTouchEnd = () => {
-      isVerticalScroll = false;
-      if (controlsRef.current) {
-        controlsRef.current.enabled = true;
-      }
-    };
-
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
-    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-
-    return () => {
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchend', handleTouchEnd);
-      canvas.removeEventListener('touchcancel', handleTouchEnd);
-    };
-  }, [gl]);
-
-  return <OrbitControls ref={controlsRef} {...props} />;
-};
-
 export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
   products = [],
   onSelectProduct,
-  size,
+  size = '100%',
   className = '',
   showTitleBadge = true,
+  paused = false,
 }) => {
-  const { isActive } = useLiteMode();
+  const { isLiteMode } = useLiteMode();
 
-  const dimensionStyle = size
-    ? {
-        width: typeof size === 'number' ? `${size}px` : size,
-        height: typeof size === 'number' ? `${size}px` : size,
-      }
-    : undefined;
+  // Safety fallback if no products provided
+  const displayProducts = useMemo(() => {
+    if (products.length > 0) return products;
+    return [
+      { id: '1', name: 'منتج إندكس الفاخر', priceYER: 25000, image: FALLBACK_IMAGE },
+      { id: '2', name: 'ساعة ذكية متطورة', priceYER: 18000, image: FALLBACK_IMAGE },
+      { id: '3', name: 'سماعة لاسلكية عزل صوت', priceYER: 12000, image: FALLBACK_IMAGE },
+    ] as Product[];
+  }, [products]);
 
-  if (isActive) {
+  if (isLiteMode) {
     return (
-      <div className={`relative flex flex-col items-center justify-center rounded-[2rem] bg-[#02000A] overflow-hidden border border-white/10 ${className}`} style={dimensionStyle}>
-        <HolographicFallback products={products} onSelectProduct={onSelectProduct} />
-      </div>
+      <LiteGlobeFallback
+        products={displayProducts}
+        onSelectProduct={onSelectProduct}
+        showTitleBadge={showTitleBadge}
+      />
     );
   }
 
   return (
     <div
-      className={`relative flex flex-col items-center justify-center select-none rounded-[2rem] bg-[#02000A] overflow-hidden shadow-2xl border border-white/10 ${className}`}
-      style={{ ...dimensionStyle, touchAction: 'pan-y' }}
+      className={`relative w-full h-full min-h-[350px] sm:min-h-[450px] flex items-center justify-center overflow-hidden rounded-3xl dir-rtl ${className}`}
+      style={{ width: size, height: typeof size === 'number' ? `${size}px` : size }}
     >
-      {/* Deep Space Ambient Glow Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,10,40,0.8)_0%,rgba(2,0,10,1)_100%)] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-[radial-gradient(circle,rgba(0,240,255,0.12)_0%,rgba(255,0,127,0.08)_50%,transparent_100%)] pointer-events-none blur-xl" />
+      {/* Background Stars & Holographic Light Effects */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0b051c] via-[#060310] to-[#020108] pointer-events-none" />
 
-      {/* Header Title Badge */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-[#050514]/80 border border-white/15 px-3.5 py-1 rounded-full text-[11px] font-medium shadow-xl backdrop-blur-2xl whitespace-nowrap text-white pointer-events-none">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-300 to-purple-300 bg-clip-text text-transparent font-bold">
-            معرض إندكس 3D WebGL
-          </span>
-          <span className="text-slate-500">•</span>
-          <span className="text-slate-300 text-[10px]">اسحب للدوران</span>
+        <div className="absolute top-4 right-4 z-20 pointer-events-none">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0d0724]/80 border border-cyan-500/40 text-cyan-300 text-xs font-black shadow-[0_0_20px_rgba(0,240,255,0.4)] backdrop-blur-md">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            عالم إندكس التفاعلي 🌐
+          </div>
         </div>
       )}
 
-      {/* R3F WebGL Canvas Scene with Error Boundary */}
-      <div className="w-full h-full relative z-10" style={{ touchAction: 'pan-y' }}>
-        <WebGLErrorBoundary
-          fallback={<HolographicFallback products={products} onSelectProduct={onSelectProduct} />}
+      {/* 3D WebGL Canvas Sphere Layer */}
+      <WebGLErrorBoundary
+        fallback={
+          <LiteGlobeFallback
+            products={displayProducts}
+            onSelectProduct={onSelectProduct}
+            showTitleBadge={showTitleBadge}
+          />
+        }
+      >
+        <Canvas
+          camera={{ position: [0, 0, 6.2], fov: 45 }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          className="w-full h-full cursor-grab active:cursor-grabbing"
         >
-          <Canvas
-            camera={{ position: [0, 0, 7.5], fov: 45 }}
-            dpr={[1, 1.5]}
-            gl={{
-              antialias: false,
-              alpha: true,
-              powerPreference: 'high-performance',
-              preserveDrawingBuffer: false,
-              failIfMajorPerformanceCaveat: false,
-            }}
-            style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
-          >
-            <Suspense fallback={null}>
-              <ambientLight intensity={0.7} />
-              <pointLight position={[10, 10, 10]} intensity={1.8} color="#00f0ff" />
-              <pointLight position={[-10, -10, -10]} intensity={1.8} color="#ff007f" />
+          <ambientLight intensity={0.6} />
+          <pointLight position={[10, 10, 10]} intensity={1.5} color="#00f0ff" />
+          <pointLight position={[-10, -10, -10]} intensity={1.2} color="#ff007f" />
 
-              {/* Deep Space Background Stars */}
-              <Stars radius={60} depth={40} count={600} factor={3} saturation={0} fade speed={1} />
+          <Suspense fallback={null}>
+            <Sparkles count={80} scale={6} size={2.5} speed={0.4} color="#00f0ff" />
+            <Stars radius={50} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
 
-              {/* Atmospheric Space Dust Sparkles */}
-              <Sparkles count={60} scale={10} size={2.5} speed={0.5} color="#00f0ff" />
-              <Sparkles count={40} scale={12} size={2.0} speed={0.4} color="#ff007f" />
+            {/* Particle Fibonacci Sphere */}
+            <ParticleSphere isPaused={paused} />
 
-              {/* 3D CGI WebGL Particle Globe */}
-              <ParticleSphere />
+            {/* Render Surface Product Nodes */}
+            {displayProducts.slice(0, 7).map((product, idx) => {
+              const coords = PRODUCT_COORDS[idx % PRODUCT_COORDS.length];
+              return (
+                <ProductNode
+                  key={product.id || idx}
+                  product={product}
+                  lat={coords.lat}
+                  lon={coords.lon}
+                  onSelect={onSelectProduct}
+                  index={idx}
+                />
+              );
+            })}
 
-              {/* Product Card Overlays (Glassmorphic Squircles) */}
-              {products.slice(0, 7).map((product, idx) => {
-                const coord = PRODUCT_COORDS[idx % PRODUCT_COORDS.length];
-                return (
-                  <ProductNode
-                    key={product.id}
-                    product={product}
-                    lat={coord.lat}
-                    lon={coord.lon}
-                    onSelectProduct={onSelectProduct}
-                  />
-                );
-              })}
-
-              {/* Smart Touch-Aware Cinematic Orbit Controls */}
-              <SmartOrbitControls
-                autoRotate
-                autoRotateSpeed={0.5}
-                enableZoom={false}
-                enablePan={false}
-                rotateSpeed={0.6}
-              />
-            </Suspense>
-          </Canvas>
-        </WebGLErrorBoundary>
-      </div>
+            {/* Interactive Smooth Mouse Control */}
+            <OrbitControls
+              enableZoom={false}
+              enablePan={false}
+              rotateSpeed={0.5}
+              autoRotate={!paused}
+              autoRotateSpeed={0.8}
+            />
+          </Suspense>
+        </Canvas>
+      </WebGLErrorBoundary>
     </div>
   );
 };

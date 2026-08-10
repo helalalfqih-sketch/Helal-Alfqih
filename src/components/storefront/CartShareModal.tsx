@@ -1,28 +1,42 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Share2, Copy, Check, X, ShoppingBag } from 'lucide-react';
-import { CartItem } from './types';
-import { Currency } from './types';
+import { Share2, Copy, Check, X, Link, ShoppingBag, ArrowRight } from 'lucide-react';
+import { CartItem, Product, Currency } from './types';
+import { formatPrice } from './currency';
 
 interface CartShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
   currency?: Currency;
+  catalogProducts?: Product[];
+  onApplyRecoveredCart?: (items: CartItem[], mode: 'merge' | 'replace') => void;
 }
 
 export const CartShareModal: React.FC<CartShareModalProps> = ({
   isOpen,
   onClose,
   cartItems,
+  currency = 'YER',
+  catalogProducts = [],
+  onApplyRecoveredCart,
 }) => {
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Recovery state
+  const [recoveryInput, setRecoveryInput] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveredReport, setRecoveredReport] = useState<{
+    items: CartItem[];
+  } | null>(null);
 
   if (!isOpen) return null;
 
   // Build a human-readable WhatsApp-friendly summary of the cart
   const cartSummary = cartItems
-    .map((i) => `- ${i.product.name} × ${i.quantity}`)
+    .map((i) => `- ${i.product.name} × ${i.quantity} (${formatPrice(i.product.priceYER * i.quantity, currency)})`)
     .join('\n');
 
   const shareText = cartItems.length > 0
@@ -31,10 +45,60 @@ export const CartShareModal: React.FC<CartShareModalProps> = ({
 
   const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
+  const handleGenerateShareLink = async () => {
+    if (cartItems.length === 0) return;
+    setIsGenerating(true);
+    try {
+      // Encode cart payload cleanly in base64 URL parameter
+      const payload = cartItems.map((i) => ({ id: i.product.id, qty: i.quantity }));
+      const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+      const url = `${window.location.origin}${window.location.pathname}?cart_data=${encoded}`;
+      setGeneratedLink(url);
+    } catch (err) {
+      console.warn('Failed to generate cart share link:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(shareText);
+    const textToCopy = generatedLink || shareText;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRecover = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryInput.trim()) return;
+
+    setIsRecovering(true);
+    try {
+      let rawData = recoveryInput.trim();
+      if (rawData.includes('cart_data=')) {
+        rawData = rawData.split('cart_data=')[1].split('&')[0];
+      }
+      const jsonStr = decodeURIComponent(atob(rawData));
+      const parsed: { id: string; qty: number }[] = JSON.parse(jsonStr);
+
+      const items: CartItem[] = [];
+      for (const p of parsed) {
+        const found = catalogProducts.find((cp) => cp.id === p.id);
+        if (found) {
+          items.push({ product: found, quantity: p.qty });
+        }
+      }
+
+      setIsRecovering(false);
+      if (items.length > 0) {
+        setRecoveredReport({ items });
+      } else {
+        alert('لم يتم العثور على منتجات مطابقة بالسلة أو قد تكون غير متوفرة حالياً.');
+      }
+    } catch {
+      setIsRecovering(false);
+      alert('تعذر قراءة رمز استعادة السلة. يرجى التأكد من صحة الرابط.');
+    }
   };
 
   return (
@@ -60,10 +124,11 @@ export const CartShareModal: React.FC<CartShareModalProps> = ({
                 <Share2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">مشاركة السلة</h3>
-                <p className="text-xs text-[var(--color-text-secondary)]">مشاركة محتويات سلتك عبر واتساب</p>
+                <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">حفظ ومشاركة السلة</h3>
+                <p className="text-xs text-[var(--color-text-secondary)]">مشاركة المنتجات أو استعادتها على أي جهاز</p>
               </div>
             </div>
+
             <button
               onClick={onClose}
               className="w-9 h-9 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer"
@@ -72,43 +137,124 @@ export const CartShareModal: React.FC<CartShareModalProps> = ({
             </button>
           </div>
 
-          {cartItems.length === 0 ? (
-            <p className="text-center text-sm text-[var(--color-text-secondary)] py-8">سلتك فارغة حالياً. أضف منتجات أولاً.</p>
-          ) : (
-            <div className="space-y-4">
-              {/* Cart summary */}
-              <div className="p-4 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border-default)]">
-                <h4 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-1.5 mb-3">
-                  <ShoppingBag className="w-4 h-4 text-blue-400" />
-                  محتويات سلتك ({cartItems.length} منتج)
+          {!recoveredReport ? (
+            <div className="space-y-6">
+              {/* Section 1: Generate Link */}
+              <div className="p-4 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border-default)] space-y-3">
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
+                  <ShoppingBag className="w-4 h-4 text-blue-400" /> مشاركة سلتك الحالية ({cartItems.length} منتج)
                 </h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {cartItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--color-text-primary)] font-medium truncate flex-1">{item.product.name}</span>
-                      <span className="text-blue-400 font-bold ml-2 shrink-0">× {item.quantity}</span>
+
+                {cartItems.length === 0 ? (
+                  <p className="text-xs text-gray-400">سلتك فارغة حالياً. أضف منتجات لتتمكن من مشاركة الرابط.</p>
+                ) : !generatedLink ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleGenerateShareLink}
+                      disabled={isGenerating}
+                      className="w-full py-3 rounded-xl bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-bold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isGenerating ? 'جاري إنشاء الرابط الآمن...' : 'إنشاء رابط مشاركة آمن'}
+                    </button>
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      مشاركة قائمة المنتجات عبر واتساب 💬
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedLink}
+                        className="flex-1 bg-black/30 border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-blue-300 font-mono dir-ltr truncate"
+                      />
+                      <button
+                        onClick={handleCopy}
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1 shrink-0"
+                      >
+                        {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                        <span>{copied ? 'تم النسخ' : 'نسخ'}</span>
+                      </button>
                     </div>
-                  ))}
-                </div>
+
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`شاهد محتويات سلة التسوق الخاصة بي في متجر إندكس:\n${generatedLink}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      مشاركة عبر واتساب 💬
+                    </a>
+                  </div>
+                )}
               </div>
 
-              {/* Share buttons */}
-              <div className="space-y-2">
-                <a
-                  href={waUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+              {/* Section 2: Recover Existing Cart */}
+              <div className="p-4 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border-default)] space-y-3">
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
+                  <Link className="w-4 h-4 text-emerald-400" /> استعادة سلة سابقة عبر الرابط
+                </h4>
+
+                <form onSubmit={handleRecover} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={recoveryInput}
+                    onChange={(e) => setRecoveryInput(e.target.value)}
+                    placeholder="الصق رابط السلة أو رمز التوكن هنا..."
+                    className="flex-1 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isRecovering}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all cursor-pointer shrink-0"
+                  >
+                    {isRecovering ? 'فحص...' : 'استعادة'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            /* Recovered Cart Confirmation Screen */
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs">
+                تمت جلب السلة بنجاح برقم ({recoveredReport.items.length} منتج متوفر).
+              </div>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {recoveredReport.items.map((it, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-[var(--color-surface-2)] flex items-center justify-between text-xs">
+                    <span className="font-bold text-[var(--color-text-primary)]">{it.product.name}</span>
+                    <span className="text-emerald-400 font-bold">x{it.quantity}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    onApplyRecoveredCart?.(recoveredReport.items, 'merge');
+                    onClose();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
                 >
-                  مشاركة عبر واتساب 💬
-                </a>
+                  <ArrowRight className="w-4 h-4" /> دمج مع سلتك الحالية
+                </button>
 
                 <button
-                  onClick={handleCopy}
-                  className="w-full py-3 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:border-blue-400/50"
+                  onClick={() => {
+                    onApplyRecoveredCart?.(recoveredReport.items, 'replace');
+                    onClose();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
                 >
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'تم النسخ!' : 'نسخ النص'}
+                  استبدال السلة الحالية
                 </button>
               </div>
             </div>
