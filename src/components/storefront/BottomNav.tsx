@@ -16,7 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, c
   )}`;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-[var(--glass-bg)] backdrop-blur-2xl border-t border-[var(--color-border-default)] z-50 rounded-t-[28px] pb-3 pt-2 px-4 shadow-[var(--shadow-lg)] transition-colors">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-[var(--glass-bg)] backdrop-blur-2xl border-t border-[var(--color-border-default)] z-50 rounded-t-[28px] pb-[calc(8px+env(safe-area-inset-bottom,0px))] pt-2 px-4 shadow-[var(--shadow-lg)] transition-colors">
       <div className="max-w-md mx-auto flex justify-between items-center relative dir-rtl">
         {/* 1. السلة (Cart - Rightmost in RTL) */}
         <motion.button

@@ -126,8 +126,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const containerClasses =
     variant === "horizontal"
-      ? "snap-start flex-shrink-0 w-[165px] sm:w-[195px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/50 rounded-2xl flex flex-col justify-between relative group transition-all duration-300 ease-out hover:scale-[1.02] hover:-translate-y-1 shadow-sm hover:shadow-xl cursor-pointer h-full overflow-hidden transform-gpu"
-      : "bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/50 rounded-2xl flex flex-col justify-between relative group transition-all duration-300 ease-out hover:scale-[1.02] hover:-translate-y-1 shadow-sm hover:shadow-xl w-full cursor-pointer h-full overflow-hidden transform-gpu";
+      ? "snap-start flex-shrink-0 w-[160px] sm:w-[190px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg cursor-pointer h-full overflow-hidden"
+      : "bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg w-full cursor-pointer h-full overflow-hidden";
 
   return (
     <>
@@ -149,7 +149,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
 
         {/* 1. PRODUCT IMAGE AREA WITH FLOATING MOTION & SECONDARY HOVER PREVIEW */}
-        <div className="relative w-full h-[130px] sm:h-[155px] bg-gradient-to-b from-[var(--color-surface-2)] to-[var(--color-surface-1)] p-2.5 flex items-center justify-center overflow-hidden group/img">
+        <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--color-surface-2)] p-2 sm:aspect-square sm:p-3 group/img">
           {/* Subtle Ambient Radial Glow on Hover */}
           <div className="absolute inset-0 bg-[#2F6BFF]/5 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
@@ -157,12 +157,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <img
             src={product.image}
             alt={product.name}
+            onError={(event) => {
+              event.currentTarget.src =
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%2314171c'/%3E%3Cpath d='M270 230h260v180H270z' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3Ccircle cx='350' cy='290' r='34' fill='%236b7280'/%3E%3Cpath d='m290 390 90-90 60 60 45-45 55 75' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3C/svg%3E";
+            }}
             className={`max-h-full max-w-full object-contain drop-shadow-md group-hover:drop-shadow-2xl transition-all duration-500 ease-in-out transform ${
               secondaryImage
                 ? "group-hover:opacity-0 group-hover:scale-95"
                 : "group-hover:scale-105"
             }`}
-            loading="lazy"
+            loading={index < 4 ? "eager" : "lazy"}
+            decoding="async"
           />
 
           {/* Secondary Image Preview on Hover */}
