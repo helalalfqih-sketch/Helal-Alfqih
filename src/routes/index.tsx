@@ -27,7 +27,7 @@ import { Header } from "@/components/storefront/Header";
 import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
-import { CategoryBar } from "@/components/storefront/CategoryBar";
+import { CategoryBar, type PriceRangePreset } from "@/components/storefront/CategoryBar";
 import { BestOffersSection } from "@/components/storefront/BestOffersSection";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { TrustBar } from "@/components/storefront/TrustBar";
@@ -186,6 +186,9 @@ function HomePage() {
   const [currency, setCurrency] = useState<Currency>("YER");
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
   const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [priceRange, setPriceRange] = useState<PriceRangePreset>("all");
+  const [customMinPrice, setCustomMinPrice] = useState<number | undefined>();
+  const [customMaxPrice, setCustomMaxPrice] = useState<number | undefined>();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Category change loading feedback
@@ -256,7 +259,15 @@ function HomePage() {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCategory && matchSearch;
+      const matchPrice =
+        priceRange === "all" ||
+        (priceRange === "under-20k" && p.priceYER < 20_000) ||
+        (priceRange === "20k-50k" && p.priceYER >= 20_000 && p.priceYER <= 50_000) ||
+        (priceRange === "over-50k" && p.priceYER > 50_000) ||
+        (priceRange === "custom" &&
+          (customMinPrice === undefined || p.priceYER >= customMinPrice) &&
+          (customMaxPrice === undefined || p.priceYER <= customMaxPrice));
+      return matchCategory && matchSearch && matchPrice;
     });
 
     switch (sortBy) {
@@ -272,7 +283,7 @@ function HomePage() {
       default:
         return list;
     }
-  }, [products, selectedCategory, searchQuery, sortBy]);
+  }, [products, selectedCategory, searchQuery, sortBy, priceRange, customMinPrice, customMaxPrice]);
 
   // Handlers using real production cart and favorites
   const handleToggleFavorite = (product: DesignProduct) => {
@@ -390,6 +401,14 @@ function HomePage() {
             onSelectCategory={handleSelectCategoryWithLoading}
             selectedSort={sortBy}
             onSelectSort={(sortOption) => setSortBy(sortOption)}
+            selectedPriceRange={priceRange}
+            customMinPrice={customMinPrice}
+            customMaxPrice={customMaxPrice}
+            onSelectPriceRange={(range, min, max) => {
+              setPriceRange(range);
+              setCustomMinPrice(min);
+              setCustomMaxPrice(max);
+            }}
           />
 
           {/* 5. Best Offers Section (أفضل العروض 🔥) */}
