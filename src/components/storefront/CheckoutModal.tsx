@@ -136,9 +136,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (paymentMethod === "jawalpay") paymentLabel = "محفظة جوال بي / وان كاش";
       if (paymentMethod === "transfer") paymentLabel = "حوالة صرافة (النجم / المميز)";
 
+      const resAny = result as any;
+      const orderId = resAny.orderId || resAny.id || `ord-${Date.now()}`;
+      const orderNum = resAny.orderNumber || resAny.order_number || orderId.slice(0, 8);
+      const totalAmt = typeof resAny.totalAmount === "number" ? resAny.totalAmount : totalYER;
+
       const orderObj: OrderStatus = {
-        id: result.orderId,
-        orderNumber: result.orderNumber,
+        id: orderId,
+        orderNumber: orderNum,
         customerName: customerName.trim(),
         phone: phone.trim(),
         governorate,
@@ -148,7 +153,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           quantity: i.quantity,
           price: i.product.priceYER,
         })),
-        totalPriceYER: result.totalAmount ?? totalYER,
+        totalPriceYER: totalAmt,
         status: "received",
         statusLabel: "تم استلام الطلب",
         date: new Date().toLocaleDateString("ar-YE"),

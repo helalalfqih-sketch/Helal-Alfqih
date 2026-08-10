@@ -406,7 +406,7 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
   showTitleBadge = true,
   paused = false,
 }) => {
-  const { isLiteMode } = useLiteMode();
+  const { isActive: isLiteMode } = useLiteMode();
 
   // Safety fallback if no products provided
   const displayProducts = useMemo(() => {

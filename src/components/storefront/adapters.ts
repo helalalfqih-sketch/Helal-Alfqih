@@ -104,13 +104,15 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
     const vMedia = p.media.find((m) => m.type === "video" && m.url);
     if (vMedia?.url) videoUrl = vMedia.url;
   }
-  if (!videoUrl && p.source_url && isVideoUrl(p.source_url)) {
-    videoUrl = p.source_url;
+  const pAny = p as any;
+  if (!videoUrl && pAny.source_url && isVideoUrl(pAny.source_url)) {
+    videoUrl = pAny.source_url;
   }
-  if (!videoUrl && p.video_playback_id) {
-    videoUrl = p.video_playback_id.startsWith("http")
-      ? p.video_playback_id
-      : `https://stream.mux.com/${p.video_playback_id}.m3u8`;
+  if (!videoUrl && (pAny.videoPlaybackId || pAny.video_playback_id)) {
+    const playbackId = pAny.videoPlaybackId || pAny.video_playback_id;
+    videoUrl = typeof playbackId === "string" && playbackId.startsWith("http")
+      ? playbackId
+      : `https://stream.mux.com/${playbackId}.m3u8`;
   }
 
   return {
