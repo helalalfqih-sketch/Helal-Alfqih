@@ -23,6 +23,7 @@ import {
   clearRecentSearches,
 } from "./searchHistory";
 import { StoreLogo } from "./StoreLogo";
+import { LiteModeToggle } from "./LiteModeToggle";
 
 interface HeaderProps {
   searchQuery: string;
@@ -67,7 +68,18 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isCartBouncing, setIsCartBouncing] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const prevCartCount = useRef(cartCount);
+
+  useEffect(() => {
+    if (cartCount > prevCartCount.current) {
+      setIsCartBouncing(true);
+      const timer = setTimeout(() => setIsCartBouncing(false), 600);
+      return () => clearTimeout(timer);
+    }
+    prevCartCount.current = cartCount;
+  }, [cartCount]);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -116,20 +128,32 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[var(--glass-bg)] backdrop-blur-xl px-3 sm:px-6 py-2 border-b border-[var(--color-border-default)] shadow-[var(--shadow-sm)] transition-colors dir-rtl">
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
-        {/* 1. Leftmost: Shopping Cart Button with Badge */}
+        {/* 1. Primary Action: Shopping Cart Button with Badge */}
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
+          animate={
+            isCartBouncing
+              ? { y: [0, -6, 2, -3, 0], scale: [1, 1.15, 0.96, 1.05, 1] }
+              : { y: 0, scale: 1 }
+          }
+          transition={{ duration: 0.4, ease: "easeOut" }}
           onClick={onOpenCart}
           aria-label="سلة التسوق"
           title="سلة التسوق"
-          className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+          className="relative min-w-[44px] min-h-[44px] w-11 h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
         >
-          <ShoppingCart className="w-5 h-5 text-[#2F6BFF]" />
+          <motion.div
+            animate={isCartBouncing ? { rotate: [0, -12, 12, -8, 8, 0] } : { rotate: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <ShoppingCart className="w-5 h-5 text-[#2F6BFF]" />
+          </motion.div>
           {cartCount > 0 && (
             <motion.span
               initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
+              animate={isCartBouncing ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
               className="absolute -top-1.5 -right-1.5 bg-[#2F6BFF] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--color-bg)] shadow-md shadow-blue-500/30"
             >
               {cartCount}
@@ -137,39 +161,53 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </motion.button>
 
-        {/* 2. Wishlist Button */}
-        {onOpenWishlist && (
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onOpenWishlist}
-            aria-label="المفضلة"
-            title="المفضلة"
-            className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
-          >
-            <Heart className="w-5 h-5 text-rose-400" />
-            {wishlistCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-[var(--color-bg)]">
-                {wishlistCount}
-              </span>
-            )}
-          </motion.button>
-        )}
-
-        {/* 3. Notification Bell Button */}
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={onOpenNotifications}
-          aria-label="الإشعارات"
-          title="الإشعارات"
-          className="relative w-10 h-10 sm:w-11 sm:h-11 text-[var(--color-text-primary)] flex items-center justify-center rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
-        >
-          <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
-          {unreadNotificationsCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 bg-amber-400 border-2 border-[var(--color-bg)] w-2.5 h-2.5 rounded-full" />
+        {/* Desktop Secondary Actions (Hidden on compact mobile screens to keep header clean) */}
+        <div className="hidden lg:flex items-center gap-2">
+          {onOpenWishlist && (
+            <button
+              onClick={onOpenWishlist}
+              aria-label="المفضلة"
+              title="المفضلة"
+              className="relative w-10 h-10 text-[var(--color-text-primary)] flex items-center justify-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+            >
+              <Heart className="w-4 h-4 text-rose-400" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
           )}
-        </motion.button>
+
+          <button
+            onClick={onOpenNotifications}
+            aria-label="الإشعارات"
+            title="الإشعارات"
+            className="relative w-10 h-10 text-[var(--color-text-primary)] flex items-center justify-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+          >
+            <Bell className="w-4 h-4 text-[var(--color-text-secondary)]" />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 bg-amber-400 border-2 border-[var(--color-bg)] w-2.5 h-2.5 rounded-full" />
+            )}
+          </button>
+
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              aria-label={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
+              title={theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"}
+              className="w-10 h-10 flex items-center justify-center border border-[var(--color-border-default)] rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 text-amber-400 shadow-sm"
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-blue-600" />
+              )}
+            </button>
+          )}
+
+          <LiteModeToggle variant="button" />
+        </div>
 
         {/* 4. Centered Search Bar with Autocomplete Dropdown */}
         <div ref={searchRef} className="flex-grow relative h-10 sm:h-11 mx-1 max-w-2xl">
@@ -339,26 +377,31 @@ export const Header: React.FC<HeaderProps> = ({
           </motion.button>
         )}
 
-        {/* 6. Plus / Fast Tracker Button */}
+        {/* Lite Mode Network Speed Button (Desktop only in header to keep mobile clean) */}
+        <div className="hidden sm:block">
+          <LiteModeToggle variant="button" />
+        </div>
+
+        {/* 6. Plus / Fast Tracker Button (Desktop / Tablet) */}
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={onOpenTracker}
           aria-label="تتبع الطلب"
-          className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white border border-blue-500/30 rounded-2xl bg-[#2F6BFF] hover:bg-[#2458D8] transition-all cursor-pointer shrink-0 shadow-md shadow-blue-600/20"
+          className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 items-center justify-center text-white border border-blue-500/30 rounded-2xl bg-[#2F6BFF] hover:bg-[#2458D8] transition-all cursor-pointer shrink-0 shadow-md shadow-blue-600/20"
           title="تتبع طلبي المباشر"
         >
           <Plus className="w-5 h-5 text-white" />
         </motion.button>
 
-        {/* 7. Admin Panel Shield Button */}
+        {/* 7. Admin Panel Shield Button (Desktop / Tablet) */}
         {onOpenAdmin && (
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={onOpenAdmin}
             aria-label="لوحة الأدمن"
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-emerald-400 border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+            className="hidden md:flex w-10 h-10 sm:w-11 sm:h-11 items-center justify-center text-emerald-400 border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
             title="لوحة تحكم الأدمن"
           >
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
