@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CartItem, Currency } from "./types";
 import { formatPrice } from "./currency";
 import { STORE_INFO } from "./constants";
+import { useAppearance } from "@/components/appearance-provider";
 import {
   ShoppingCart,
   X,
@@ -35,25 +36,28 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onCheckout,
 }) => {
+  const { settings } = useAppearance();
   const [coupon, setCoupon] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState("");
   const [couponAppliedText, setCouponAppliedText] = useState("");
+
+  const freeThreshold = settings.cart_config?.freeShippingThreshold || STORE_INFO.freeShippingThresholdYER;
+  const defaultFee = settings.cart_config?.defaultShippingFee || 3000;
 
   const subtotalYER = cartItems.reduce(
     (sum, item) => sum + item.product.priceYER * item.quantity,
     0,
   );
 
-  const isFreeShipping = subtotalYER >= STORE_INFO.freeShippingThresholdYER;
-  const shippingFeeYER = isFreeShipping || cartItems.length === 0 ? 0 : 3000;
+  const isFreeShipping = freeThreshold > 0 && subtotalYER >= freeThreshold;
+  const shippingFeeYER = isFreeShipping || cartItems.length === 0 ? 0 : defaultFee;
   const discountAmountYER = (subtotalYER * couponDiscount) / 100;
   const totalYER = subtotalYER - discountAmountYER + shippingFeeYER;
 
-  const progressPercent = Math.min(
-    100,
-    Math.round((subtotalYER / STORE_INFO.freeShippingThresholdYER) * 100),
-  );
+  const progressPercent = freeThreshold > 0
+    ? Math.min(100, Math.round((subtotalYER / freeThreshold) * 100))
+    : 100;
 
   const applyCoupon = (codeToApply?: string) => {
     const code = (codeToApply || coupon).trim().toUpperCase();
@@ -134,7 +138,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <span>
                         تبقي{" "}
                         <strong className="text-[#2F6BFF] font-black">
-                          {formatPrice(STORE_INFO.freeShippingThresholdYER - subtotalYER, currency)}
+                          {formatPrice(freeThreshold - subtotalYER, currency)}
                         </strong>{" "}
                         للحصول على شحن مجاني
                       </span>

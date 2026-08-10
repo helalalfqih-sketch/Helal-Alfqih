@@ -27,6 +27,7 @@ import type { ImportResult } from "@/lib/catalog-import.functions";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { invalidateCatalogCache } from "@/lib/utils/cache-invalidation";
 import {
   listAdminProducts,
   listAdminCategories,
@@ -90,7 +91,7 @@ function ProductsPage() {
     queryFn: () => listAdminCategories(),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-products"] });
+  const invalidate = () => invalidateCatalogCache(qc);
 
   const togglePublish = useMutation({
     mutationFn: (p: { id: string; is_published: boolean }) =>

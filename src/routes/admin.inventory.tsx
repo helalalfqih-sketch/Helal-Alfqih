@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidateInventoryCache } from "@/lib/utils/cache-invalidation";
 import { Search, Plus, Minus, Loader2, Boxes, ArrowRight } from "lucide-react";
 import {
   listAdminProducts,
@@ -53,7 +54,7 @@ function InventoryPage() {
       }),
     onSuccess: () => {
       toast.success("تم تعديل المخزون");
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      invalidateInventoryCache(qc);
       if (selectedId) qc.invalidateQueries({ queryKey: ["inventory-movements", selectedId] });
     },
     onError: (e: Error) => toast.error(e.message),
