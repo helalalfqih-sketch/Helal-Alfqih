@@ -7,6 +7,9 @@ import {
   Coins,
   Filter,
   Flame,
+  Baby,
+  Car,
+  Dumbbell,
   Grid,
   Headphones,
   Home,
@@ -16,6 +19,7 @@ import {
   TrendingDown,
   TrendingUp,
   Watch,
+  Wrench,
   X,
 } from "lucide-react";
 import type { SortOption } from "./types";
@@ -35,11 +39,15 @@ interface CategoryBarProps {
 
 const CATEGORY_ITEMS = [
   { id: "all", name: "الكل", icon: Grid },
+  { id: "tools", name: "أدوات ومعدات", icon: Wrench },
+  { id: "automotive", name: "مستلزمات السيارات", icon: Car },
+  { id: "health_fitness", name: "الصحة واللياقة", icon: Dumbbell },
+  { id: "home_appliances", name: "أجهزة ومنزل", icon: Home },
+  { id: "baby_kids", name: "مستلزمات الأطفال", icon: Baby },
   { id: "smartwatches", name: "ساعات ذكية", icon: Watch },
-  { id: "audio", name: "صوتيات", icon: Headphones },
+  { id: "audio", name: "سماعات وصوتيات", icon: Headphones },
   { id: "perfumes", name: "عطور وبخور", icon: Sparkles },
-  { id: "appliances", name: "أجهزة منزلية", icon: Home },
-  { id: "accessories", name: "إكسسوارات", icon: Smartphone },
+  { id: "accessories", name: "إكسسوارات وهواتف", icon: Smartphone },
 ];
 
 const PRICE_PRESETS: Array<{
@@ -47,10 +55,10 @@ const PRICE_PRESETS: Array<{
   label: string;
   icon: ElementType<{ className?: string }>;
 }> = [
-  { id: "all", label: "كل الأسعار", icon: Coins },
-  { id: "under-20k", label: "أقل من 20 ألف", icon: Banknote },
-  { id: "20k-50k", label: "20–50 ألف", icon: Coins },
-  { id: "over-50k", label: "أكثر من 50 ألف", icon: Sparkles },
+  { id: "all", label: "كافة الأسعار", icon: Coins },
+  { id: "under-20k", label: "أقل من 20,000 ر.ي", icon: Banknote },
+  { id: "20k-50k", label: "20,000 - 50,000 ر.ي", icon: Coins },
+  { id: "over-50k", label: "أكثر من 50,000 ر.ي", icon: Sparkles },
 ];
 
 const SORT_OPTIONS: Array<{
@@ -135,7 +143,7 @@ export function CategoryBar({
           <div className="no-scrollbar flex min-w-0 flex-1 touch-pan-x items-center gap-1.5 overflow-x-auto">
             <span className="flex shrink-0 items-center gap-1.5 border-l border-[var(--color-border-subtle)] pl-2 text-xs font-extrabold text-[var(--color-text-primary)]">
               <Banknote className="h-4 w-4 text-[#2F6BFF]" />
-              السعر
+              تصفية السعر:
             </span>
             {PRICE_PRESETS.map(({ id, label, icon: Icon }) => {
               const active = selectedPriceRange === id;
@@ -168,7 +176,7 @@ export function CategoryBar({
             >
               {selectedPriceRange === "custom"
                 ? `${customMinPrice ?? 0}–${customMaxPrice ?? "∞"}`
-                : "نطاق مخصص"}
+                : "نطاق مخصص ⚙️"}
             </button>
           </div>
 
