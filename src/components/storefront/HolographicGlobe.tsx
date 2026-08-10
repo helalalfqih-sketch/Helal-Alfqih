@@ -1,28 +1,22 @@
 import React, { useMemo, useRef, useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, Sparkles, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from './types';
-import { useLiteMode } from './liteMode';
+import { useLiteMode } from '@/lib/liteMode';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
 const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
   e.currentTarget.src = FALLBACK_IMAGE;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HolographicGlobeProduct = any;
-
 interface HolographicGlobeProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  products?: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSelectProduct?: (product: any) => void;
+  products?: Product[];
+  onSelectProduct?: (product: Product) => void;
   size?: number | string;
   className?: string;
   showTitleBadge?: boolean;
-  paused?: boolean;
 }
 
 // Error Boundary for WebGL fallback on unsupported or context-lost mobile devices
@@ -69,7 +63,7 @@ const PRODUCT_COORDS = [
 ];
 
 // Dense Photorealistic CGI Particle Sphere Component
-const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) => {
+const ParticleSphere: React.FC = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const coreRef = useRef<THREE.Points>(null);
   const ring1Ref = useRef<THREE.Mesh>(null);
@@ -169,7 +163,7 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
 
   // Animate Sphere Rings & Rotation smoothly
   useFrame((_, delta) => {
-    if (prefersReducedMotion || isPaused) return;
+    if (prefersReducedMotion) return;
 
     if (pointsRef.current) {
       pointsRef.current.rotation.y += delta * 0.12;
@@ -267,7 +261,7 @@ const ProductNode: React.FC<{
   lon: number;
   onSelect?: (product: Product) => void;
   index: number;
-}> = ({ product, lat, lon, onSelect, index }) => {
+}> = ({ product, lat, lon, onSelect }) => {
   const [hovered, setHovered] = useState(false);
 
   // Convert lat/lon to 3D Cartesian Position on sphere surface (r=2.25)
@@ -404,7 +398,6 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
   size = '100%',
   className = '',
   showTitleBadge = true,
-  paused = false,
 }) => {
   const { isActive: isLiteMode } = useLiteMode();
 
@@ -469,7 +462,7 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
             <Stars radius={50} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
 
             {/* Particle Fibonacci Sphere */}
-            <ParticleSphere isPaused={paused} />
+            <ParticleSphere />
 
             {/* Render Surface Product Nodes */}
             {displayProducts.slice(0, 7).map((product, idx) => {
@@ -491,7 +484,7 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
               enableZoom={false}
               enablePan={false}
               rotateSpeed={0.5}
-              autoRotate={!paused}
+              autoRotate
               autoRotateSpeed={0.8}
             />
           </Suspense>
