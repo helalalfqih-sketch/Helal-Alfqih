@@ -749,18 +749,10 @@ export function ProductGlobeCanvas({
   // The globe shell (core, wireframe, atmosphere, orbits) renders as soon as
   // WebGL is available — it never waits for products or textures.
   if (!mounted || !quality.supported) {
-    const globeProducts = pool.map((p) => ({
-      id: p.id,
-      slug: p.slug || p.id,
-      name: p.name,
-      image: p.image,
-      price: p.price,
-    }));
-
     return (
       <div className="absolute inset-0 grid place-items-center overflow-hidden">
         <HolographicGlobe
-          products={globeProducts}
+          products={pool}
           onSelectProduct={(prod) => {
             if (prod?.slug) {
               navigate({ to: "/product/$slug", params: { slug: prod.slug } });

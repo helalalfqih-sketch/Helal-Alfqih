@@ -30,13 +30,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const globeProducts: HolographicGlobeProduct[] = products.slice(0, 8).map((product) => ({
-    id: product.id,
-    slug: product.slug || product.id,
-    name: product.name,
-    image: product.image,
-    price: product.priceYER,
-  }));
+  const globeProducts = products.slice(0, 8);
 
   const handleGlobeSelect = (globeProduct: HolographicGlobeProduct) => {
     const product = products.find(
