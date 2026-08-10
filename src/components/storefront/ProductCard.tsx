@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product, Currency } from "./types";
 import { formatPrice } from "./currency";
@@ -17,12 +17,15 @@ import {
   Clock,
 } from "lucide-react";
 
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80";
+
 interface ProductCardProps {
   product: Product;
   currency: Currency;
   isFavorite: boolean;
   onToggleFavorite: (product: Product) => void;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: Product, selectedColor?: string) => void;
   onSelectProduct: (product: Product) => void;
   variant?: "horizontal" | "grid";
   index?: number;
@@ -36,7 +39,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   onSelectProduct,
   variant = "horizontal",
-  index = 0,
 }) => {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -44,6 +46,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [isZooming, setIsZooming] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
   const [isQuickAdded, setIsQuickAdded] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(
+    product.colors && product.colors.length > 0 ? product.colors[0] : undefined,
+  );
+
+  useEffect(() => {
+    if (product.colors && product.colors.length > 0) {
+      setSelectedColor(product.colors[0]);
+    } else {
+      setSelectedColor(undefined);
+    }
+  }, [product]);
 
   const images =
     product.gallery && product.gallery.length > 0
@@ -71,7 +84,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.log("Share dismissed or failed:", err);
+        console.debug("Share dismissed or failed:", err);
       }
     } else {
       try {
@@ -131,250 +144,135 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.95 }}
-        whileInView={{ opacity: 1, y: 0, scale: 1 }}
-        viewport={{ once: true, margin: "-30px" }}
-        whileHover={{ y: -6, scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        transition={{
-          duration: 0.35,
-          delay: Math.min((index % 8) * 0.05, 0.3),
-          ease: [0.25, 0.1, 0.25, 1.0],
-        }}
-        onClick={() => onSelectProduct(product)}
-        className={containerClasses}
-      >
-        {/* Glossy Hover Shimmer Effect */}
-        <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-
-        {/* 1. PRODUCT IMAGE AREA WITH FLOATING MOTION & SECONDARY HOVER PREVIEW */}
-        <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-[var(--color-surface-2)] p-2 sm:aspect-square sm:p-3 group/img">
-          {/* Subtle Ambient Radial Glow on Hover */}
-          <div className="absolute inset-0 bg-[#2F6BFF]/5 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
+      <div onClick={() => onSelectProduct(product)} className={containerClasses}>
+        {/* 1. PRODUCT IMAGE CONTAINER (Clean Aspect Ratio) */}
+        <div className="relative w-full aspect-4/3 sm:aspect-square bg-[var(--color-surface-2)] p-2 sm:p-3 flex items-center justify-center overflow-hidden">
           {/* Primary Image */}
           <img
-            src={product.image}
+            src={product.image || FALLBACK_IMAGE}
             alt={product.name}
-            onError={(event) => {
-              event.currentTarget.src =
-                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%2314171c'/%3E%3Cpath d='M270 230h260v180H270z' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3Ccircle cx='350' cy='290' r='34' fill='%236b7280'/%3E%3Cpath d='m290 390 90-90 60 60 45-45 55 75' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3C/svg%3E";
+            onError={(e) => {
+              e.currentTarget.src = FALLBACK_IMAGE;
             }}
-            className={`max-h-full max-w-full object-contain drop-shadow-md group-hover:drop-shadow-2xl transition-all duration-500 ease-in-out transform ${
-              secondaryImage
-                ? "group-hover:opacity-0 group-hover:scale-95"
-                : "group-hover:scale-105"
-            }`}
-            loading={index < 4 ? "eager" : "lazy"}
-            decoding="async"
+            className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
           />
 
-          {/* Secondary Image Preview on Hover */}
-          {secondaryImage && (
-            <img
-              src={secondaryImage}
-              alt={`${product.name} - صورة ثانوية`}
-              className="absolute inset-0 max-h-full max-w-full object-contain m-auto p-2.5 transition-all duration-500 ease-in-out transform opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-105 drop-shadow-2xl pointer-events-none"
-              loading="lazy"
-            />
+          {/* Top-Right Promotional Badge (Max 1) */}
+          {badgeText && (
+            <div className="absolute top-2 right-2 z-10 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm dir-rtl">
+              {badgeText}
+            </div>
           )}
 
-          {/* Floating Secondary Image Indicator Badge or Top-Left Automated Badges */}
-          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
-            {isBestSeller && (
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 dir-rtl border border-amber-300/40">
-                <Flame className="w-3 h-3 text-yellow-200 fill-yellow-200" />
+          {/* Top-Left Favorite Heart Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(product);
+            }}
+            aria-label="إضافة للمفضلة"
+            className={`absolute top-2 left-2 z-10 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer border shadow-sm ${
+              isFavorite
+                ? "text-rose-500 bg-rose-500/15 border-rose-500/40"
+                : "text-[var(--color-text-secondary)] bg-[var(--color-surface-1)]/80 hover:bg-[var(--color-surface-1)] border-[var(--color-border-default)]"
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
+          </button>
+        </div>
+
+        {/* 2. CONTENT AREA */}
+        <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between space-y-2 text-right dir-rtl">
+          <div>
+            {/* Best seller or new arrival tag (Max 1 secondary badge) */}
+            {isBestSeller ? (
+              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-500 mb-1">
+                <Flame className="w-3 h-3 fill-amber-500" />
                 <span>الأكثر مبيعاً</span>
               </div>
-            )}
-            {isNewArrival && !isBestSeller && (
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 dir-rtl border border-purple-300/40">
-                <Sparkles className="w-3 h-3 text-cyan-200" />
+            ) : isNewArrival ? (
+              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-400 mb-1">
+                <Sparkles className="w-3 h-3" />
                 <span>وصل حديثاً</span>
               </div>
-            )}
-            {secondaryImage && !isBestSeller && !isNewArrival && (
-              <div className="flex items-center gap-1 bg-black/50 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white/90 dir-rtl border border-white/10 opacity-80 group-hover:opacity-100 transition-opacity">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                <span>معاينة الصور</span>
-              </div>
-            )}
+            ) : null}
+
+            {/* Product Name (2 lines max) */}
+            <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)] line-clamp-2 leading-snug group-hover:text-[#2F6BFF] transition-colors">
+              {product.name}
+            </h4>
+
+            {/* Rating */}
+            <div className="flex items-center gap-1 text-[11px] mt-1 text-[var(--color-text-secondary)]">
+              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-[var(--color-text-primary)] font-bold">
+                {product.rating || "4.8"}
+              </span>
+              <span className="text-[var(--color-text-muted)]">({product.reviewsCount || 85})</span>
+            </div>
           </div>
 
-          {/* Floating Quick View Interactive Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedImageIndex(0);
-              setIsQuickViewOpen(true);
-            }}
-            className="absolute top-2 right-2 z-20 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-90 flex items-center gap-1.5 bg-black/80 hover:bg-[#2F6BFF] backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border border-white/20 dir-rtl cursor-pointer"
-            title="معاينة سريعة للمنتج"
-            aria-label="معاينة سريعة للمنتج"
-          >
-            <Eye className="w-3.5 h-3.5 text-blue-300 group-hover:text-white" />
-            <span className="inline">معاينة</span>
-          </button>
-
-          {/* Dedicated Hover 'Quick Add' Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart(product);
-              setIsQuickAdded(true);
-              setTimeout(() => setIsQuickAdded(false), 1800);
-            }}
-            className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-black shadow-xl border cursor-pointer whitespace-nowrap dir-rtl ${
-              isQuickAdded
-                ? "bg-emerald-500 text-white border-emerald-400 shadow-emerald-500/40"
-                : "bg-gradient-to-r from-[#2F6BFF] to-cyan-500 hover:from-[#2458D8] hover:to-cyan-600 text-white border-white/20 shadow-blue-500/30"
-            }`}
-            aria-label="إضافة سريعة بالسلة"
-            title="إضافة سريعة إلى السلة"
-          >
-            {isQuickAdded ? (
-              <span className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-white" />
-                <span>تمت الإضافة!</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <ShoppingCart className="w-3.5 h-3.5 text-white" />
-                <span>إضافة سريعة</span>
-              </span>
-            )}
-          </button>
-
-          {/* Bottom Bar inside Image Frame */}
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between z-10 dir-rtl pointer-events-none">
-            {badgeText ? (
-              <div className="bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 rounded-md shadow-sm whitespace-nowrap pointer-events-auto flex items-center gap-1 animate-pulse">
-                <Sparkles className="w-2.5 h-2.5 text-yellow-200" />
-                <span>{badgeText}</span>
+          {/* Pricing & Add-to-Cart Button */}
+          <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-2">
+            <div className="flex items-baseline justify-between gap-1 flex-wrap">
+              <div className="text-sm sm:text-base font-black text-[#2F6BFF]">
+                {formatPrice(product.priceYER, currency)}
               </div>
-            ) : (
-              <div />
-            )}
+              {product.originalPriceYER > product.priceYER && (
+                <div className="text-[11px] text-[var(--color-text-muted)] line-through">
+                  {formatPrice(product.originalPriceYER, currency)}
+                </div>
+              )}
+            </div>
 
-            {/* Actions Group: Share & Favorite */}
-            <div className="flex items-center gap-1.5 pointer-events-auto">
-              {/* Share Button */}
-              <button
-                type="button"
-                onClick={handleShare}
-                aria-label="مشاركة المنتج"
-                title="مشاركة المنتج"
-                className="w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-90 cursor-pointer border shadow-sm text-[var(--color-text-secondary)] hover:text-[#2F6BFF] bg-[var(--color-surface-1)]/90 border-[var(--color-border-default)] hover:border-blue-300"
-              >
-                {copiedToast ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <Share2 className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              {/* Animated Favorite Heart Button */}
+            {/* Primary Action Row: Dominant Add-to-Cart & Secondary Quick View */}
+            <div className="flex items-center gap-1.5 pt-1">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggleFavorite(product);
+                  onAddToCart(product, selectedColor);
+                  setIsQuickAdded(true);
+                  setTimeout(() => setIsQuickAdded(false), 1800);
                 }}
-                aria-label="إضافة للمفضلة"
-                className={`w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-90 cursor-pointer border shadow-sm ${
-                  isFavorite
-                    ? "text-rose-500 bg-rose-500/15 border-rose-500/40 shadow-rose-500/20"
-                    : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-1)]/90 border-[var(--color-border-default)] hover:border-rose-300"
+                className={`flex-1 py-2 px-2.5 rounded-xl text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                  isQuickAdded
+                    ? "bg-emerald-500 text-white shadow-emerald-500/30"
+                    : "bg-[#2F6BFF] hover:bg-[#2458D8] active:scale-95 text-white shadow-sm shadow-blue-600/20"
                 }`}
+                title="إضافة المنتج للسلة"
               >
-                <Heart
-                  className={`w-3.5 h-3.5 transition-colors ${
-                    isFavorite ? "fill-rose-500 text-rose-500" : ""
-                  }`}
-                />
+                {isQuickAdded ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>تمت الإضافة!</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    <span>إضافة للسلة</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectProduct(product);
+                }}
+                className="py-2 px-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border-default)] transition-all cursor-pointer shrink-0"
+                title="عرض تفاصيل المنتج (عرض سريع)"
+              >
+                <Eye className="w-3.5 h-3.5 text-blue-400" />
+                <span className="hidden sm:inline">عرض</span>
               </button>
             </div>
           </div>
         </div>
-
-        {/* Divider line separating Image section and Content section */}
-        <div className="w-full h-[1px] bg-[var(--color-border-subtle)]" />
-
-        {/* 2. CONTENT AREA */}
-        <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between space-y-2 text-right dir-rtl">
-          {/* Product Name, Automated Badges & Rating */}
-          <div>
-            {/* Automated Metadata Badges Chips */}
-            {(isBestSeller || isNewArrival || isLowStock) && (
-              <div className="flex items-center gap-1 flex-wrap mb-1.5">
-                {isBestSeller && (
-                  <span className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full">
-                    <Flame className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
-                    <span>الأكثر مبيعاً</span>
-                  </span>
-                )}
-                {isNewArrival && (
-                  <span className="inline-flex items-center gap-0.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full">
-                    <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
-                    <span>وصل حديثاً</span>
-                  </span>
-                )}
-                {isLowStock && (
-                  <span className="inline-flex items-center gap-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
-                    <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
-                    <span>{stockText}</span>
-                  </span>
-                )}
-              </div>
-            )}
-
-            <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)] line-clamp-2 group-hover:text-[#2F6BFF] transition-colors leading-snug">
-              {product.name}
-            </h4>
-
-            {/* Rating & Reviews Row */}
-            <div className="flex items-center gap-1.5 text-[11px] mt-1 text-[var(--color-text-secondary)]">
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0 animate-pulse" />
-              <span className="text-[var(--color-text-primary)] font-bold">
-                {product.rating || "4.8"}
-              </span>
-              <span className="text-[var(--color-text-muted)] font-medium">
-                ({product.reviewsCount || 120})
-              </span>
-            </div>
-          </div>
-
-          {/* Pricing Area */}
-          <div className="space-y-0.5 pt-1">
-            <div className="text-[var(--color-text-primary)] font-black text-sm sm:text-base tracking-tight flex items-baseline gap-1">
-              <span>{formatPrice(product.priceYER, currency)}</span>
-            </div>
-            {product.originalPriceYER > product.priceYER && (
-              <div className="text-[var(--color-text-muted)] line-through text-xs font-medium">
-                {formatPrice(product.originalPriceYER, currency)}
-              </div>
-            )}
-          </div>
-
-          {/* Action Button: Add to Cart */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart(product);
-            }}
-            className="w-full mt-1 bg-gradient-to-r from-[#2F6BFF] to-[#1F5EFF] hover:from-[#2458D8] hover:to-[#184ACD] text-white text-xs font-bold py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer hover:scale-[1.02] active:scale-95 group/btn whitespace-nowrap"
-          >
-            <div className="transition-transform duration-200 group-hover/btn:rotate-12 group-hover/btn:scale-110">
-              <ShoppingCart className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span>أضف إلى السلة</span>
-          </button>
-        </div>
-      </motion.div>
+      </div>
 
       {/* QUICK VIEW & INTERACTIVE ZOOM LIGHTBOX MODAL */}
       <AnimatePresence>
@@ -402,7 +300,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               className="relative z-10 w-full max-w-2xl bg-[var(--color-surface-1)] rounded-3xl border border-[var(--color-border-default)] shadow-2xl overflow-hidden flex flex-col md:flex-row text-right"
             >
               {/* Close Button */}
@@ -438,6 +336,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     });
                   }}
                   className="relative w-full h-[240px] sm:h-[280px] flex items-center justify-center cursor-crosshair overflow-hidden rounded-2xl bg-[var(--color-surface-1)] border border-[var(--color-border-subtle)]"
+                  style={{ touchAction: "pan-y" }}
                 >
                   <img
                     src={currentImage}
@@ -467,7 +366,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
                 {/* Gallery Thumbnails */}
                 {images.length > 1 && (
-                  <div className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1 px-1">
+                  <div
+                    className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1 px-1"
+                    style={{
+                      touchAction: "pan-x pan-y",
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                    }}
+                  >
                     {images.map((img, idx) => (
                       <button
                         key={idx}
@@ -517,6 +423,47 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </div>
 
                 <div className="space-y-4 pt-3 border-t border-[var(--color-border-subtle)]">
+                  {/* Colors in Quick View */}
+                  {product.colors && product.colors.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[11px] text-[var(--color-text-muted)] font-bold block">
+                        اختر اللون:
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {product.colors.map((color) => {
+                          const isSelected = selectedColor === color;
+                          const isWhite =
+                            color.toLowerCase() === "#ffffff" ||
+                            color.toLowerCase() === "#fff" ||
+                            color.toLowerCase() === "white";
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedColor(color);
+                              }}
+                              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl transition-all cursor-pointer flex items-center justify-center relative border ${
+                                isSelected
+                                  ? "border-[#2F6BFF] ring-2 ring-[#2F6BFF]/40 scale-105"
+                                  : "border-[var(--color-border-default)] hover:scale-105 opacity-80 hover:opacity-100"
+                              }`}
+                              style={{ backgroundColor: color }}
+                              title={`اختيار اللون ${color}`}
+                            >
+                              {isSelected && (
+                                <Check
+                                  className={`w-3.5 h-3.5 ${isWhite ? "text-black" : "text-white"}`}
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Price */}
                   <div>
                     <span className="text-[11px] text-[var(--color-text-muted)] block font-medium">
@@ -540,7 +487,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onAddToCart(product);
+                        onAddToCart(product, selectedColor);
                       }}
                       className="flex-1 bg-gradient-to-r from-[#2F6BFF] to-[#1F5EFF] hover:from-[#2458D8] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
                     >

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "./types";
-
-import { HolographicGlobe, HolographicGlobeProduct } from "./HolographicGlobe";
+import { HolographicGlobe, type HolographicGlobeProduct } from "./HolographicGlobe";
 import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit, ArrowUpRight } from "lucide-react";
 
 interface HeroCarouselProps {
@@ -10,6 +9,7 @@ interface HeroCarouselProps {
   onSelectCategory: (categoryId: string) => void;
   onSelectProduct: (product: Product) => void;
   onOpenDeconstruction?: () => void;
+  onOpenUniverse?: () => void;
 }
 
 export const HeroCarousel: React.FC<HeroCarouselProps> = ({
@@ -17,6 +17,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
   onSelectCategory,
   onSelectProduct,
   onOpenDeconstruction,
+  onOpenUniverse,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -29,42 +30,23 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const globeProducts = products.slice(0, 8).map((p) => ({
-    id: p.id,
-    slug: p.slug || p.id,
-    name: p.name,
-    image: p.image,
-    price: p.priceYER,
+  const globeProducts: HolographicGlobeProduct[] = products.slice(0, 8).map((product) => ({
+    id: product.id,
+    slug: product.slug || product.id,
+    name: product.name,
+    image: product.image,
+    price: product.priceYER,
   }));
 
-  const handleGlobeSelect = (globeProd: HolographicGlobeProduct) => {
-    if (!onSelectProduct) return;
-    const found = products.find(
-      (p) => p.id === globeProd.id || (p.slug && p.slug === globeProd.slug),
+  const handleGlobeSelect = (globeProduct: HolographicGlobeProduct) => {
+    const product = products.find(
+      (candidate) =>
+        candidate.id === globeProduct.id ||
+        (candidate.slug && candidate.slug === globeProduct.slug),
     );
-    if (found) {
-      onSelectProduct(found);
-    } else {
-      onSelectProduct({
-        id: globeProd.id,
-        slug: globeProd.slug,
-        name: globeProd.name,
-        subtitle: globeProd.name,
-        description: globeProd.name,
-        priceYER:
-          typeof globeProd.price === "number"
-            ? globeProd.price
-            : parseFloat(String(globeProd.price)) || 0,
-        originalPriceYER:
-          typeof globeProd.price === "number"
-            ? globeProd.price
-            : parseFloat(String(globeProd.price)) || 0,
-        rating: 4.8,
-        reviewsCount: 12,
-        image: globeProd.image || "",
-        category: "all",
-        inStock: true,
-      });
+
+    if (product) {
+      onSelectProduct(product);
     }
   };
 
@@ -89,77 +71,77 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.25 }}
-              className="relative z-10 flex flex-col justify-between min-h-[220px] sm:min-h-[260px]"
+              className="relative z-10 flex flex-col justify-between min-h-[160px] sm:min-h-[220px]"
             >
               {/* Top Badges Row: Left "تصفح 3D" & "تفكيك سينمائي 3D", Right "عروض حصرية 50%" */}
-              <div className="flex items-center justify-between w-full mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between w-full mb-1 sm:mb-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setIsExpanded(true)}
-                    className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer group/btn"
+                    className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[10px] sm:text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm flex items-center gap-1 transition-all cursor-pointer group/btn"
                   >
-                    <Orbit className="w-3.5 h-3.5 text-[#2F6BFF]" />
+                    <Orbit className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#2F6BFF]" />
                     <span>معرض 3D</span>
                   </button>
 
                   {onOpenDeconstruction && (
                     <button
                       onClick={onOpenDeconstruction}
-                      className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 hover:from-purple-600/30 hover:to-blue-600/30 border border-purple-500/30 text-purple-300 text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer animate-pulse"
+                      className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 hover:from-purple-600/30 hover:to-blue-600/30 border border-purple-500/30 text-purple-300 text-[10px] sm:text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm flex items-center gap-1 transition-all cursor-pointer animate-pulse"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                      <span>تفكيك سينمائي 3D</span>
+                      <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-purple-400" />
+                      <span>تفكيك 3D</span>
                     </button>
                   )}
                 </div>
 
-                <div className="inline-flex items-center gap-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold text-[#2F6BFF]">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  <span>عروض حصرية 50%</span>
+                <div className="inline-flex items-center gap-1 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold text-[#2F6BFF]">
+                  <Sparkles className="w-3 h-3 text-blue-400" />
+                  <span>عروض 50%</span>
                 </div>
               </div>
 
               {/* Main Content Area */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-5 my-auto w-full">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-5 my-auto w-full">
                 {/* Text & CTAs (Top on mobile) */}
-                <div className="flex flex-col items-start text-right gap-1.5 w-full md:max-w-md shrink-0">
-                  <div className="text-2xl sm:text-4xl font-black text-[var(--color-text-primary)] tracking-tight">
-                    خصومات
+                <div className="flex flex-col items-start text-right gap-1 w-full md:max-w-md shrink-0">
+                  <div className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold text-[#2F6BFF] bg-[#2F6BFF]/10 px-2 py-0.5 rounded-full border border-[#2F6BFF]/20">
+                    <Sparkles className="w-3 h-3 text-blue-400" />
+                    <span>عروض سبتمبر الحصرية</span>
                   </div>
 
-                  <div className="text-4xl sm:text-7xl font-black text-[var(--color-text-primary)] leading-none my-0.5">
-                    %50
+                  <div className="text-lg sm:text-2xl md:text-3xl font-black text-[var(--color-text-primary)] tracking-tight mt-0.5">
+                    خصومات تصل إلى{" "}
+                    <span className="text-[#2F6BFF] font-black text-xl sm:text-3xl">50%</span>
                   </div>
 
-                  <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm font-medium leading-relaxed max-w-xs">
-                    خصومات تصل إلى النصف على أحدث المنتجات
+                  <p className="text-[var(--color-text-secondary)] text-[11px] sm:text-sm font-medium leading-normal max-w-xs line-clamp-1 sm:line-clamp-2">
+                    تصفح تشكيلة إندكس المتميزة من الساعات والإلكترونيات
                   </p>
 
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <button
-                      onClick={() => onSelectCategory("offers")}
-                      className="relative overflow-hidden bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-black px-4 sm:px-6 py-2.5 rounded-full shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer group/cta"
+                      onClick={onOpenUniverse || (() => setIsExpanded(true))}
+                      className="relative overflow-hidden bg-gradient-to-r from-[#2F6BFF] to-purple-600 hover:from-[#2458D8] hover:to-purple-700 text-white font-black px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition-all active:scale-95 text-[11px] sm:text-xs cursor-pointer group/cta border border-blue-400/30"
                     >
-                      {/* Premium Shine Sweep Effect */}
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/cta:animate-shimmer pointer-events-none" />
-                      <span>تسوق الآن</span>
-                      <ChevronLeft className="w-4 h-4 group-hover/cta:-translate-x-1 transition-transform" />
+                      <Orbit className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
+                      <span>عالم المنتجات 🌎</span>
                     </button>
 
                     <button
-                      onClick={() => setIsExpanded(true)}
-                      aria-label="توسيع المعرض"
-                      className="w-8 h-8 sm:w-9 sm:h-9 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-full border border-[var(--color-border-default)] shadow-sm flex items-center justify-center transition-all cursor-pointer shrink-0"
+                      onClick={() => onSelectCategory("all")}
+                      aria-label="عرض المنتجات"
+                      className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-[11px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full border border-[var(--color-border-default)] shadow-sm flex items-center gap-1 transition-all cursor-pointer"
                     >
-                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>عرض الكل</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Holographic Globe (Dedicated full-width space below text on mobile) */}
+                {/* Holographic Globe (Compact mobile container) */}
                 <div
                   onClick={() => setIsExpanded(true)}
-                  className="relative w-full h-[380px] md:h-[260px] md:w-[260px] lg:h-[300px] lg:w-[300px] flex items-center justify-center shrink-0 my-auto cursor-pointer group/globe transition-transform hover:scale-105"
+                  className="relative w-full h-[130px] sm:h-[180px] md:h-[220px] md:w-[220px] lg:h-[260px] lg:w-[260px] flex items-center justify-center shrink-0 my-auto cursor-pointer group/globe transition-transform hover:scale-105"
                   title="اضغط لتوسيع المعرض 3D"
                 >
                   <HolographicGlobe
