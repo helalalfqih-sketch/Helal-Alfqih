@@ -55,6 +55,12 @@ import { AdminPanel } from "@/components/storefront/AdminPanel";
 import { WishlistDrawer } from "@/components/storefront/WishlistDrawer";
 import { ProductCompareModal } from "@/components/storefront/ProductCompareModal";
 import { ToastNotification } from "@/components/storefront/ToastNotification";
+import { RecentlyViewedStrip } from "@/components/storefront/RecentlyViewedStrip";
+import { ProductStoryModal } from "@/components/storefront/ProductStoryModal";
+import { ProductUniverseModal } from "@/components/storefront/ProductUniverseModal";
+import { CartShareModal } from "@/components/storefront/CartShareModal";
+import { CustomerSupportHub } from "@/components/storefront/CustomerSupportHub";
+import type { SupportContext } from "@/components/storefront/CustomerSupportHub";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -244,6 +250,12 @@ function HomePage() {
   const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
   const [isWishlistDrawerOpen, setIsWishlistDrawerOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [isProductStoryOpen, setIsProductStoryOpen] = useState(false);
+  const [isProductUniverseOpen, setIsProductUniverseOpen] = useState(false);
+  const [isCartShareOpen, setIsCartShareOpen] = useState(false);
+  const [isSupportHubOpen, setIsSupportHubOpen] = useState(false);
+  const [supportContext, setSupportContext] = useState<SupportContext>("home");
+  const [recentlyViewed, setRecentlyViewed] = useState<DesignProduct[]>([]);
 
   const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
 
@@ -290,6 +302,15 @@ function HomePage() {
         return list;
     }
   }, [products, selectedCategory, searchQuery, sortBy, priceRange, customMinPrice, customMaxPrice]);
+
+  // Track recently viewed products (max 10)
+  const handleSelectProduct = (product: DesignProduct) => {
+    setSelectedProductModal(product);
+    setRecentlyViewed((prev) => {
+      const filtered = prev.filter((p) => p.id !== product.id);
+      return [product, ...filtered].slice(0, 10);
+    });
+  };
 
   // Handlers using real production cart and favorites
   const handleToggleFavorite = (product: DesignProduct) => {
@@ -413,7 +434,7 @@ function HomePage() {
             <HeroCarousel
               products={products}
               onSelectCategory={handleSelectCategoryWithLoading}
-              onSelectProduct={(prod) => setSelectedProductModal(prod)}
+              onSelectProduct={handleSelectProduct}
               onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
             />
           )}
@@ -430,6 +451,16 @@ function HomePage() {
               setCustomMaxPrice(undefined);
             }}
           />
+
+          {/* Recently Viewed Strip */}
+          {recentlyViewed.length > 0 && (
+            <RecentlyViewedStrip
+              products={recentlyViewed}
+              currency={currency}
+              onSelectProduct={handleSelectProduct}
+              onClearHistory={() => setRecentlyViewed([])}
+            />
+          )}
 
           {/* 4. 6-Category Grid & Filter/Sort Bar */}
           <CategoryBar
@@ -548,7 +579,7 @@ function HomePage() {
                     isFavorite={favorites.includes(product.id)}
                     onToggleFavorite={handleToggleFavorite}
                     onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                    onSelectProduct={(prod) => setSelectedProductModal(prod)}
+                    onSelectProduct={handleSelectProduct}
                     variant="grid"
                   />
                 ))}
@@ -603,6 +634,61 @@ function HomePage() {
             setIsCompareModalOpen(true);
           }}
           onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
+        />
+
+        {/* Product Story Modal */}
+        <ProductStoryModal
+          product={selectedProductModal}
+          currency={currency}
+          isOpen={isProductStoryOpen}
+          onClose={() => setIsProductStoryOpen(false)}
+          onAddToCart={(prod) => {
+            handleAddToCart(prod, 1);
+            showToast(`تمت إضافة ${prod.name} إلى السلة بنجاح 🛒`);
+          }}
+        />
+
+        {/* Product Universe Modal (3D WebGL Product Explorer) */}
+        {isProductUniverseOpen && (
+          <ProductUniverseModal
+            isOpen={isProductUniverseOpen}
+            onClose={() => setIsProductUniverseOpen(false)}
+            products={products}
+            currency={currency}
+            favorites={favorites}
+            onToggleFavorite={handleToggleFavorite}
+            onAddToCart={(prod, qty) => {
+              handleAddToCart(prod, qty ?? 1);
+              showToast(`تمت إضافة ${prod.name} إلى السلة بنجاح 🛒`);
+            }}
+            onSelectProduct={handleSelectProduct}
+          />
+        )}
+
+        {/* Cart Share Modal */}
+        <CartShareModal
+          isOpen={isCartShareOpen}
+          onClose={() => setIsCartShareOpen(false)}
+          cartItems={cartItems}
+          currency={currency}
+        />
+
+        {/* Customer Support Hub */}
+        <CustomerSupportHub
+          isOpen={isSupportHubOpen}
+          onClose={() => setIsSupportHubOpen(false)}
+          activeContext={supportContext}
+          currentProduct={selectedProductModal}
+          cartItems={cartItems}
+          currency={currency}
+          onOpenTracker={() => {
+            setIsSupportHubOpen(false);
+            setIsTrackerModalOpen(true);
+          }}
+          onOpenSearch={() => {
+            setIsSupportHubOpen(false);
+            window.scrollTo({ top: 400, behavior: "smooth" });
+          }}
         />
 
         {/* Cinematic 3D Product Deconstruction Modal */}
