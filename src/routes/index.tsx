@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
+import { X } from "lucide-react";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product as ProductionProduct } from "@/lib/store-data";
 import { useCart } from "@/lib/cart-store";
@@ -28,6 +29,7 @@ import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
 import { CategoryBar, type PriceRangePreset } from "@/components/storefront/CategoryBar";
+import { DiscoveryStrip } from "@/components/storefront/DiscoveryStrip";
 import { BestOffersSection } from "@/components/storefront/BestOffersSection";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { TrustBar } from "@/components/storefront/TrustBar";
@@ -89,7 +91,10 @@ export const Route = createFileRoute("/")({
 
 function HomeSkeleton() {
   return (
-    <div dir="rtl" className="min-h-screen bg-[#08060F] text-white p-4 space-y-6">
+    <div
+      dir="rtl"
+      className="min-h-screen space-y-6 bg-[var(--color-bg,#08090B)] p-4 text-[var(--color-text-primary,#F5F7FA)]"
+    >
       <HeroCarouselSkeleton />
       <ProductGridSkeleton count={8} />
     </div>
@@ -189,6 +194,7 @@ function HomePage() {
   const [priceRange, setPriceRange] = useState<PriceRangePreset>("all");
   const [customMinPrice, setCustomMinPrice] = useState<number | undefined>();
   const [customMaxPrice, setCustomMaxPrice] = useState<number | undefined>();
+  const [discoveryFilter, setDiscoveryFilter] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Category change loading feedback
@@ -346,8 +352,25 @@ function HomePage() {
     }
   };
 
+  const handleSelectDiscoveryOption = (type: string) => {
+    setDiscoveryFilter(type);
+    if (type === "best-selling") {
+      setSortBy("best-selling");
+    } else if (type === "newest") {
+      setSortBy("newest");
+    } else if (type === "gift") {
+      setSelectedCategory("smartwatches");
+    } else if (type === "home") {
+      setSelectedCategory("home_appliances");
+    } else if (type === "budget") {
+      setSortBy("price-low");
+    } else if (type === "surprise" && products.length > 0) {
+      setSelectedProductModal(products[Math.floor(Math.random() * products.length)]);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#08060F] text-white flex flex-col font-sans pb-28 selection:bg-[#7B3FFF] selection:text-white relative overflow-x-hidden transition-colors duration-200 dir-rtl text-right">
+    <div className="dir-rtl relative flex min-h-screen flex-col overflow-x-hidden bg-[var(--color-bg,#08090B)] pb-28 text-right font-sans text-[var(--color-text-primary,#F5F7FA)] transition-colors duration-200 selection:bg-[#2F6BFF] selection:text-white">
       {/* High-Tech Ambient Background in Empty Spaces */}
       <AmbientBackground />
 
@@ -395,6 +418,19 @@ function HomePage() {
             />
           )}
 
+          <DiscoveryStrip
+            onSelectDiscoveryOption={handleSelectDiscoveryOption}
+            activeFilter={discoveryFilter}
+            onResetFilter={() => {
+              setDiscoveryFilter(null);
+              setSortBy("default");
+              setSelectedCategory("all");
+              setPriceRange("all");
+              setCustomMinPrice(undefined);
+              setCustomMaxPrice(undefined);
+            }}
+          />
+
           {/* 4. 6-Category Grid & Filter/Sort Bar */}
           <CategoryBar
             selectedCategoryId={selectedCategory}
@@ -438,36 +474,66 @@ function HomePage() {
 
           {/* 7. Product Catalog Grid Section */}
           <section className="px-4 sm:px-6 py-6">
-            <div className="flex justify-between items-center mb-6 border-b border-gray-800/80 pb-4">
+            <div className="dir-rtl mb-6 flex flex-col justify-between gap-3 border-b border-[var(--color-border-default)] pb-4 sm:flex-row sm:items-center">
               <div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white">
+                <h3 className="text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
                   {selectedCategory === "all"
                     ? searchQuery
                       ? `نتائج البحث عن "${searchQuery}"`
                       : "جميع المنتجات المتوفرة"
                     : "منتجات القسم المختار"}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)] sm:text-sm">
                   عرض {filteredProducts.length} منتجات أصلية مع ضمان متجر إندكس
                 </p>
               </div>
+              {sortBy !== "default" ? (
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-[#2F6BFF]/40 bg-[#2F6BFF]/15 px-3 py-1.5 text-xs font-black text-[#2F6BFF] shadow-sm">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-[#2F6BFF]" />
+                    <span>
+                      الترتيب المطبق:{" "}
+                      {sortBy === "price-high"
+                        ? "الأعلى سعراً"
+                        : sortBy === "price-low"
+                          ? "الأقل سعراً"
+                          : sortBy === "best-selling"
+                            ? "الأكثر مبيعاً"
+                            : "الأحدث وصولاً"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSortBy("default")}
+                      className="cursor-pointer rounded-full p-1 text-[#2F6BFF] transition-colors hover:bg-rose-500/20 hover:text-rose-500"
+                      title="إلغاء الترتيب والإعادة للافتراضي"
+                      aria-label="إلغاء الترتيب"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {isLoading ? (
               <ProductGridSkeleton count={8} />
             ) : filteredProducts.length === 0 ? (
-              <div className="py-16 text-center text-gray-400 bg-[#100B1A] rounded-3xl border border-gray-800">
-                <span className="material-symbols-outlined text-[64px] text-gray-600 mb-2">
+              <div className="rounded-3xl border border-[var(--color-border-default)] bg-[var(--color-surface-1)] py-16 text-center text-[var(--color-text-secondary)]">
+                <span className="material-symbols-outlined mb-2 text-[64px] text-[var(--color-text-muted)]">
                   search_off
                 </span>
-                <p className="text-lg font-bold text-white">لم نتمكن من العثور على منتجات مطابقة</p>
-                <p className="text-sm text-gray-500 mt-1">جرّب تغيير كلمة البحث أو قسم المنتجات.</p>
+                <p className="text-lg font-bold text-[var(--color-text-primary)]">
+                  لم نتمكن من العثور على منتجات مطابقة
+                </p>
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                  جرّب تغيير كلمة البحث أو قسم المنتجات.
+                </p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
                     handleSelectCategoryWithLoading("all");
                   }}
-                  className="mt-4 bg-[#7B3FFF] text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg shadow-[#7B3FFF]/30 cursor-pointer"
+                  className="mt-4 cursor-pointer rounded-2xl bg-[#2F6BFF] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#2458D8]"
                 >
                   إعادة ضبط البحث
                 </button>
