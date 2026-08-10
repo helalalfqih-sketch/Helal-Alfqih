@@ -1,26 +1,26 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from 'react';
 
-export type LiteModeSetting = "auto" | "on" | "off";
+export type LiteModeSetting = 'auto' | 'on' | 'off';
 
-const PREFERENCE_KEY = "indexes_lite_mode_preference";
-const NOTIFICATION_KEY = "indexes_lite_mode_toast_dismissed";
+const PREFERENCE_KEY = 'indexes_lite_mode_preference';
+const NOTIFICATION_KEY = 'indexes_lite_mode_toast_dismissed';
 
 export function getLiteModePreference(): LiteModeSetting {
   try {
     const pref = localStorage.getItem(PREFERENCE_KEY);
-    if (pref === "on" || pref === "off" || pref === "auto") {
+    if (pref === 'on' || pref === 'off' || pref === 'auto') {
       return pref as LiteModeSetting;
     }
   } catch {
     // Fallback
   }
-  return "auto";
+  return 'auto';
 }
 
 export function setLiteModePreference(pref: LiteModeSetting): void {
   try {
     localStorage.setItem(PREFERENCE_KEY, pref);
-    window.dispatchEvent(new Event("indexes_lite_mode_changed"));
+    window.dispatchEvent(new Event('indexes_lite_mode_changed'));
   } catch {
     // Ignore storage write error
   }
@@ -30,19 +30,17 @@ export function setLiteModePreference(pref: LiteModeSetting): void {
   Checks whether network condition indicates slow connection or data-saver mode
  */
 export function detectSlowConnection(): boolean {
-  if (typeof navigator === "undefined") return false;
+  if (typeof navigator === 'undefined') return false;
 
   // Check network information API if available
-  const connection = (
-    navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }
-  ).connection;
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
   if (connection) {
     if (connection.saveData) return true;
-    if (connection.effectiveType === "slow-2g" || connection.effectiveType === "2g") return true;
+    if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') return true;
   }
 
   // Check offline state
-  if (typeof navigator.onLine !== "undefined" && !navigator.onLine) {
+  if (typeof navigator.onLine !== 'undefined' && !navigator.onLine) {
     return true;
   }
 
@@ -51,8 +49,8 @@ export function detectSlowConnection(): boolean {
 
 export function isLiteModeActive(): boolean {
   const pref = getLiteModePreference();
-  if (pref === "on") return true;
-  if (pref === "off") return false;
+  if (pref === 'on') return true;
+  if (pref === 'off') return false;
   // 'auto' mode
   return detectSlowConnection();
 }
@@ -64,7 +62,7 @@ export function useLiteMode() {
   const [pref, setPref] = useState<LiteModeSetting>(getLiteModePreference);
   const [isActive, setIsActive] = useState<boolean>(isLiteModeActive);
   const [isOffline, setIsOffline] = useState<boolean>(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
 
   useEffect(() => {
@@ -72,31 +70,31 @@ export function useLiteMode() {
       const currentPref = getLiteModePreference();
       setPref(currentPref);
       setIsActive(isLiteModeActive());
-      setIsOffline(typeof navigator !== "undefined" ? !navigator.onLine : false);
+      setIsOffline(typeof navigator !== 'undefined' ? !navigator.onLine : false);
     }
 
-    window.addEventListener("indexes_lite_mode_changed", updateState);
-    window.addEventListener("online", updateState);
-    window.addEventListener("offline", updateState);
+    window.addEventListener('indexes_lite_mode_changed', updateState);
+    window.addEventListener('online', updateState);
+    window.addEventListener('offline', updateState);
 
     // Network connection change listener if available
     const connection = (navigator as unknown as { connection?: EventTarget }).connection;
     if (connection) {
-      connection.addEventListener("change", updateState);
+      connection.addEventListener('change', updateState);
     }
 
     return () => {
-      window.removeEventListener("indexes_lite_mode_changed", updateState);
-      window.removeEventListener("online", updateState);
-      window.removeEventListener("offline", updateState);
+      window.removeEventListener('indexes_lite_mode_changed', updateState);
+      window.removeEventListener('online', updateState);
+      window.removeEventListener('offline', updateState);
       if (connection) {
-        connection.removeEventListener("change", updateState);
+        connection.removeEventListener('change', updateState);
       }
     };
   }, []);
 
   const toggle = () => {
-    const nextPref: LiteModeSetting = isActive ? "off" : "on";
+    const nextPref: LiteModeSetting = isActive ? 'off' : 'on';
     setLiteModePreference(nextPref);
   };
 

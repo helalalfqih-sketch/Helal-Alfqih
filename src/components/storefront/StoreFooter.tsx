@@ -1,16 +1,8 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { STORE_INFO } from "./constants";
-import {
-  MessageCircle,
-  MapPin,
-  Truck,
-  Package,
-  Facebook,
-  Instagram,
-  PhoneCall,
-} from "lucide-react";
-import { StoreLogo } from "./StoreLogo";
+﻿import React from 'react';
+import { motion } from 'framer-motion';
+import { STORE_INFO } from './constants';
+import { MessageCircle, MapPin, Truck, Package, Facebook, Instagram, PhoneCall } from 'lucide-react';
+import { StoreLogo } from './StoreLogo';
 
 interface StoreFooterProps {
   onOpenTracker: () => void;
@@ -18,11 +10,11 @@ interface StoreFooterProps {
 
 export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
   const whatsappUrl = `https://wa.me/${STORE_INFO.whatsappNumber}?text=${encodeURIComponent(
-    "السلام عليكم، أود الاستفسار عن منتجات متجر إندكس",
+    'السلام عليكم، أود الاستفسار عن منتجات متجر إندكس'
   )}`;
 
   return (
-    <motion.footer
+    <motion.footer 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -30,6 +22,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
       className="px-4 sm:px-6 py-8 mb-24 border-t border-[var(--color-border-default)] bg-[var(--color-surface-1)]/80 backdrop-blur-md"
     >
       <div className="bg-[var(--color-surface-2)]/80 backdrop-blur-md border border-[var(--color-border-default)] rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-8">
+        
         {/* Contact Info List (Right / Main) */}
         <div className="flex-1 flex flex-col gap-3.5 text-right w-full">
           {/* WhatsApp Contact */}
@@ -40,10 +33,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
             className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm hover:text-[var(--color-primary)] transition-colors cursor-pointer group"
           >
             <span>
-              للطلب والاستفسار (واتساب):{" "}
-              <strong className="text-[var(--color-text-primary)] dir-ltr inline-block group-hover:text-emerald-500 transition-colors">
-                967771370740
-              </strong>
+              للطلب والاستفسار (واتساب): <strong className="text-[var(--color-text-primary)] dir-ltr inline-block group-hover:text-emerald-500 transition-colors">967771370740</strong>
             </span>
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform">
               <MessageCircle className="w-4 h-4 fill-emerald-500/20" />
@@ -53,10 +43,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
           {/* Location */}
           <div className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm">
             <span>
-              العنوان:{" "}
-              <strong className="text-[var(--color-text-primary)]">
-                صنعاء - شارع بيون - مقابل صيدلية الرعاية الصحية
-              </strong>
+              العنوان: <strong className="text-[var(--color-text-primary)]">صنعاء - شارع بيون - مقابل صيدلية الرعاية الصحية</strong>
             </span>
             <div className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0">
               <MapPin className="w-4 h-4" />
@@ -79,7 +66,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
             <span>
               <strong className="text-[var(--color-text-primary)] underline decoration-[#2F6BFF] group-hover:text-[#2F6BFF] transition-colors">
                 تتبع طلبك
-              </strong>{" "}
+              </strong>{' '}
               - برقم الطلب وآخر 4 أرقام من هاتفك
             </span>
             <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-500 shrink-0 group-hover:scale-110 transition-transform">
@@ -129,11 +116,9 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
 
         {/* Circular Gold Badge Store Logo ("INDEXES STORE") */}
         <div className="shrink-0 flex justify-center">
-          <StoreLogo
-            variant="full"
-            className="p-4 bg-[var(--color-surface-2)]/60 border border-[var(--color-border-default)] rounded-3xl shadow-xl backdrop-blur-md"
-          />
+          <StoreLogo variant="full" className="p-4 bg-[var(--color-surface-2)]/60 border border-[var(--color-border-default)] rounded-3xl shadow-xl backdrop-blur-md" />
         </div>
+
       </div>
 
       <div className="mt-6 text-center text-gray-500 text-xs">

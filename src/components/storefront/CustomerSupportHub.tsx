@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  MessageCircle, Phone, X, Send, Sparkles,
-  Package, ShoppingCart, HelpCircle, Copy, Check,
+import { 
+  MessageCircle, Phone, X, Send, Sparkles, 
+  Package, ShoppingCart, HelpCircle, Copy, Check, 
   Building2, Box, Info, ArrowLeft, RefreshCw
 } from 'lucide-react';
-import { STORE_INFO } from './constants';
+import { STORE_INFO } from './constants';;
 import { Product, CartItem, Currency } from './types';
 import { formatPrice } from './currency';
 
@@ -87,9 +87,9 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
   const handleOpenWhatsApp = (customMsg?: string) => {
     const textToSend = customMsg || composerText || 'مرحباً، أود الاستفسار عن خدمات متجر إندكس.';
     const url = `https://wa.me/${rawNumber}?text=${encodeURIComponent(textToSend)}`;
-
+    
     if ('vibrate' in navigator) {
-      try { navigator.vibrate(15); } catch (e) { /* ignore */ }
+      try { navigator.vibrate(15); } catch (e) {}
     }
 
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -369,14 +369,11 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
   const actions = getContextActions();
   const visibleActions = showAllActions ? actions : actions.slice(0, 4);
 
-  // suppress unused warning
-  void actionMetrics;
-
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div
+      <div 
         className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:justify-start bg-black/60 backdrop-blur-sm p-0 sm:p-6 dir-rtl"
         onClick={onClose}
       >
@@ -385,7 +382,7 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           className="w-full sm:max-w-[420px] max-h-[85vh] sm:max-h-[75vh] bg-[#0d091f]/95 border-t sm:border border-emerald-500/30 rounded-t-[28px] sm:rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)] text-white overflow-hidden flex flex-col sm:ml-6"
         >
           {/* Mobile Drag Handle */}
@@ -421,7 +418,7 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
 
           {/* Body Content */}
           <div className="p-4 overflow-y-auto space-y-4 no-scrollbar flex-1">
-
+            
             {/* Inline Sub-Forms (Wholesale or Special Order) */}
             {activeForm === 'wholesale' && (
               <form onSubmit={handleWholesaleSubmit} className="bg-[#150f33] border border-blue-500/30 rounded-2xl p-3.5 space-y-3">
@@ -564,7 +561,7 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
                 <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium mb-1">
                   <span>خيارات سريعة سياقية:</span>
                   <span className="text-emerald-400 font-bold">
-                    {activeContext === 'product' ? 'خيارات المنتج' :
+                    {activeContext === 'product' ? 'خيارات المنتج' : 
                      activeContext === 'cart' ? 'خيارات السلة' :
                      activeContext === 'checkout' ? 'خيارات الدفع والتوصيل' :
                      activeContext === 'success' ? 'خيارات إتمام الطلب' : 'خيارات المساعدة'}

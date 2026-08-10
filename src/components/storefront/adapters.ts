@@ -117,7 +117,6 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
 
   return {
     id: p.id,
-    slug: p.slug,
     name: p.name,
     subtitle: p.description
       ? p.description.length > 60

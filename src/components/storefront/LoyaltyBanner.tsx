@@ -1,6 +1,6 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { Gem, Crown, ChevronLeft, Star } from "lucide-react";
+﻿import React from 'react';
+import { motion } from 'framer-motion';
+import { Gem, Crown, ChevronLeft, Star } from 'lucide-react';
 
 interface LoyaltyBannerProps {
   onOpenLoyaltyModal: () => void;
@@ -64,11 +64,11 @@ export const LoyaltyBanner: React.FC<LoyaltyBannerProps> = ({ onOpenLoyaltyModal
 
           {/* Level Progress Bar */}
           <div className="w-full bg-[var(--color-surface-3)] h-1.5 rounded-full overflow-hidden mt-1">
-            <motion.div
+            <motion.div 
               initial={{ width: 0 }}
-              whileInView={{ width: "75%" }}
+              whileInView={{ width: '75%' }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
               className="bg-gradient-to-r from-[#2F6BFF] to-[#3B82F6] h-full rounded-full"
             />
           </div>
@@ -77,3 +77,4 @@ export const LoyaltyBanner: React.FC<LoyaltyBannerProps> = ({ onOpenLoyaltyModal
     </div>
   );
 };
+

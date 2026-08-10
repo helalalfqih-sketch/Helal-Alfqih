@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, WifiOff, Check, X, ShieldAlert, Settings } from 'lucide-react';
 import { useLiteMode, LiteModeSetting } from '@/lib/liteMode';

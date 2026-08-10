@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Truck, CheckCircle2, RefreshCw, MessageSquare, ShieldCheck, AlertCircle, Phone, X, BookOpen, Send, Sparkles, Upload, Check } from 'lucide-react';
 import { OrderStatus, Product, CartItem, Currency } from './types';
 import { formatPrice } from './currency';
-import { STORE_INFO } from './constants';
+import { STORE_INFO } from './constants';;
 import {
   prepareReorderItems,
   getVerifiedCompatibleAccessories,
@@ -42,10 +42,10 @@ export const PostPurchaseHubModal: React.FC<PostPurchaseHubModalProps> = ({
 
   if (!isOpen || !order) return null;
 
-  const compatibleAccessories = getVerifiedCompatibleAccessories(order, catalogProducts);
+  const compatibleAccessories = getVerifiedCompatibleAccessories(order.items.map(i => i.productName), catalogProducts);
 
   const handleReorder = () => {
-    const { availableItems, unavailableNames, priceChanges } = prepareReorderItems(order, catalogProducts);
+    const { availableItems, outOfStockItems, priceChanges } = prepareReorderItems(order.items, catalogProducts);
 
     if (availableItems.length === 0) {
       setReorderNotice('عذراً، جميع منتجات هذا الطلب غير متوفرة في المخزون حالياً.');
@@ -58,8 +58,8 @@ export const PostPurchaseHubModal: React.FC<PostPurchaseHubModalProps> = ({
     if (priceChanges.length > 0) {
       msg += ` تنبيه: تغيرت أسعار بعض المنتجات حسب تحديثات المتجر الجديدة.`;
     }
-    if (unavailableNames.length > 0) {
-      msg += ` (تعذر إضافة: ${unavailableNames.join(', ')})`;
+    if (outOfStockItems.length > 0) {
+      msg += ` (تعذر إضافة: ${outOfStockItems.join(', ')})`;
     }
     setReorderNotice(msg);
   };
@@ -68,16 +68,16 @@ export const PostPurchaseHubModal: React.FC<PostPurchaseHubModalProps> = ({
     e.preventDefault();
     setIsSubmittingSupport(true);
 
-    await submitSupportTicket({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      phone: order.phone,
+    await submitSupportTicket(
+      order.id,
+      order.orderNumber,
+      order.customerName,
+      order.phone,
       issueType,
       subject,
       message,
-      attachmentUrl: attachmentFileName ? `attached_${attachmentFileName}` : undefined,
-    });
+      attachmentFileName ? `attached_${attachmentFileName}` : undefined
+    );
 
     setIsSubmittingSupport(false);
     setSupportSuccess(true);

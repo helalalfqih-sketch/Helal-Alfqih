@@ -320,7 +320,7 @@ function HomePage() {
   const handleAddToCart = (product: DesignProduct, quantity: number = 1) => {
     const raw = rawProductMap.get(product.id) || {
       id: product.id,
-      slug: product.slug || product.id,
+      slug: product.id,
       name: product.name,
       description: product.description,
       price: product.priceYER,
@@ -494,6 +494,7 @@ function HomePage() {
 
           {/* 6. AI-Powered Smart Search Section */}
           <AISearchSection
+            products={products}
             currency={currency}
             onSelectProduct={(prod) => setSelectedProductModal(prod)}
             onSearchQuerySubmit={(q) => {
@@ -605,7 +606,7 @@ function HomePage() {
         />
 
         {/* Floating WhatsApp Quick Contact Button */}
-        <FloatingWhatsAppButton />
+        <FloatingWhatsAppButton isOpen={true} onToggle={() => {}} />
 
         {/* Modals & Drawers */}
         <ProductDetailModal
@@ -661,7 +662,7 @@ function HomePage() {
               handleAddToCart(prod, qty ?? 1);
               showToast(`تمت إضافة ${prod.name} إلى السلة بنجاح 🛒`);
             }}
-            onSelectProduct={handleSelectProduct}
+            onSelectProductDetails={handleSelectProduct}
           />
         )}
 
@@ -670,7 +671,8 @@ function HomePage() {
           isOpen={isCartShareOpen}
           onClose={() => setIsCartShareOpen(false)}
           cartItems={cartItems}
-          currency={currency}
+          catalogProducts={products}
+          onApplyRecoveredCart={(items) => items.forEach(i => handleAddToCart(i.product, i.quantity))}
         />
 
         {/* Customer Support Hub */}
@@ -707,10 +709,10 @@ function HomePage() {
         )}
 
         <CartDrawer
+          currency={currency}
           isOpen={isCartDrawerOpen}
           onClose={() => setIsCartDrawerOpen(false)}
           cartItems={cartItems}
-          currency={currency}
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveCartItem}
           onCheckout={(discount) => {
@@ -721,10 +723,10 @@ function HomePage() {
         />
 
         <CheckoutModal
+          currency={currency}
           isOpen={isCheckoutModalOpen}
           onClose={() => setIsCheckoutModalOpen(false)}
           cartItems={cartItems}
-          currency={currency}
           couponDiscountPercent={appliedCouponDiscount}
           onOrderPlaced={handleOrderPlaced}
         />
@@ -748,10 +750,9 @@ function HomePage() {
           onClose={() => setIsAccountDrawerOpen(false)}
           currency={currency}
           onSelectCurrency={setCurrency}
-          userOrders={userOrders}
           favoritesCount={favorites.length}
           onOpenWishlist={() => setIsWishlistDrawerOpen(true)}
-          onOpenTracker={() => setIsTrackerModalOpen(true)}
+          onOpenTrackerForOrder={() => setIsTrackerModalOpen(true)}
           onOpenAdmin={() => setIsAdminOpen(true)}
         />
 

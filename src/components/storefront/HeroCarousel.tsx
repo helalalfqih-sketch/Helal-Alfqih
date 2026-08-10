@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Product } from "./types";
-import { HolographicGlobe, type HolographicGlobeProduct } from "./HolographicGlobe";
-import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit, ArrowUpRight } from "lucide-react";
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Product } from './types';
+import { HolographicGlobe } from './HolographicGlobe';
+import { Sparkles, ChevronLeft, Maximize2, Minimize2, Orbit, ArrowUpRight } from 'lucide-react';
 
 interface HeroCarouselProps {
-  products?: Product[];
+  products: Product[];
   onSelectCategory: (categoryId: string) => void;
   onSelectProduct: (product: Product) => void;
   onOpenDeconstruction?: () => void;
   onOpenUniverse?: () => void;
 }
 
-export const HeroCarousel: React.FC<HeroCarouselProps> = ({
-  products = [],
+export const HeroCarousel: React.FC<HeroCarouselProps> = ({ products,
   onSelectCategory,
   onSelectProduct,
   onOpenDeconstruction,
@@ -30,26 +29,14 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const globeProducts = products.slice(0, 8);
-
-  const handleGlobeSelect = (globeProduct: HolographicGlobeProduct) => {
-    const product = products.find(
-      (candidate) =>
-        candidate.id === globeProduct.id ||
-        (candidate.slug && candidate.slug === globeProduct.slug),
-    );
-
-    if (product) {
-      onSelectProduct(product);
-    }
-  };
+  const floatingproducts = products.slice(0, 8);
 
   return (
     <div className="px-3 sm:px-6 py-2">
       <motion.div
         ref={containerRef}
         layout
-        transition={{ type: "spring", stiffness: 220, damping: 25 }}
+        transition={{ type: 'spring', stiffness: 220, damping: 25 }}
         className="relative w-full rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[var(--color-surface-1)]/90 backdrop-blur-md border border-[var(--color-border-default)] shadow-[var(--shadow-md)] p-4 sm:p-7 flex flex-col justify-between relative group"
       >
         {/* Subtle Rim Lighting Highlights */}
@@ -105,8 +92,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
                   </div>
 
                   <div className="text-lg sm:text-2xl md:text-3xl font-black text-[var(--color-text-primary)] tracking-tight mt-0.5">
-                    خصومات تصل إلى{" "}
-                    <span className="text-[#2F6BFF] font-black text-xl sm:text-3xl">50%</span>
+                    خصومات تصل إلى <span className="text-[#2F6BFF] font-black text-xl sm:text-3xl">50%</span>
                   </div>
 
                   <p className="text-[var(--color-text-secondary)] text-[11px] sm:text-sm font-medium leading-normal max-w-xs line-clamp-1 sm:line-clamp-2">
@@ -123,7 +109,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
                     </button>
 
                     <button
-                      onClick={() => onSelectCategory("all")}
+                      onClick={() => onSelectCategory('all')}
                       aria-label="عرض المنتجات"
                       className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-[11px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full border border-[var(--color-border-default)] shadow-sm flex items-center gap-1 transition-all cursor-pointer"
                     >
@@ -139,8 +125,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
                   title="اضغط لتوسيع المعرض 3D"
                 >
                   <HolographicGlobe
-                    products={globeProducts}
-                    onSelectProduct={handleGlobeSelect}
+                    products={floatingproducts}
+                    onSelectProduct={onSelectProduct}
                     className="w-full h-full"
                     showTitleBadge={false}
                   />
@@ -152,9 +138,9 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
             <motion.div
               key="expanded-globe"
               initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: "auto", scale: 1 }}
+              animate={{ opacity: 1, height: 'auto', scale: 1 }}
               exit={{ opacity: 0, height: 0, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 200, damping: 22 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 22 }}
               className="relative z-10 flex flex-col items-center justify-between text-center space-y-4 py-2"
             >
               <div className="w-full flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
@@ -183,8 +169,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
 
               <div className="my-2 w-full h-[380px] sm:h-[420px] max-w-[480px] mx-auto flex items-center justify-center">
                 <HolographicGlobe
-                  products={globeProducts}
-                  onSelectProduct={handleGlobeSelect}
+                  products={floatingproducts}
+                  onSelectProduct={onSelectProduct}
                   className="w-full h-full"
                   showTitleBadge={false}
                 />
@@ -192,7 +178,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
 
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
-                  onClick={() => onSelectCategory("offers")}
+                  onClick={() => onSelectCategory('offers')}
                   className="bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-extrabold px-5 py-2 rounded-full shadow-md flex items-center gap-2 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-amber-300" />
@@ -220,8 +206,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
               aria-label={`الشريحة ${idx + 1}`}
               className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 cursor-pointer ${
                 idx === currentSlide
-                  ? "w-5 sm:w-6 bg-[#2F6BFF]"
-                  : "w-1.5 sm:w-2 bg-[var(--color-border-default)] hover:bg-[var(--color-border-strong)]"
+                  ? 'w-5 sm:w-6 bg-[#2F6BFF]'
+                  : 'w-1.5 sm:w-2 bg-[var(--color-border-default)] hover:bg-[var(--color-border-strong)]'
               }`}
             />
           ))}

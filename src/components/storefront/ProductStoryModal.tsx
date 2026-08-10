@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingCart, Sparkles } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ShoppingCart, Sparkles } from 'lucide-react';
 import { Product, Currency } from './types';
 import { formatPrice } from './currency';
 
@@ -25,7 +25,7 @@ export const ProductStoryModal: React.FC<ProductStoryModalProps> = ({
 
   const slides = [
     {
-      title: 'اكتشف الفخامة والأداء',
+      title: 'استكشف الفخامة والأداء',
       subtitle: product.name,
       badge: 'منتج أصلي 100%',
       image: product.image,
@@ -105,7 +105,7 @@ export const ProductStoryModal: React.FC<ProductStoryModalProps> = ({
             <img
               src={slides[currentSlide].image}
               alt={slides[currentSlide].title}
-              className="max-h-[260px] object-contain drop-shadow-2xl my-auto"
+              className="max-h-[260px] object-contain drop-shadow-2xl my-auto animate-pulse-subtle"
             />
 
             <div className="text-center space-y-2 mt-4 px-2">

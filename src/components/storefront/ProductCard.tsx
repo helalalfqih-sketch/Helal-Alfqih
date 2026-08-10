@@ -1,24 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Product, Currency } from "./types";
-import { formatPrice } from "./currency";
-import {
-  Heart,
-  ShoppingCart,
-  Star,
-  Sparkles,
-  Eye,
-  ZoomIn,
-  X,
-  Share2,
-  Check,
-  Flame,
-  AlertTriangle,
-  Clock,
-} from "lucide-react";
+﻿import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Product, Currency } from './types';
+import { formatPrice } from './currency';
+import { Heart, ShoppingCart, Star, Sparkles, Eye, ZoomIn, X, Share2, Check, Flame, AlertTriangle, Clock } from 'lucide-react';
 
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80";
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
 
 interface ProductCardProps {
   product: Product;
@@ -27,7 +13,7 @@ interface ProductCardProps {
   onToggleFavorite: (product: Product) => void;
   onAddToCart: (product: Product, selectedColor?: string) => void;
   onSelectProduct: (product: Product) => void;
-  variant?: "horizontal" | "grid";
+  variant?: 'horizontal' | 'grid';
   index?: number;
 }
 
@@ -38,7 +24,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleFavorite,
   onAddToCart,
   onSelectProduct,
-  variant = "horizontal",
+  variant = 'horizontal',
+  index = 0,
 }) => {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -47,7 +34,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [copiedToast, setCopiedToast] = useState(false);
   const [isQuickAdded, setIsQuickAdded] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | undefined>(
-    product.colors && product.colors.length > 0 ? product.colors[0] : undefined,
+    product.colors && product.colors.length > 0 ? product.colors[0] : undefined
   );
 
   useEffect(() => {
@@ -76,7 +63,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.stopPropagation();
     const shareData = {
       title: product.name,
-      text: `${product.name} - ${product.subtitle || ""}\nالسعر: ${formatPrice(product.priceYER, currency)}`,
+      text: `${product.name} - ${product.subtitle || ''}\nالسعر: ${formatPrice(product.priceYER, currency)}`,
       url: window.location.href,
     };
 
@@ -84,18 +71,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.debug("Share dismissed or failed:", err);
+        console.log('Share dismissed or failed:', err);
       }
     } else {
       try {
-        await navigator.clipboard.writeText(
-          `${shareData.title}\n${shareData.text}\n${shareData.url}`,
-        );
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
         setCopiedToast(true);
         setTimeout(() => setCopiedToast(false), 2000);
       } catch {
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareData.title}\n${shareData.text}\n${shareData.url}`)}`;
-        window.open(whatsappUrl, "_blank");
+        window.open(whatsappUrl, '_blank');
       }
     }
   };
@@ -107,11 +92,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const secondaryImage =
     product.secondaryImage ||
     (product.gallery && product.gallery.length > 0
-      ? product.gallery.find((img) => img !== product.image) ||
-        (product.gallery.length > 1 ? product.gallery[1] : null)
+      ? product.gallery.find((img) => img !== product.image) || (product.gallery.length > 1 ? product.gallery[1] : null)
       : null);
 
-  const badgeText = product.discountBadge || (discountPercent ? `خصم ${discountPercent}%` : null);
+  const badgeText =
+    product.discountBadge || (discountPercent ? `خصم ${discountPercent}%` : null);
 
   // Automated Badges Metadata Computation
   const isBestSeller =
@@ -122,38 +107,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const isNewArrival =
     product.isNewArrival ||
-    product.id === "prod-5" ||
-    product.id === "prod-6" ||
-    product.id === "prod-7";
+    product.id === 'prod-5' ||
+    product.id === 'prod-6' ||
+    product.id === 'prod-7';
 
   const isLowStock =
     product.inStock !== false &&
     (product.isLowStock ||
       (product.stockCount !== undefined && product.stockCount > 0 && product.stockCount <= 5) ||
-      product.id === "prod-1" ||
-      product.id === "prod-3" ||
-      product.id === "prod-9");
+      product.id === 'prod-1' ||
+      product.id === 'prod-3' ||
+      product.id === 'prod-9');
 
   const stockText =
-    product.stockCount !== undefined ? `متبقي ${product.stockCount} قطع` : "كمية محدودة";
+    product.stockCount !== undefined ? `متبقي ${product.stockCount} قطع` : 'كمية محدودة';
 
   const containerClasses =
-    variant === "horizontal"
-      ? "snap-start flex-shrink-0 w-[160px] sm:w-[190px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg cursor-pointer h-full overflow-hidden"
-      : "bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg w-full cursor-pointer h-full overflow-hidden";
+    variant === 'horizontal'
+      ? 'snap-start flex-shrink-0 w-[160px] sm:w-[190px] bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg cursor-pointer h-full overflow-hidden'
+      : 'bg-[var(--color-surface-1)] border border-[var(--color-border-default)] hover:border-[#2F6BFF]/60 rounded-2xl flex flex-col justify-between relative group transition-all duration-200 shadow-sm hover:shadow-lg w-full cursor-pointer h-full overflow-hidden';
 
   return (
     <>
-      <div onClick={() => onSelectProduct(product)} className={containerClasses}>
+      <div
+        onClick={() => onSelectProduct(product)}
+        className={containerClasses}
+      >
         {/* 1. PRODUCT IMAGE CONTAINER (Clean Aspect Ratio) */}
         <div className="relative w-full aspect-4/3 sm:aspect-square bg-[var(--color-surface-2)] p-2 sm:p-3 flex items-center justify-center overflow-hidden">
           {/* Primary Image */}
           <img
             src={product.image || FALLBACK_IMAGE}
             alt={product.name}
-            onError={(e) => {
-              e.currentTarget.src = FALLBACK_IMAGE;
-            }}
+            onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
             className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
           />
@@ -175,11 +161,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             aria-label="إضافة للمفضلة"
             className={`absolute top-2 left-2 z-10 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer border shadow-sm ${
               isFavorite
-                ? "text-rose-500 bg-rose-500/15 border-rose-500/40"
-                : "text-[var(--color-text-secondary)] bg-[var(--color-surface-1)]/80 hover:bg-[var(--color-surface-1)] border-[var(--color-border-default)]"
+                ? 'text-rose-500 bg-rose-500/15 border-rose-500/40'
+                : 'text-[var(--color-text-secondary)] bg-[var(--color-surface-1)]/80 hover:bg-[var(--color-surface-1)] border-[var(--color-border-default)]'
             }`}
           >
-            <Heart className={`w-4 h-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
           </button>
         </div>
 
@@ -207,9 +193,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {/* Rating */}
             <div className="flex items-center gap-1 text-[11px] mt-1 text-[var(--color-text-secondary)]">
               <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-              <span className="text-[var(--color-text-primary)] font-bold">
-                {product.rating || "4.8"}
-              </span>
+              <span className="text-[var(--color-text-primary)] font-bold">{product.rating || '4.8'}</span>
               <span className="text-[var(--color-text-muted)]">({product.reviewsCount || 85})</span>
             </div>
           </div>
@@ -239,8 +223,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 }}
                 className={`flex-1 py-2 px-2.5 rounded-xl text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
                   isQuickAdded
-                    ? "bg-emerald-500 text-white shadow-emerald-500/30"
-                    : "bg-[#2F6BFF] hover:bg-[#2458D8] active:scale-95 text-white shadow-sm shadow-blue-600/20"
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                    : 'bg-[#2F6BFF] hover:bg-[#2458D8] active:scale-95 text-white shadow-sm shadow-blue-600/20'
                 }`}
                 title="إضافة المنتج للسلة"
               >
@@ -274,259 +258,246 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </div>
 
-      {/* QUICK VIEW & INTERACTIVE ZOOM LIGHTBOX MODAL */}
-      <AnimatePresence>
-        {isQuickViewOpen && (
+    {/* QUICK VIEW & INTERACTIVE ZOOM LIGHTBOX MODAL */}
+    <AnimatePresence>
+      {isQuickViewOpen && (
+        <motion.div
+          key="quickview-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md dir-rtl"
+        >
+          {/* Backdrop Click to Close */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsQuickViewOpen(false);
+            }}
+            className="absolute inset-0"
+          />
+
+          {/* Modal Dialog Content */}
           <motion.div
-            key="quickview-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md dir-rtl"
+            key="quickview-dialog"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative z-10 w-full max-w-2xl bg-[var(--color-surface-1)] rounded-3xl border border-[var(--color-border-default)] shadow-2xl overflow-hidden flex flex-col md:flex-row text-right"
           >
-            {/* Backdrop Click to Close */}
-            <div
+            {/* Close Button */}
+            <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsQuickViewOpen(false);
               }}
-              className="absolute inset-0"
-            />
-
-            {/* Modal Dialog Content */}
-            <motion.div
-              key="quickview-dialog"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-2xl bg-[var(--color-surface-1)] rounded-3xl border border-[var(--color-border-default)] shadow-2xl overflow-hidden flex flex-col md:flex-row text-right"
+              className="absolute top-4 left-4 z-20 w-9 h-9 rounded-full bg-black/60 text-white hover:bg-rose-600 flex items-center justify-center transition-colors cursor-pointer shadow-lg border border-white/10"
+              title="إغلاق"
             >
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsQuickViewOpen(false);
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Image & Zoom Inspector Viewport */}
+            <div className="w-full md:w-1/2 bg-[var(--color-surface-2)] p-4 flex flex-col items-center justify-center relative min-h-[260px] sm:min-h-[320px] overflow-hidden select-none">
+              {/* Interactive Zoom Canvas */}
+              <div
+                onMouseEnter={() => setIsZooming(true)}
+                onMouseLeave={() => setIsZooming(false)}
+                onMouseMove={handleMouseMove}
+                onTouchStart={() => setIsZooming(true)}
+                onTouchEnd={() => setIsZooming(false)}
+                onTouchMove={(e) => {
+                  if (!e.touches[0]) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
+                  setZoomPosition({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
                 }}
-                className="absolute top-4 left-4 z-20 w-9 h-9 rounded-full bg-black/60 text-white hover:bg-rose-600 flex items-center justify-center transition-colors cursor-pointer shadow-lg border border-white/10"
-                title="إغلاق"
+                className="relative w-full h-[240px] sm:h-[280px] flex items-center justify-center cursor-crosshair overflow-hidden rounded-2xl bg-[var(--color-surface-1)] border border-[var(--color-border-subtle)]"
+                style={{ touchAction: 'pan-y' }}
               >
-                <X className="w-5 h-5" />
-              </button>
+                <img
+                  src={currentImage}
+                  alt={product.name}
+                  className="max-h-full max-w-full object-contain p-2"
+                />
 
-              {/* Image & Zoom Inspector Viewport */}
-              <div className="w-full md:w-1/2 bg-[var(--color-surface-2)] p-4 flex flex-col items-center justify-center relative min-h-[260px] sm:min-h-[320px] overflow-hidden select-none">
-                {/* Interactive Zoom Canvas */}
-                <div
-                  onMouseEnter={() => setIsZooming(true)}
-                  onMouseLeave={() => setIsZooming(false)}
-                  onMouseMove={handleMouseMove}
-                  onTouchStart={() => setIsZooming(true)}
-                  onTouchEnd={() => setIsZooming(false)}
-                  onTouchMove={(e) => {
-                    if (!e.touches[0]) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
-                    const y = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
-                    setZoomPosition({
-                      x: Math.max(0, Math.min(100, x)),
-                      y: Math.max(0, Math.min(100, y)),
-                    });
-                  }}
-                  className="relative w-full h-[240px] sm:h-[280px] flex items-center justify-center cursor-crosshair overflow-hidden rounded-2xl bg-[var(--color-surface-1)] border border-[var(--color-border-subtle)]"
-                  style={{ touchAction: "pan-y" }}
-                >
-                  <img
-                    src={currentImage}
-                    alt={product.name}
-                    className="max-h-full max-w-full object-contain p-2"
+                {/* Magnifying Glass Zoom Lens Overlay */}
+                {isZooming && (
+                  <div
+                    className="absolute inset-0 pointer-events-none transition-opacity duration-150 rounded-2xl"
+                    style={{
+                      backgroundImage: `url(${currentImage})`,
+                      backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                      backgroundSize: '280%',
+                      backgroundRepeat: 'no-repeat',
+                    }}
                   />
+                )}
 
-                  {/* Magnifying Glass Zoom Lens Overlay */}
-                  {isZooming && (
-                    <div
-                      className="absolute inset-0 pointer-events-none transition-opacity duration-150 rounded-2xl"
-                      style={{
-                        backgroundImage: `url(${currentImage})`,
-                        backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                        backgroundSize: "280%",
-                        backgroundRepeat: "no-repeat",
+                {/* Zoom Lens Hint Badge */}
+                <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1.5 pointer-events-none backdrop-blur-md border border-white/10">
+                  <ZoomIn className="w-3 h-3 text-blue-400" />
+                  <span>حرك الماوس لتكبير التفاصيل (2.8x)</span>
+                </div>
+              </div>
+
+              {/* Gallery Thumbnails */}
+              {images.length > 1 && (
+                <div
+                  className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1 px-1"
+                  style={{ touchAction: 'pan-x pan-y', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedImageIndex(idx);
                       }}
-                    />
-                  )}
+                      className={`w-12 h-12 rounded-xl border-2 overflow-hidden shrink-0 transition-all cursor-pointer ${
+                        selectedImageIndex === idx
+                          ? 'border-[#2F6BFF] ring-2 ring-[#2F6BFF]/30 scale-105'
+                          : 'border-[var(--color-border-default)] opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt=""
+                        className="w-full h-full object-contain p-0.5 bg-[var(--color-surface-1)]"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                  {/* Zoom Lens Hint Badge */}
-                  <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1.5 pointer-events-none backdrop-blur-md border border-white/10">
-                    <ZoomIn className="w-3 h-3 text-blue-400" />
-                    <span>حرك الماوس لتكبير التفاصيل (2.8x)</span>
+            {/* Product Quick Details & Cart Action */}
+            <div className="w-full md:w-1/2 p-5 sm:p-6 flex flex-col justify-between space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#2F6BFF] bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
+                    معاينة وتكبير سريع
+                  </span>
+                  <div className="flex items-center gap-1 text-xs text-amber-500 font-bold">
+                    <Star className="w-4 h-4 fill-amber-400" />
+                    <span>{product.rating || '4.8'}</span>
                   </div>
                 </div>
 
-                {/* Gallery Thumbnails */}
-                {images.length > 1 && (
-                  <div
-                    className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1 px-1"
-                    style={{
-                      touchAction: "pan-x pan-y",
-                      scrollbarWidth: "none",
-                      msOverflowStyle: "none",
-                    }}
-                  >
-                    {images.map((img, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedImageIndex(idx);
-                        }}
-                        className={`w-12 h-12 rounded-xl border-2 overflow-hidden shrink-0 transition-all cursor-pointer ${
-                          selectedImageIndex === idx
-                            ? "border-[#2F6BFF] ring-2 ring-[#2F6BFF]/30 scale-105"
-                            : "border-[var(--color-border-default)] opacity-70 hover:opacity-100"
-                        }`}
-                      >
-                        <img
-                          src={img}
-                          alt=""
-                          className="w-full h-full object-contain p-0.5 bg-[var(--color-surface-1)]"
-                        />
-                      </button>
-                    ))}
+                <h3 className="text-lg font-black text-[var(--color-text-primary)] leading-snug">
+                  {product.name}
+                </h3>
+
+                <p className="text-xs text-[var(--color-text-secondary)] line-clamp-3 leading-relaxed">
+                  {product.description || 'منتج مميز عالي الجودة متاح الآن للطلب المباشر مع التوصيل لكافة المحافظات.'}
+                </p>
+              </div>
+
+              <div className="space-y-4 pt-3 border-t border-[var(--color-border-subtle)]">
+                {/* Colors in Quick View */}
+                {product.colors && product.colors.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[11px] text-[var(--color-text-muted)] font-bold block">
+                      اختر اللون:
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {product.colors.map((color) => {
+                        const isSelected = selectedColor === color;
+                        const isWhite =
+                          color.toLowerCase() === '#ffffff' ||
+                          color.toLowerCase() === '#fff' ||
+                          color.toLowerCase() === 'white';
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedColor(color);
+                            }}
+                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl transition-all cursor-pointer flex items-center justify-center relative border ${
+                              isSelected
+                                ? 'border-[#2F6BFF] ring-2 ring-[#2F6BFF]/40 scale-105'
+                                : 'border-[var(--color-border-default)] hover:scale-105 opacity-80 hover:opacity-100'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={`اختيار اللون ${color}`}
+                          >
+                            {isSelected && (
+                              <Check className={`w-3.5 h-3.5 ${isWhite ? 'text-black' : 'text-white'}`} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {/* Product Quick Details & Cart Action */}
-              <div className="w-full md:w-1/2 p-5 sm:p-6 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#2F6BFF] bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
-                      معاينة وتكبير سريع
+                {/* Price */}
+                <div>
+                  <span className="text-[11px] text-[var(--color-text-muted)] block font-medium">السعر:</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-black text-[var(--color-text-primary)]">
+                      {formatPrice(product.priceYER, currency)}
                     </span>
-                    <div className="flex items-center gap-1 text-xs text-amber-500 font-bold">
-                      <Star className="w-4 h-4 fill-amber-400" />
-                      <span>{product.rating || "4.8"}</span>
-                    </div>
+                    {product.originalPriceYER > product.priceYER && (
+                      <span className="text-xs text-[var(--color-text-muted)] line-through font-medium">
+                        {formatPrice(product.originalPriceYER, currency)}
+                      </span>
+                    )}
                   </div>
-
-                  <h3 className="text-lg font-black text-[var(--color-text-primary)] leading-snug">
-                    {product.name}
-                  </h3>
-
-                  <p className="text-xs text-[var(--color-text-secondary)] line-clamp-3 leading-relaxed">
-                    {product.description ||
-                      "منتج مميز عالي الجودة متاح الآن للطلب المباشر مع التوصيل لكافة المحافظات."}
-                  </p>
                 </div>
 
-                <div className="space-y-4 pt-3 border-t border-[var(--color-border-subtle)]">
-                  {/* Colors in Quick View */}
-                  {product.colors && product.colors.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[11px] text-[var(--color-text-muted)] font-bold block">
-                        اختر اللون:
-                      </span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {product.colors.map((color) => {
-                          const isSelected = selectedColor === color;
-                          const isWhite =
-                            color.toLowerCase() === "#ffffff" ||
-                            color.toLowerCase() === "#fff" ||
-                            color.toLowerCase() === "white";
-                          return (
-                            <button
-                              key={color}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedColor(color);
-                              }}
-                              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl transition-all cursor-pointer flex items-center justify-center relative border ${
-                                isSelected
-                                  ? "border-[#2F6BFF] ring-2 ring-[#2F6BFF]/40 scale-105"
-                                  : "border-[var(--color-border-default)] hover:scale-105 opacity-80 hover:opacity-100"
-                              }`}
-                              style={{ backgroundColor: color }}
-                              title={`اختيار اللون ${color}`}
-                            >
-                              {isSelected && (
-                                <Check
-                                  className={`w-3.5 h-3.5 ${isWhite ? "text-black" : "text-white"}`}
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                {/* Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToCart(product, selectedColor);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-[#2F6BFF] to-[#1F5EFF] hover:from-[#2458D8] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>أضف للسلة</span>
+                  </button>
 
-                  {/* Price */}
-                  <div>
-                    <span className="text-[11px] text-[var(--color-text-muted)] block font-medium">
-                      السعر:
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-black text-[var(--color-text-primary)]">
-                        {formatPrice(product.priceYER, currency)}
-                      </span>
-                      {product.originalPriceYER > product.priceYER && (
-                        <span className="text-xs text-[var(--color-text-muted)] line-through font-medium">
-                          {formatPrice(product.originalPriceYER, currency)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="bg-[var(--color-surface-2)] hover:bg-[#2F6BFF] hover:text-white text-[var(--color-text-primary)] text-xs font-bold py-2.5 px-3 rounded-xl border border-[var(--color-border-default)] transition-all cursor-pointer flex items-center gap-1.5"
+                    title="مشاركة المنتج"
+                  >
+                    {copiedToast ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                    <span className="hidden sm:inline">مشاركة</span>
+                  </button>
 
-                  {/* Buttons */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddToCart(product, selectedColor);
-                      }}
-                      className="flex-1 bg-gradient-to-r from-[#2F6BFF] to-[#1F5EFF] hover:from-[#2458D8] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>أضف للسلة</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleShare}
-                      className="bg-[var(--color-surface-2)] hover:bg-[#2F6BFF] hover:text-white text-[var(--color-text-primary)] text-xs font-bold py-2.5 px-3 rounded-xl border border-[var(--color-border-default)] transition-all cursor-pointer flex items-center gap-1.5"
-                      title="مشاركة المنتج"
-                    >
-                      {copiedToast ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <Share2 className="w-4 h-4" />
-                      )}
-                      <span className="hidden sm:inline">مشاركة</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsQuickViewOpen(false);
-                        onSelectProduct(product);
-                      }}
-                      className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-primary)] text-xs font-bold py-2.5 px-3 rounded-xl border border-[var(--color-border-default)] transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      التفاصيل
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsQuickViewOpen(false);
+                      onSelectProduct(product);
+                    }}
+                    className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-primary)] text-xs font-bold py-2.5 px-3 rounded-xl border border-[var(--color-border-default)] transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    التفاصيل
+                  </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </>
   );
 };
+
+
+

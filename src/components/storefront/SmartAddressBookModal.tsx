@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Plus, Trash2, Check, X, Phone, User, Building, Home, Gift, Navigation, AlertCircle } from 'lucide-react';
 import {
@@ -53,7 +53,7 @@ export const SmartAddressBookModal: React.FC<SmartAddressBookModalProps> = ({
 
     const phoneVal = validateYemenPhone(primaryPhone);
     if (!phoneVal.isValid) {
-      setPhoneError(phoneVal.error || 'رقم الهاتف غير صحيح');
+      setPhoneError(phoneVal.message || 'رقم الهاتف غير صحيح');
       return;
     }
 
@@ -72,16 +72,16 @@ export const SmartAddressBookModal: React.FC<SmartAddressBookModalProps> = ({
       return;
     }
 
-    const newAddr = saveAddressLocal({
-      label,
+    const newAddrList = saveAddressLocal({
+      id: Date.now().toString(),
+      label: label as any,
       recipientName,
-      primaryPhone,
-      alternativePhone,
+      phone: primaryPhone,
       governorate,
       district,
-      street,
+      streetName: street,
       nearestLandmark,
-      deliveryNotes,
+      isDefault: addresses.length === 0
     });
 
     const updated = getSavedAddressesLocal();
@@ -98,7 +98,7 @@ export const SmartAddressBookModal: React.FC<SmartAddressBookModalProps> = ({
     setDeliveryNotes('');
 
     if (onSelectAddress) {
-      onSelectAddress(newAddr);
+      onSelectAddress(newAddrList.find((a: any) => a.recipientName === recipientName && a.phone === primaryPhone) || newAddrList[0]);
     }
   };
 
@@ -219,22 +219,22 @@ export const SmartAddressBookModal: React.FC<SmartAddressBookModalProps> = ({
                         <div className="text-xs text-[var(--color-text-secondary)] mt-2 space-y-1">
                           <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <span>{addr.governorate} - {addr.district} - {addr.street || 'الشارع الرئيسي'}</span>
+                            <span>{addr.governorate} - {addr.district} - {addr.streetName || 'الشارع الرئيسي'}</span>
                           </div>
                           <div className="text-[11px] text-[var(--color-text-muted)] pr-5">
                             أقرب معلم: <span className="text-[var(--color-text-primary)] font-medium">{addr.nearestLandmark}</span>
                           </div>
                           <div className="flex items-center gap-1 pr-5 text-[11px]">
                             <Phone className="w-3 h-3 text-blue-400" />
-                            <span>{addr.primaryPhone}</span>
-                            {addr.alternativePhone && <span className="text-gray-400">({addr.alternativePhone})</span>}
+                            <span>{addr.phone}</span>
+                            
                           </div>
                         </div>
 
                         {/* Shipping estimate preview */}
                         <div className="mt-3 pt-2.5 border-t border-[var(--color-border-subtle)] flex items-center justify-between text-[11px]">
                           <span className="text-gray-400">زمن التوصيل المتوقع:</span>
-                          <span className="font-bold text-amber-300">{shipping.estimatedDays}</span>
+                          <span className="font-bold text-amber-300">{"2-4 أيام"}</span>
                         </div>
                       </div>
                     );
@@ -328,7 +328,7 @@ export const SmartAddressBookModal: React.FC<SmartAddressBookModalProps> = ({
                     onChange={(e) => setGovernorate(e.target.value)}
                     className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-emerald-500 focus:outline-none cursor-pointer"
                   >
-                    {YEMEN_GOVERNORATES.map((gov) => (
+                    {YEMEN_GOVERNORATES.map((gov: string) => (
                       <option key={gov} value={gov} className="bg-gray-900 text-white">
                         {gov}
                       </option>

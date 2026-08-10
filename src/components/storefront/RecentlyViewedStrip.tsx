@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Clock } from 'lucide-react';
 import { Product, Currency } from './types';
 import { formatPrice } from './currency';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit3, MapPin, Phone, Clock, X, Check, ShieldAlert, AlertCircle, FileText, UserCheck } from 'lucide-react';
 import { OrderStatus } from './types';
@@ -60,7 +60,7 @@ export const OrderSelfServiceModal: React.FC<OrderSelfServiceModalProps> = ({
       details = { reason: cancelReason };
     }
 
-    const res = await submitOrderChangeRequest(order, activeTab, details);
+    const res = await submitOrderChangeRequest(order.id, order.orderNumber, activeTab, details);
     setIsSubmitting(false);
 
     if (res.success) {
@@ -220,7 +220,7 @@ export const OrderSelfServiceModal: React.FC<OrderSelfServiceModalProps> = ({
                         onChange={(e) => setNewGovernorate(e.target.value)}
                         className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-blue-500 focus:outline-none cursor-pointer"
                       >
-                        {YEMEN_GOVERNORATES.map((g) => (
+                        {YEMEN_GOVERNORATES.map((g: string) => (
                           <option key={g} value={g} className="bg-gray-900 text-white">
                             {g}
                           </option>

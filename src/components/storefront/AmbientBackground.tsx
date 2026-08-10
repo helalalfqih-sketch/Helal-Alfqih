@@ -1,21 +1,45 @@
-import React from "react";
-import { ScrollHelmetBackground } from "./ScrollHelmetBackground";
+﻿import React, { Component, ReactNode } from 'react';
+import { ScrollHelmetBackground } from './ScrollHelmetBackground';
+
+class SafeCanvasBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('ScrollHelmetBackground captured error gracefully:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 export const AmbientBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none aria-hidden">
       {/* 0. Scroll-Animated Helmet Canvas */}
-      <ScrollHelmetBackground />
+      <SafeCanvasBoundary>
+        <ScrollHelmetBackground />
+      </SafeCanvasBoundary>
 
       {/* 1. Base Subtle Grid Pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.04]"
+      <div 
+        className="absolute inset-0 opacity-[0.04]" 
         style={{
           backgroundImage: `
             linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px)
           `,
-          backgroundSize: "48px 48px",
+          backgroundSize: '48px 48px',
         }}
       />
 

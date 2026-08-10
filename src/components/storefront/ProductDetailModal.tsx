@@ -1,8 +1,17 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Product, Currency } from "./types";
-import { formatPrice } from "./currency";
-import { STORE_INFO } from "./constants";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Product, Currency } from './types';
+import { formatPrice } from './currency';
+import { STORE_INFO } from './constants';;
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 
 interface StarData {
   star: string;
@@ -14,31 +23,31 @@ interface StarData {
 const getStarBreakdown = (rating: number, reviewsCount: number, productId: string): StarData[] => {
   if (!reviewsCount || reviewsCount <= 0) {
     return [
-      { star: "5 نجوم", count: 0, percentage: 0, fill: "#3B82F6" },
-      { star: "4 نجوم", count: 0, percentage: 0, fill: "#60A5FA" },
-      { star: "3 نجوم", count: 0, percentage: 0, fill: "#F59E0B" },
-      { star: "2 نجوم", count: 0, percentage: 0, fill: "#F97316" },
-      { star: "1 نجمة", count: 0, percentage: 0, fill: "#EF4444" },
+      { star: '5 نجوم', count: 0, percentage: 0, fill: '#3B82F6' },
+      { star: '4 نجوم', count: 0, percentage: 0, fill: '#60A5FA' },
+      { star: '3 نجوم', count: 0, percentage: 0, fill: '#F59E0B' },
+      { star: '2 نجوم', count: 0, percentage: 0, fill: '#F97316' },
+      { star: '1 نجمة', count: 0, percentage: 0, fill: '#EF4444' },
     ];
   }
 
-  const seed = productId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = productId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const targetAvg = Math.min(5, Math.max(1, rating));
 
   const weights = [5, 4, 3, 2, 1].map((s, idx) => {
     const dist = Math.abs(s - targetAvg);
-    const varFactor = 0.92 + ((seed + idx * 17) % 15) / 100;
+    const varFactor = 0.92 + (((seed + idx * 17) % 15) / 100);
     return Math.exp(-dist * 2.1) * varFactor;
   });
 
   const sumWeights = weights.reduce((a, b) => a + b, 0);
-  const rawCounts = weights.map((w) => Math.round((w / sumWeights) * reviewsCount));
-
-  const diff = reviewsCount - rawCounts.reduce((a, b) => a + b, 0);
+  let rawCounts = weights.map((w) => Math.round((w / sumWeights) * reviewsCount));
+  
+  let diff = reviewsCount - rawCounts.reduce((a, b) => a + b, 0);
   rawCounts[0] = Math.max(0, rawCounts[0] + diff);
 
-  const colors = ["#3B82F6", "#60A5FA", "#F59E0B", "#F97316", "#EF4444"];
-  const labels = ["5 نجوم", "4 نجوم", "3 نجوم", "2 نجوم", "1 نجمة"];
+  const colors = ['#3B82F6', '#60A5FA', '#F59E0B', '#F97316', '#EF4444'];
+  const labels = ['5 نجوم', '4 نجوم', '3 نجوم', '2 نجوم', '1 نجمة'];
 
   return labels.map((label, idx) => {
     const count = rawCounts[idx];
@@ -52,13 +61,7 @@ const getStarBreakdown = (rating: number, reviewsCount: number, productId: strin
   });
 };
 
-const CustomRatingTooltip = ({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: StarData }>;
-}) => {
+const CustomRatingTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as StarData;
     return (
@@ -84,10 +87,11 @@ interface ProductDetailModalProps {
   onToggleFavorite: (product: Product) => void;
   onAddToCompare?: (product: Product) => void;
   onOpenDeconstruction?: () => void;
+  onOpenStory?: (product: Product) => void;
 }
 
 interface MediaItem {
-  type: "image" | "video";
+  type: 'image' | 'video';
   url: string;
   label: string;
 }
@@ -101,10 +105,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onToggleFavorite,
   onAddToCompare,
   onOpenDeconstruction,
+  onOpenStory,
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<string | undefined>(product?.colors?.[0]);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(
+    product?.colors?.[0]
+  );
   const [addedToast, setAddedToast] = useState(false);
   const [sharedToast, setSharedToast] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -112,12 +119,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   // Close modal on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
   // Reset selected media when product changes
@@ -125,25 +132,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setSelectedMediaIndex(0);
     setQuantity(1);
     setSelectedColor(product?.colors?.[0]);
-  }, [product?.id, product?.colors]);
+  }, [product?.id]);
 
   // Rating breakdown chart data
   const ratingData = useMemo(() => {
     if (!product) return [];
     return getStarBreakdown(product.rating, product.reviewsCount, product.id);
-  }, [product]);
+  }, [product?.rating, product?.reviewsCount, product?.id]);
 
   if (!product) return null;
 
   // Construct sharing details
   const getShareUrl = () => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const path = typeof window !== "undefined" ? window.location.pathname : "";
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
     return `${origin}${path}?product=${product.id}`;
   };
 
   const shareTitle = product.name;
-  const shareText = `📦 *${product.name}*\n${product.subtitle ? product.subtitle + "\n" : ""}💰 السعر: ${formatPrice(product.priceYER, currency)}`;
+  const shareText = `📦 *${product.name}*\n${product.subtitle ? product.subtitle + '\n' : ''}💰 السعر: ${formatPrice(product.priceYER, currency)}`;
   const shareUrl = getShareUrl();
 
   const whatsappShareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText}\n🔗 رابط المنتج: ${shareUrl}`)}`;
@@ -159,7 +166,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           url: shareUrl,
         });
       } catch (err) {
-        console.log("Native share dismissed:", err);
+        console.log('Native share dismissed:', err);
       }
     } else {
       handleCopyLink(e);
@@ -170,7 +177,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     if (e) e.stopPropagation();
     const shareUrl = getShareUrl();
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: shareTitle,
@@ -179,7 +186,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         });
         return;
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
+        if ((err as Error).name === 'AbortError') return;
       }
     }
 
@@ -187,34 +194,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareUrl);
       } else {
-        const textArea = document.createElement("textarea");
+        const textArea = document.createElement('textarea');
         textArea.value = shareUrl;
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand("copy");
+        document.execCommand('copy');
         document.body.removeChild(textArea);
       }
       setSharedToast(true);
       setTimeout(() => setSharedToast(false), 2800);
     } catch {
-      window.open(whatsappShareUrl, "_blank");
+      window.open(whatsappShareUrl, '_blank');
     }
   };
 
   // Construct real media items list from product
   const mediaList: MediaItem[] = [];
   if (product.image) {
-    mediaList.push({ type: "image", url: product.image, label: "الصورة الرئيسية" });
+    mediaList.push({ type: 'image', url: product.image, label: 'الصورة الرئيسية' });
   }
   if (product.gallery && product.gallery.length > 0) {
     product.gallery.forEach((imgUrl, idx) => {
       if (imgUrl !== product.image) {
-        mediaList.push({ type: "image", url: imgUrl, label: `صورة ${idx + 1}` });
+        mediaList.push({ type: 'image', url: imgUrl, label: `صورة ${idx + 1}` });
       }
     });
   }
   if (product.videoUrl) {
-    mediaList.push({ type: "video", url: product.videoUrl, label: "فيديو المنتج" });
+    mediaList.push({ type: 'video', url: product.videoUrl, label: 'فيديو المنتج' });
   }
 
   const activeMedia = mediaList[selectedMediaIndex] || mediaList[0];
@@ -230,23 +237,32 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       `📦 *${product.name}*\n` +
       `💰 السعر: ${formatPrice(product.priceYER, currency)}\n` +
       `الكمية: ${quantity}` +
-      (selectedColor ? `\nاللون المختار: ${selectedColor}` : ""),
+      (selectedColor ? `\nاللون المختار: ${selectedColor}` : '')
   );
 
   const directWhatsappUrl = `https://wa.me/${STORE_INFO.whatsappNumber}?text=${directWhatsappText}`;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="product-modal-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-[28px] sm:rounded-[32px] w-full max-w-3xl max-h-[92vh] overflow-y-auto no-scrollbar relative shadow-2xl p-5 sm:p-8 dir-rtl"
-      >
+    <AnimatePresence>
+      {product && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md"
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="product-modal-title"
+        >
+          <motion.div 
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.96 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-[28px] sm:rounded-[32px] w-full max-w-3xl max-h-[92vh] overflow-y-auto no-scrollbar relative shadow-2xl p-5 sm:p-8 dir-rtl"
+          >
         {/* Floating Controls Bar */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-30 pointer-events-none">
           {/* Close Button */}
@@ -260,6 +276,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           {/* Actions Group: Copy Link, Share & Favorite */}
           <div className="flex items-center gap-2 pointer-events-auto">
+            {onOpenStory && (
+              <button
+                onClick={() => onOpenStory(product)}
+                className="bg-[#2F6BFF]/15 border border-[#2F6BFF]/30 text-[#2F6BFF] hover:bg-[#2F6BFF] hover:text-white px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="شاهد المنتج برؤية تفاعلية"
+              >
+                <span className="material-symbols-outlined text-[16px]">play_circle</span>
+                <span>شاهد المنتج</span>
+              </button>
+            )}
+
             {/* Copy Link Quick Button */}
             <button
               onClick={handleCopyLink}
@@ -285,13 +312,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               onClick={() => onToggleFavorite(product)}
               aria-label="إضافة للمفضلة"
               className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border transition-all shadow-sm cursor-pointer ${
-                isFavorite
-                  ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                  : "bg-[var(--color-surface-1)]/90 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border-[var(--color-border-default)]"
+                isFavorite 
+                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/30' 
+                  : 'bg-[var(--color-surface-1)]/90 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border-[var(--color-border-default)]'
               }`}
             >
               <span
-                className={`material-symbols-outlined text-[20px] sm:text-[22px] ${isFavorite ? "fill-1" : ""}`}
+                className={`material-symbols-outlined text-[20px] sm:text-[22px] ${isFavorite ? 'fill-1' : ''}`}
               >
                 favorite
               </span>
@@ -301,11 +328,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* Modal Layout Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mt-6">
+          
           {/* 1. MEDIA GALLERY AREA */}
           <div className="flex flex-col">
             {/* Main Stage */}
             <div className="relative w-full h-64 sm:h-80 bg-[var(--color-surface-2)] rounded-2xl p-3 flex items-center justify-center overflow-hidden border border-[var(--color-border-subtle)] group">
-              {activeMedia?.type === "video" ? (
+              {activeMedia?.type === 'video' ? (
                 <video
                   src={activeMedia.url}
                   controls
@@ -330,7 +358,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* Gallery Thumbnails Rail */}
             {mediaList.length > 1 && (
-              <div className="flex items-center gap-2.5 mt-3 overflow-x-auto w-full pb-1 no-scrollbar">
+              <div
+                className="flex items-center gap-2.5 mt-3 overflow-x-auto w-full pb-1 no-scrollbar"
+                style={{ touchAction: 'pan-x pan-y', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {mediaList.map((item, idx) => {
                   const isSelected = selectedMediaIndex === idx;
                   return (
@@ -340,22 +371,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       aria-label={item.label}
                       className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 p-1 bg-[var(--color-surface-2)] flex-shrink-0 cursor-pointer relative transition-all ${
                         isSelected
-                          ? "border-[#2F6BFF] scale-105 shadow-sm"
-                          : "border-[var(--color-border-default)] opacity-70 hover:opacity-100"
+                          ? 'border-[#2F6BFF] scale-105 shadow-sm'
+                          : 'border-[var(--color-border-default)] opacity-70 hover:opacity-100'
                       }`}
                     >
-                      {item.type === "video" ? (
+                      {item.type === 'video' ? (
                         <div className="w-full h-full bg-black/40 flex items-center justify-center rounded-lg">
-                          <span className="material-symbols-outlined text-white text-xl">
-                            play_circle
-                          </span>
+                          <span className="material-symbols-outlined text-white text-xl">play_circle</span>
                         </div>
                       ) : (
-                        <img
-                          src={item.url}
-                          alt=""
-                          className="w-full h-full object-contain rounded-lg"
-                        />
+                        <img src={item.url} alt="" className="w-full h-full object-contain rounded-lg" />
                       )}
                     </button>
                   );
@@ -379,9 +404,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Product Guarantee Badge */}
             <div className="mt-3 p-3 bg-[var(--color-surface-2)]/60 rounded-xl border border-[var(--color-border-subtle)] flex items-center gap-2.5 text-xs text-[var(--color-text-secondary)]">
               <span className="material-symbols-outlined text-[#2F6BFF] text-[20px]">verified</span>
-              <span className="font-bold text-[var(--color-text-primary)]">
-                ضمان إندكس الأصلي 100% مع إمكانية المعاينة عند الاستلام
-              </span>
+              <span className="font-bold text-[var(--color-text-primary)]">ضمان إندكس الأصلي 100% مع إمكانية المعاينة عند الاستلام</span>
             </div>
           </div>
 
@@ -409,27 +432,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
 
               {/* Title & Subtitle */}
-              <h2
-                id="product-modal-title"
-                className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] leading-snug"
-              >
+              <h2 id="product-modal-title" className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] leading-snug">
                 {product.name}
               </h2>
-              <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm mt-1 mb-3">
-                {product.subtitle}
-              </p>
+              <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm mt-1 mb-3">{product.subtitle}</p>
 
               {/* Rating */}
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[var(--color-border-subtle)]">
                 <div className="flex text-amber-400 text-sm">
-                  {"★".repeat(Math.floor(product.rating))}
+                  {'★'.repeat(Math.floor(product.rating))}
                 </div>
-                <span className="text-[var(--color-text-primary)] font-bold text-xs sm:text-sm">
-                  {product.rating}
-                </span>
-                <span className="text-[var(--color-text-muted)] text-xs">
-                  ({product.reviewsCount} تقييم)
-                </span>
+                <span className="text-[var(--color-text-primary)] font-bold text-xs sm:text-sm">{product.rating}</span>
+                <span className="text-[var(--color-text-muted)] text-xs">({product.reviewsCount} تقييم)</span>
               </div>
 
               {/* Price */}
@@ -443,11 +457,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       {formatPrice(product.originalPriceYER * quantity, currency)}
                     </span>
                     <span className="text-[11px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
-                      توفير{" "}
-                      {formatPrice(
-                        (product.originalPriceYER - product.priceYER) * quantity,
-                        currency,
-                      )}
+                      توفير {formatPrice((product.originalPriceYER - product.priceYER) * quantity, currency)}
                     </span>
                   </>
                 )}
@@ -470,8 +480,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           aria-label={`اللون ${color}`}
                           className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition-all cursor-pointer ${
                             isSelected
-                              ? "border-[#2F6BFF] ring-2 ring-[#2F6BFF]/30 scale-110 shadow-sm"
-                              : "border-[var(--color-border-default)] opacity-80 hover:opacity-100"
+                              ? 'border-[#2F6BFF] ring-2 ring-[#2F6BFF]/30 scale-110 shadow-sm'
+                              : 'border-[var(--color-border-default)] opacity-80 hover:opacity-100'
                           }`}
                         />
                       );
@@ -482,25 +492,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Quantity Selector */}
               <div className="flex items-center justify-between mb-5 bg-[var(--color-surface-2)] p-2.5 sm:p-3 rounded-2xl border border-[var(--color-border-default)]">
-                <span className="text-[var(--color-text-secondary)] text-xs sm:text-sm font-semibold">
-                  الكمية:
-                </span>
+                <span className="text-[var(--color-text-secondary)] text-xs sm:text-sm font-semibold">الكمية:</span>
                 <div className="flex items-center gap-3 sm:gap-4">
                   <button
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
                     aria-label="تقليل الكمية"
-                    className="w-9 h-9 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-bold flex items-center justify-center hover:bg-[#2F6BFF] hover:text-white hover:border-[#2F6BFF] transition-colors cursor-pointer disabled:opacity-40"
+                    className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-bold flex items-center justify-center hover:bg-[#2F6BFF] hover:text-white hover:border-[#2F6BFF] transition-colors cursor-pointer disabled:opacity-40 active:scale-95 text-lg"
                   >
                     -
                   </button>
-                  <span className="text-[var(--color-text-primary)] font-bold text-base sm:text-lg min-w-[24px] text-center">
+                  <span className="text-[var(--color-text-primary)] font-bold text-base sm:text-lg min-w-[28px] text-center">
                     {quantity}
                   </span>
                   <button
                     onClick={() => setQuantity((q) => q + 1)}
                     aria-label="زيادة الكمية"
-                    className="w-9 h-9 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-bold flex items-center justify-center hover:bg-[#2F6BFF] hover:text-white hover:border-[#2F6BFF] transition-colors cursor-pointer"
+                    className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-bold flex items-center justify-center hover:bg-[#2F6BFF] hover:text-white hover:border-[#2F6BFF] transition-colors cursor-pointer active:scale-95 text-lg"
                   >
                     +
                   </button>
@@ -509,9 +517,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Description */}
               <div className="mb-4">
-                <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)] mb-1.5">
-                  وصف المنتج:
-                </h4>
+                <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)] mb-1.5">وصف المنتج:</h4>
                 <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm leading-relaxed bg-[var(--color-surface-2)]/50 p-3 rounded-xl border border-[var(--color-border-subtle)]">
                   {product.description}
                 </p>
@@ -520,21 +526,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {/* Specs Grid */}
               {product.specs && (
                 <div className="mb-5 bg-[var(--color-surface-2)]/50 p-3.5 rounded-2xl border border-[var(--color-border-subtle)] text-xs">
-                  <h4 className="font-bold text-[var(--color-text-primary)] mb-2 text-xs sm:text-sm">
-                    المواصفات التقنية:
-                  </h4>
+                  <h4 className="font-bold text-[var(--color-text-primary)] mb-2 text-xs sm:text-sm">المواصفات التقنية:</h4>
                   <div className="grid grid-cols-2 gap-2 text-[var(--color-text-secondary)]">
                     {Object.entries(product.specs).map(([key, val]) => (
-                      <div
-                        key={key}
-                        className="flex flex-col bg-[var(--color-surface-1)]/60 p-2 rounded-lg border border-[var(--color-border-subtle)]"
-                      >
-                        <span className="text-[var(--color-text-muted)] font-medium text-[10px] sm:text-[11px]">
-                          {key}
-                        </span>
-                        <span className="font-bold text-[var(--color-text-primary)] mt-0.5">
-                          {val}
-                        </span>
+                      <div key={key} className="flex flex-col bg-[var(--color-surface-1)]/60 p-2 rounded-lg border border-[var(--color-border-subtle)]">
+                        <span className="text-[var(--color-text-muted)] font-medium text-[10px] sm:text-[11px]">{key}</span>
+                        <span className="font-bold text-[var(--color-text-primary)] mt-0.5">{val}</span>
                       </div>
                     ))}
                   </div>
@@ -545,47 +542,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="mb-5 bg-[var(--color-surface-2)]/50 p-3.5 rounded-2xl border border-[var(--color-border-subtle)] text-xs">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)]">
-                      توزيع درجات التقييم
-                    </h4>
-                    <p className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                      تفاصيل تقييمات المشترين لهذا المنتج
-                    </p>
+                    <h4 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)]">توزيع درجات التقييم</h4>
+                    <p className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)] mt-0.5">تفاصيل تقييمات المشترين لهذا المنتج</p>
                   </div>
                   <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg text-amber-400 font-extrabold text-xs">
                     <span>★</span>
                     <span>{product.rating}</span>
-                    <span className="text-[var(--color-text-muted)] text-[10px] font-normal">
-                      ({product.reviewsCount})
-                    </span>
+                    <span className="text-[var(--color-text-muted)] text-[10px] font-normal">({product.reviewsCount})</span>
                   </div>
                 </div>
 
-                <div className="w-full h-40 dir-ltr pt-1">
+                <div className="w-full h-44 dir-ltr pt-1">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={ratingData}
                       layout="vertical"
-                      margin={{ top: 2, right: 12, left: 0, bottom: 2 }}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
                     >
                       <XAxis type="number" hide />
                       <YAxis
                         dataKey="star"
                         type="category"
-                        tick={{
-                          fill: "var(--color-text-secondary)",
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
+                        tick={{ fill: 'var(--color-text-secondary)', fontSize: 12, fontWeight: 600 }}
                         axisLine={false}
                         tickLine={false}
-                        width={52}
+                        width={65}
                       />
-                      <Tooltip
-                        content={<CustomRatingTooltip />}
-                        cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
-                      />
-                      <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={12}>
+                      <Tooltip content={<CustomRatingTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={12}>
                         {ratingData.map((entry, index) => (
                           <Cell key={`star-cell-${index}`} fill={entry.fill} />
                         ))}
@@ -603,7 +587,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 disabled={!product.inStock}
                 className="w-full bg-[#2F6BFF] hover:bg-[#2458D8] disabled:bg-gray-600 text-white font-bold py-3.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all active:scale-97 text-sm sm:text-base cursor-pointer"
               >
-                <span>{product.inStock ? "أضف للسلة الآن" : "المنتج غير متوفر"}</span>
+                <span>{product.inStock ? 'أضف للسلة الآن' : 'المنتج غير متوفر'}</span>
                 <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
               </button>
 
@@ -670,14 +654,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* NATIVE MOBILE SHARE OVERLAY */}
         {isShareOpen && (
-          <div
+          <div 
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fadeIn"
             onClick={(e) => {
               e.stopPropagation();
               setIsShareOpen(false);
             }}
           >
-            <div
+            <div 
               onClick={(e) => e.stopPropagation()}
               className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-3xl w-full max-w-md p-5 shadow-2xl space-y-4 dir-rtl animate-slideUp text-right"
             >
@@ -685,9 +669,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#2F6BFF] text-xl">share</span>
-                  <h3 className="font-extrabold text-base text-[var(--color-text-primary)]">
-                    مشاركة المنتج عبر التطبيقات
-                  </h3>
+                  <h3 className="font-extrabold text-base text-[var(--color-text-primary)]">مشاركة المنتج عبر التطبيقات</h3>
                 </div>
                 <button
                   onClick={() => setIsShareOpen(false)}
@@ -699,18 +681,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Product Snippet Preview */}
               <div className="flex items-center gap-3 bg-[var(--color-surface-2)]/70 p-3 rounded-2xl border border-[var(--color-border-subtle)]">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-12 h-12 object-contain rounded-xl bg-[var(--color-surface-1)] p-1 shrink-0"
-                />
+                <img src={product.image} alt={product.name} className="w-12 h-12 object-contain rounded-xl bg-[var(--color-surface-1)] p-1 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-xs text-[var(--color-text-primary)] truncate">
-                    {product.name}
-                  </div>
-                  <div className="text-[11px] text-[var(--color-text-secondary)] font-semibold">
-                    {formatPrice(product.priceYER, currency)}
-                  </div>
+                  <div className="font-bold text-xs text-[var(--color-text-primary)] truncate">{product.name}</div>
+                  <div className="text-[11px] text-[var(--color-text-secondary)] font-semibold">{formatPrice(product.priceYER, currency)}</div>
                 </div>
               </div>
 
@@ -778,7 +752,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           </div>
         )}
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
