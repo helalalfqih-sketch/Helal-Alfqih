@@ -61,6 +61,7 @@ import { ProductUniverseModal } from "@/components/storefront/ProductUniverseMod
 import { CartShareModal } from "@/components/storefront/CartShareModal";
 import { CustomerSupportHub } from "@/components/storefront/CustomerSupportHub";
 import type { SupportContext } from "@/components/storefront/CustomerSupportHub";
+import { IndexesEvolutionStudio } from "@/components/storefront/evolution-studio/IndexesEvolutionStudio";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -254,6 +255,7 @@ function HomePage() {
   const [isProductUniverseOpen, setIsProductUniverseOpen] = useState(false);
   const [isCartShareOpen, setIsCartShareOpen] = useState(false);
   const [isSupportHubOpen, setIsSupportHubOpen] = useState(false);
+  const [isEvolutionStudioOpen, setIsEvolutionStudioOpen] = useState<boolean>(false);
   const [supportContext, setSupportContext] = useState<SupportContext>("home");
   const [recentlyViewed, setRecentlyViewed] = useState<DesignProduct[]>([]);
 
@@ -754,6 +756,7 @@ function HomePage() {
           onOpenWishlist={() => setIsWishlistDrawerOpen(true)}
           onOpenTrackerForOrder={() => setIsTrackerModalOpen(true)}
           onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenEvolutionStudio={() => setIsEvolutionStudioOpen(true)}
         />
 
         {isAdminOpen && (
@@ -762,6 +765,23 @@ function HomePage() {
             orders={userOrders}
             currency={currency}
             onClose={() => setIsAdminOpen(false)}
+            onOpenEvolutionStudio={() => setIsEvolutionStudioOpen(true)}
+          />
+        )}
+
+        {/* Indexes Evolution Studio AI Visual Editor Modal */}
+        {isEvolutionStudioOpen && (
+          <IndexesEvolutionStudio
+            products={products}
+            onClose={() => setIsEvolutionStudioOpen(false)}
+            onApplyDraftToStore={(draft) => {
+              if (draft.designTokens?.colorPrimary) {
+                document.documentElement.style.setProperty(
+                  "--color-primary",
+                  draft.designTokens.colorPrimary,
+                );
+              }
+            }}
           />
         )}
 

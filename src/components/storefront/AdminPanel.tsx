@@ -64,9 +64,16 @@ interface AdminPanelProps {
   orders: OrderStatus[];
   currency: Currency;
   onClose: () => void;
+  onOpenEvolutionStudio?: () => void;
 }
 
-export function AdminPanel({ products, orders, currency, onClose }: AdminPanelProps) {
+export function AdminPanel({
+  products,
+  orders,
+  currency,
+  onClose,
+  onOpenEvolutionStudio,
+}: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<
     | "overview"
     | "products"
@@ -517,6 +524,19 @@ export function AdminPanel({ products, orders, currency, onClose }: AdminPanelPr
 
         {/* Header Actions */}
         <div className="flex items-center gap-3">
+          {onOpenEvolutionStudio && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenEvolutionStudio();
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-500/30 transition-all duration-200 hover:scale-105 border border-purple-300/40 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              <span>فتح استوديو التطور ✨</span>
+            </button>
+          )}
+
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-200 text-xs sm:text-sm font-medium transition-all duration-200 hover:scale-105"
