@@ -16,7 +16,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveTenantId } from "@/lib/saas/tenant-context";
-import { getRequest } from "@tanstack/react-start/server";
 import { mergeImportedImages, parseCatalogCsv, slugify } from "@/lib/catalog/catalog-csv";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -143,6 +142,8 @@ const resolveAdminTenant = async (
 ): Promise<string> => {
   let headers: Headers | null = null;
   try {
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     headers = getRequest().headers;
   } catch {
     /* no request context */

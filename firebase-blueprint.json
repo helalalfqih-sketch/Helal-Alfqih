@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "products": {
+      "title": "Products",
+      "description": "Store products available for purchase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "description": { "type": "string" },
+        "priceYER": { "type": "number" },
+        "originalPriceYER": { "type": "number" },
+        "discountBadge": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "image": { "type": "string" },
+        "gallery": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "inStock": { "type": "boolean" },
+        "isBestOffer": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isNewArrival": { "type": "boolean" },
+        "specs": { "type": "object" },
+        "colors": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "priceYER", "category"]
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "Customer purchase orders",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "governorate": { "type": "string" },
+        "address": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPriceYER": { "type": "number" },
+        "status": { "type": "string" },
+        "statusLabel": { "type": "string" },
+        "date": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["customerName", "phone", "totalPriceYER"]
+    },
+    "categories": {
+      "title": "Categories",
+      "description": "Product categories",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "count": { "type": "number" }
+      },
+      "required": ["name"]
+    }
+  },
+  "security": {
+    "products": {
+      "read": "true",
+      "write": "true"
+    },
+    "orders": {
+      "read": "true",
+      "write": "true"
+    },
+    "categories": {
+      "read": "true",
+      "write": "true"
+    }
+  }
+}

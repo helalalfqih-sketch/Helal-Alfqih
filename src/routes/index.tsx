@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
+import { X } from "lucide-react";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product as ProductionProduct } from "@/lib/store-data";
 import { useCart } from "@/lib/cart-store";
@@ -23,11 +24,15 @@ import {
 } from "@/components/storefront/types";
 import { mapProductionProductToDesignProduct } from "@/components/storefront/adapters";
 
+import { supabase } from "@/integrations/supabase/client";
+import { checkAdminSession } from "@/lib/adminAuth";
 import { Header } from "@/components/storefront/Header";
 import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
-import { CategoryBar } from "@/components/storefront/CategoryBar";
+import { CategoryBar, type PriceRangePreset } from "@/components/storefront/CategoryBar";
+import { DiscoveryStrip } from "@/components/storefront/DiscoveryStrip";
+import { BestOffersSection } from "@/components/storefront/BestOffersSection";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { TrustBar } from "@/components/storefront/TrustBar";
 import { LoyaltyBanner } from "@/components/storefront/LoyaltyBanner";
@@ -42,15 +47,21 @@ import {
 } from "@/components/storefront/SkeletonLoader";
 
 import { ProductDetailModal } from "@/components/storefront/ProductDetailModal";
+import { CinematicProductDeconstruction } from "@/components/storefront/CinematicProductDeconstruction";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { CheckoutModal } from "@/components/storefront/CheckoutModal";
 import { OrderTrackerModal } from "@/components/storefront/OrderTrackerModal";
 import { NotificationsModal } from "@/components/storefront/NotificationsModal";
 import { AccountDrawer } from "@/components/storefront/AccountDrawer";
-import { AdminPanel } from "@/components/storefront/AdminPanel";
 import { WishlistDrawer } from "@/components/storefront/WishlistDrawer";
 import { ProductCompareModal } from "@/components/storefront/ProductCompareModal";
 import { ToastNotification } from "@/components/storefront/ToastNotification";
+import { RecentlyViewedStrip } from "@/components/storefront/RecentlyViewedStrip";
+import { ProductStoryModal } from "@/components/storefront/ProductStoryModal";
+import { ProductUniverseModal } from "@/components/storefront/ProductUniverseModal";
+import { CartShareModal } from "@/components/storefront/CartShareModal";
+import { CustomerSupportHub } from "@/components/storefront/CustomerSupportHub";
+import type { SupportContext } from "@/components/storefront/CustomerSupportHub";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -87,7 +98,10 @@ export const Route = createFileRoute("/")({
 
 function HomeSkeleton() {
   return (
-    <div dir="rtl" className="min-h-screen bg-[#08060F] text-white p-4 space-y-6">
+    <div
+      dir="rtl"
+      className="min-h-screen space-y-6 bg-[var(--color-bg,#08090B)] p-4 text-[var(--color-text-primary,#F5F7FA)]"
+    >
       <HeroCarouselSkeleton />
       <ProductGridSkeleton count={8} />
     </div>
@@ -95,6 +109,8 @@ function HomeSkeleton() {
 }
 
 function HomePage() {
+  const navigate = useNavigate();
+  const handleOpenAdmin = () => navigate({ to: "/admin" });
   const { data: bestSellers } = useSuspenseQuery(bestSellersQuery(20));
   const { data: dailyDeals } = useSuspenseQuery(offersQuery(20));
   const { data: allProducts } = useSuspenseQuery(globePoolQuery(100));
@@ -178,13 +194,38 @@ function HomePage() {
   };
 
   // UI State
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("YER");
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
   const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [priceRange, setPriceRange] = useState<PriceRangePreset>("all");
+  const [customMinPrice, setCustomMinPrice] = useState<number | undefined>();
+  const [customMaxPrice, setCustomMaxPrice] = useState<number | undefined>();
+  const [discoveryFilter, setDiscoveryFilter] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+
+  // Monitor Supabase auth session to detect Admin user
+  useEffect(() => {
+    let isMounted = true;
+    const verifyAdmin = async () => {
+      const res = await checkAdminSession();
+      if (isMounted) setIsAdminUser(Boolean(res.user));
+    };
+
+    verifyAdmin();
+
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        verifyAdmin();
+      });
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   // Category change loading feedback
   const handleSelectCategoryWithLoading = (catId: string) => {
@@ -225,6 +266,7 @@ function HomePage() {
 
   // Modal / Drawer States
   const [selectedProductModal, setSelectedProductModal] = useState<DesignProduct | null>(null);
+  const [isDeconstructionOpen, setIsDeconstructionOpen] = useState<boolean>(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrackerModalOpen, setIsTrackerModalOpen] = useState(false);
@@ -232,6 +274,12 @@ function HomePage() {
   const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
   const [isWishlistDrawerOpen, setIsWishlistDrawerOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [isProductStoryOpen, setIsProductStoryOpen] = useState(false);
+  const [isProductUniverseOpen, setIsProductUniverseOpen] = useState(false);
+  const [isCartShareOpen, setIsCartShareOpen] = useState(false);
+  const [isSupportHubOpen, setIsSupportHubOpen] = useState(false);
+  const [supportContext, setSupportContext] = useState<SupportContext>("home");
+  const [recentlyViewed, setRecentlyViewed] = useState<DesignProduct[]>([]);
 
   const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
 
@@ -253,7 +301,15 @@ function HomePage() {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCategory && matchSearch;
+      const matchPrice =
+        priceRange === "all" ||
+        (priceRange === "under-20k" && p.priceYER < 20_000) ||
+        (priceRange === "20k-50k" && p.priceYER >= 20_000 && p.priceYER <= 50_000) ||
+        (priceRange === "over-50k" && p.priceYER > 50_000) ||
+        (priceRange === "custom" &&
+          (customMinPrice === undefined || p.priceYER >= customMinPrice) &&
+          (customMaxPrice === undefined || p.priceYER <= customMaxPrice));
+      return matchCategory && matchSearch && matchPrice;
     });
 
     switch (sortBy) {
@@ -269,7 +325,16 @@ function HomePage() {
       default:
         return list;
     }
-  }, [products, selectedCategory, searchQuery, sortBy]);
+  }, [products, selectedCategory, searchQuery, sortBy, priceRange, customMinPrice, customMaxPrice]);
+
+  // Track recently viewed products (max 10)
+  const handleSelectProduct = (product: DesignProduct) => {
+    setSelectedProductModal(product);
+    setRecentlyViewed((prev) => {
+      const filtered = prev.filter((p) => p.id !== product.id);
+      return [product, ...filtered].slice(0, 10);
+    });
+  };
 
   // Handlers using real production cart and favorites
   const handleToggleFavorite = (product: DesignProduct) => {
@@ -279,7 +344,7 @@ function HomePage() {
   const handleAddToCart = (product: DesignProduct, quantity: number = 1) => {
     const raw = rawProductMap.get(product.id) || {
       id: product.id,
-      slug: product.slug || product.id,
+      slug: product.id,
       name: product.name,
       description: product.description,
       price: product.priceYER,
@@ -332,8 +397,25 @@ function HomePage() {
     }
   };
 
+  const handleSelectDiscoveryOption = (type: string) => {
+    setDiscoveryFilter(type);
+    if (type === "best-selling") {
+      setSortBy("best-selling");
+    } else if (type === "newest") {
+      setSortBy("newest");
+    } else if (type === "gift") {
+      setSelectedCategory("smartwatches");
+    } else if (type === "home") {
+      setSelectedCategory("home_appliances");
+    } else if (type === "budget") {
+      setSortBy("price-low");
+    } else if (type === "surprise" && products.length > 0) {
+      setSelectedProductModal(products[Math.floor(Math.random() * products.length)]);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#08060F] text-white flex flex-col font-sans pb-28 selection:bg-[#7B3FFF] selection:text-white relative overflow-x-hidden transition-colors duration-200 dir-rtl text-right">
+    <div className="dir-rtl relative flex min-h-screen flex-col overflow-x-hidden bg-[var(--color-bg,#08090B)] pb-28 text-right font-sans text-[var(--color-text-primary,#F5F7FA)] transition-colors duration-200 selection:bg-[#2F6BFF] selection:text-white">
       {/* High-Tech Ambient Background in Empty Spaces */}
       <AmbientBackground />
 
@@ -360,8 +442,9 @@ function HomePage() {
           onOpenCompare={() => setIsCompareModalOpen(true)}
           onOpenMenu={() => setIsAccountDrawerOpen(true)}
           onOpenTracker={() => setIsTrackerModalOpen(true)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
           onSelectProduct={(p) => setSelectedProductModal(p)}
+          isAdminUser={isAdminUser}
         />
 
         {/* 2. Top Shipping Announcement Banner */}
@@ -374,8 +457,33 @@ function HomePage() {
             <HeroCarouselSkeleton />
           ) : (
             <HeroCarousel
+              products={products}
               onSelectCategory={handleSelectCategoryWithLoading}
-              onSelectProduct={(prod) => setSelectedProductModal(prod)}
+              onSelectProduct={handleSelectProduct}
+              onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
+            />
+          )}
+
+          <DiscoveryStrip
+            onSelectDiscoveryOption={handleSelectDiscoveryOption}
+            activeFilter={discoveryFilter}
+            onResetFilter={() => {
+              setDiscoveryFilter(null);
+              setSortBy("default");
+              setSelectedCategory("all");
+              setPriceRange("all");
+              setCustomMinPrice(undefined);
+              setCustomMaxPrice(undefined);
+            }}
+          />
+
+          {/* Recently Viewed Strip */}
+          {recentlyViewed.length > 0 && (
+            <RecentlyViewedStrip
+              products={recentlyViewed}
+              currency={currency}
+              onSelectProduct={handleSelectProduct}
+              onClearHistory={() => setRecentlyViewed([])}
             />
           )}
 
@@ -385,75 +493,33 @@ function HomePage() {
             onSelectCategory={handleSelectCategoryWithLoading}
             selectedSort={sortBy}
             onSelectSort={(sortOption) => setSortBy(sortOption)}
+            selectedPriceRange={priceRange}
+            customMinPrice={customMinPrice}
+            customMaxPrice={customMaxPrice}
+            onSelectPriceRange={(range, min, max) => {
+              setPriceRange(range);
+              setCustomMinPrice(min);
+              setCustomMaxPrice(max);
+            }}
           />
 
           {/* 5. Best Offers Section (أفضل العروض 🔥) */}
           {selectedCategory === "all" && !searchQuery && (
-            <section className="py-2 relative">
-              <div className="px-4 sm:px-6 flex justify-between items-center mb-3">
-                <h3 className="text-xl sm:text-2xl font-black flex items-center gap-2 text-white">
-                  <span>أفضل العروض</span>
-                  <span className="text-xl sm:text-2xl">🔥</span>
-                </h3>
-                <button
-                  onClick={() => handleSelectCategoryWithLoading("all")}
-                  className="text-[#7B3FFF] text-xs sm:text-sm flex items-center gap-1 font-bold hover:underline cursor-pointer"
-                >
-                  <span>عرض الكل</span>
-                  <span className="material-symbols-outlined text-[16px]">chevron_left</span>
-                </button>
-              </div>
-
-              {/* Horizontal Snap Scroll / Responsive 4-Card Grid Container */}
-              <div className="relative group/scroll">
-                <div
-                  id="best-offers-scroll"
-                  className="px-3 sm:px-6 flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar snap-x pb-2 pt-1"
-                >
-                  {isLoading
-                    ? [1, 2, 3, 4].map((idx) => (
-                        <ProductCardSkeleton key={idx} variant="horizontal" />
-                      ))
-                    : (bestOffers.length ? bestOffers : products.slice(0, 6)).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          currency={currency}
-                          isFavorite={favorites.includes(product.id)}
-                          onToggleFavorite={handleToggleFavorite}
-                          onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                          onSelectProduct={(prod) => setSelectedProductModal(prod)}
-                          variant="horizontal"
-                        />
-                      ))}
-                </div>
-
-                {/* Scroll Right Arrow Button */}
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("best-offers-scroll");
-                    if (el) el.scrollBy({ left: -220, behavior: "smooth" });
-                  }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-[#100B1A]/95 border border-[#7B3FFF]/60 text-white flex items-center justify-center shadow-[0_0_15px_rgba(123,63,255,0.4)] hover:bg-[#7B3FFF] hover:border-purple-400 transition-all cursor-pointer"
-                  aria-label="التمرير لليمين"
-                >
-                  <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                </button>
-
-                {/* Pagination Dots Indicator */}
-                <div className="flex items-center justify-center gap-1.5 mt-3">
-                  <span className="w-5 h-1.5 bg-[#7B3FFF] rounded-full shadow-[0_0_8px_#7B3FFF]" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                  <span className="w-1.5 h-1.5 bg-gray-700/80 rounded-full" />
-                </div>
-              </div>
-            </section>
+            <BestOffersSection
+              bestOffers={bestOffers.length ? bestOffers : products.slice(0, 6)}
+              currency={currency}
+              favorites={favorites}
+              isLoading={isLoading}
+              onToggleFavorite={handleToggleFavorite}
+              onAddToCart={(prod) => handleAddToCart(prod, 1)}
+              onSelectProduct={(prod) => setSelectedProductModal(prod)}
+              onViewAll={() => handleSelectCategoryWithLoading("all")}
+            />
           )}
 
           {/* 6. AI-Powered Smart Search Section */}
           <AISearchSection
+            products={products}
             currency={currency}
             onSelectProduct={(prod) => setSelectedProductModal(prod)}
             onSearchQuerySubmit={(q) => {
@@ -465,36 +531,66 @@ function HomePage() {
 
           {/* 7. Product Catalog Grid Section */}
           <section className="px-4 sm:px-6 py-6">
-            <div className="flex justify-between items-center mb-6 border-b border-gray-800/80 pb-4">
+            <div className="dir-rtl mb-6 flex flex-col justify-between gap-3 border-b border-[var(--color-border-default)] pb-4 sm:flex-row sm:items-center">
               <div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white">
+                <h3 className="text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
                   {selectedCategory === "all"
                     ? searchQuery
                       ? `نتائج البحث عن "${searchQuery}"`
                       : "جميع المنتجات المتوفرة"
                     : "منتجات القسم المختار"}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)] sm:text-sm">
                   عرض {filteredProducts.length} منتجات أصلية مع ضمان متجر إندكس
                 </p>
               </div>
+              {sortBy !== "default" ? (
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-[#2F6BFF]/40 bg-[#2F6BFF]/15 px-3 py-1.5 text-xs font-black text-[#2F6BFF] shadow-sm">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-[#2F6BFF]" />
+                    <span>
+                      الترتيب المطبق:{" "}
+                      {sortBy === "price-high"
+                        ? "الأعلى سعراً"
+                        : sortBy === "price-low"
+                          ? "الأقل سعراً"
+                          : sortBy === "best-selling"
+                            ? "الأكثر مبيعاً"
+                            : "الأحدث وصولاً"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSortBy("default")}
+                      className="cursor-pointer rounded-full p-1 text-[#2F6BFF] transition-colors hover:bg-rose-500/20 hover:text-rose-500"
+                      title="إلغاء الترتيب والإعادة للافتراضي"
+                      aria-label="إلغاء الترتيب"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {isLoading ? (
               <ProductGridSkeleton count={8} />
             ) : filteredProducts.length === 0 ? (
-              <div className="py-16 text-center text-gray-400 bg-[#100B1A] rounded-3xl border border-gray-800">
-                <span className="material-symbols-outlined text-[64px] text-gray-600 mb-2">
+              <div className="rounded-3xl border border-[var(--color-border-default)] bg-[var(--color-surface-1)] py-16 text-center text-[var(--color-text-secondary)]">
+                <span className="material-symbols-outlined mb-2 text-[64px] text-[var(--color-text-muted)]">
                   search_off
                 </span>
-                <p className="text-lg font-bold text-white">لم نتمكن من العثور على منتجات مطابقة</p>
-                <p className="text-sm text-gray-500 mt-1">جرّب تغيير كلمة البحث أو قسم المنتجات.</p>
+                <p className="text-lg font-bold text-[var(--color-text-primary)]">
+                  لم نتمكن من العثور على منتجات مطابقة
+                </p>
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                  جرّب تغيير كلمة البحث أو قسم المنتجات.
+                </p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
                     handleSelectCategoryWithLoading("all");
                   }}
-                  className="mt-4 bg-[#7B3FFF] text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg shadow-[#7B3FFF]/30 cursor-pointer"
+                  className="mt-4 cursor-pointer rounded-2xl bg-[#2F6BFF] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#2458D8]"
                 >
                   إعادة ضبط البحث
                 </button>
@@ -509,7 +605,7 @@ function HomePage() {
                     isFavorite={favorites.includes(product.id)}
                     onToggleFavorite={handleToggleFavorite}
                     onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                    onSelectProduct={(prod) => setSelectedProductModal(prod)}
+                    onSelectProduct={handleSelectProduct}
                     variant="grid"
                   />
                 ))}
@@ -524,7 +620,10 @@ function HomePage() {
           <LoyaltyBanner onOpenLoyaltyModal={() => setIsAccountDrawerOpen(true)} />
 
           {/* 11. Footer */}
-          <StoreFooter onOpenTracker={() => setIsTrackerModalOpen(true)} />
+          <StoreFooter
+            onOpenTracker={() => setIsTrackerModalOpen(true)}
+            onOpenAdmin={handleOpenAdmin}
+          />
         </main>
 
         {/* 12. Bottom Navigation Bar */}
@@ -535,7 +634,7 @@ function HomePage() {
         />
 
         {/* Floating WhatsApp Quick Contact Button */}
-        <FloatingWhatsAppButton />
+        <FloatingWhatsAppButton isOpen={true} onToggle={() => {}} />
 
         {/* Modals & Drawers */}
         <ProductDetailModal
@@ -563,13 +662,85 @@ function HomePage() {
             }
             setIsCompareModalOpen(true);
           }}
+          onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
         />
 
+        {/* Product Story Modal */}
+        <ProductStoryModal
+          product={selectedProductModal}
+          currency={currency}
+          isOpen={isProductStoryOpen}
+          onClose={() => setIsProductStoryOpen(false)}
+          onAddToCart={(prod) => {
+            handleAddToCart(prod, 1);
+            showToast(`تمت إضافة ${prod.name} إلى السلة بنجاح 🛒`);
+          }}
+        />
+
+        {/* Product Universe Modal (3D WebGL Product Explorer) */}
+        {isProductUniverseOpen && (
+          <ProductUniverseModal
+            isOpen={isProductUniverseOpen}
+            onClose={() => setIsProductUniverseOpen(false)}
+            products={products}
+            currency={currency}
+            favorites={favorites}
+            onToggleFavorite={handleToggleFavorite}
+            onAddToCart={(prod, qty) => {
+              handleAddToCart(prod, qty ?? 1);
+              showToast(`تمت إضافة ${prod.name} إلى السلة بنجاح 🛒`);
+            }}
+            onSelectProductDetails={handleSelectProduct}
+          />
+        )}
+
+        {/* Cart Share Modal */}
+        <CartShareModal
+          isOpen={isCartShareOpen}
+          onClose={() => setIsCartShareOpen(false)}
+          cartItems={cartItems}
+          catalogProducts={products}
+          onApplyRecoveredCart={(items) => items.forEach(i => handleAddToCart(i.product, i.quantity))}
+        />
+
+        {/* Customer Support Hub */}
+        <CustomerSupportHub
+          isOpen={isSupportHubOpen}
+          onClose={() => setIsSupportHubOpen(false)}
+          activeContext={supportContext}
+          currentProduct={selectedProductModal}
+          cartItems={cartItems}
+          currency={currency}
+          onOpenTracker={() => {
+            setIsSupportHubOpen(false);
+            setIsTrackerModalOpen(true);
+          }}
+          onOpenSearch={() => {
+            setIsSupportHubOpen(false);
+            window.scrollTo({ top: 400, behavior: "smooth" });
+          }}
+        />
+
+        {/* Cinematic 3D Product Deconstruction Modal */}
+        {isDeconstructionOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/90 backdrop-blur-xl animate-fadeIn">
+            <div className="relative w-full max-w-6xl max-h-[96vh]">
+              <CinematicProductDeconstruction
+                onClose={() => setIsDeconstructionOpen(false)}
+                productName={selectedProductModal?.name || "ساعة ذكية AMOLED Ultra 8"}
+                productImage={selectedProductModal?.image}
+                category={selectedProductModal?.category}
+                product={selectedProductModal || undefined}
+              />
+            </div>
+          </div>
+        )}
+
         <CartDrawer
+          currency={currency}
           isOpen={isCartDrawerOpen}
           onClose={() => setIsCartDrawerOpen(false)}
           cartItems={cartItems}
-          currency={currency}
           onUpdateQuantity={handleUpdateCartQuantity}
           onRemoveItem={handleRemoveCartItem}
           onCheckout={(discount) => {
@@ -580,10 +751,10 @@ function HomePage() {
         />
 
         <CheckoutModal
+          currency={currency}
           isOpen={isCheckoutModalOpen}
           onClose={() => setIsCheckoutModalOpen(false)}
           cartItems={cartItems}
-          currency={currency}
           couponDiscountPercent={appliedCouponDiscount}
           onOrderPlaced={handleOrderPlaced}
         />
@@ -607,21 +778,12 @@ function HomePage() {
           onClose={() => setIsAccountDrawerOpen(false)}
           currency={currency}
           onSelectCurrency={setCurrency}
-          userOrders={userOrders}
           favoritesCount={favorites.length}
           onOpenWishlist={() => setIsWishlistDrawerOpen(true)}
-          onOpenTracker={() => setIsTrackerModalOpen(true)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenTrackerForOrder={() => setIsTrackerModalOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
+          isAdminUser={isAdminUser}
         />
-
-        {isAdminOpen && (
-          <AdminPanel
-            products={products}
-            orders={userOrders}
-            currency={currency}
-            onClose={() => setIsAdminOpen(false)}
-          />
-        )}
 
         <WishlistDrawer
           isOpen={isWishlistDrawerOpen}

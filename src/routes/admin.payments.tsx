@@ -8,10 +8,11 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { updateStoreSetting } from "@/lib/store.functions";
 import { useStoreContext } from "@/components/store/store-shell";
+import { invalidateCmsCache } from "@/lib/utils/cache-invalidation";
 
 export const Route = createFileRoute("/admin/payments")({
   component: PaymentsPage,
@@ -82,6 +83,7 @@ const DEFAULT_METHODS: PaymentMethod[] = [
 ];
 
 function PaymentsPage() {
+  const qc = useQueryClient();
   const { store, can, refetch } = useStoreContext();
   const saveSetting = useServerFn(updateStoreSetting);
   
@@ -110,6 +112,7 @@ function PaymentsPage() {
     onSuccess: (r) => {
       if (r.success) {
         toast.success("تم حفظ إعدادات الدفع بنجاح");
+        invalidateCmsCache(qc);
         refetch();
       } else {
         toast.error(r.message ?? "فشل حفظ إعدادات الدفع");

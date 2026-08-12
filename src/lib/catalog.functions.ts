@@ -41,7 +41,8 @@ const publicClient = () =>
 
 const readHeaders = async (): Promise<Headers | null> => {
   try {
-    const { getRequest } = await import("@tanstack/react-start/server");
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     return getRequest().headers;
   } catch {
     return null;

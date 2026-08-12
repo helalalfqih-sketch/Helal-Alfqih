@@ -10,6 +10,7 @@ import {
   deleteAdminCategory,
   listAdminProducts,
 } from "@/lib/actions/admin.actions";
+import { invalidateCategoryCache } from "@/lib/utils/cache-invalidation";
 import { inferCategorySlug } from "@/lib/catalog.functions";
 import { MediaUploader } from "@/components/media-uploader";
 import { Reorder } from "framer-motion";
@@ -71,7 +72,7 @@ function CategoriesPage() {
   }, [q.data]);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["admin-categories"] });
+    invalidateCategoryCache(qc);
   };
 
   const createMut = useMutation({

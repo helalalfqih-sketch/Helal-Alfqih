@@ -1,6 +1,9 @@
-import React, { useState } from "react";
-import { CartItem, Currency } from "./types";
-import { formatPrice } from "./currency";
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CartItem, Currency } from './types';
+import { formatPrice } from './currency';
+import { STORE_INFO } from './constants';;
+import { ShoppingCart, X, Trash2, Plus, Minus, Tag, ArrowLeft, Truck, Sparkles, CheckCircle2, Share2 } from 'lucide-react';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -10,6 +13,7 @@ interface CartDrawerProps {
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
   onCheckout: (couponDiscountPercent: number) => void;
+  onOpenShareCart?: () => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -20,242 +24,318 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onUpdateQuantity,
   onRemoveItem,
   onCheckout,
+  onOpenShareCart,
 }) => {
-  const [coupon, setCoupon] = useState("");
+  const [coupon, setCoupon] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
-  const [couponError, setCouponError] = useState("");
-  const [couponAppliedText, setCouponAppliedText] = useState("");
-
-  if (!isOpen) return null;
-
-  const freeShippingThresholdYER = 30000;
+  const [couponError, setCouponError] = useState('');
+  const [couponAppliedText, setCouponAppliedText] = useState('');
 
   const subtotalYER = cartItems.reduce(
     (sum, item) => sum + item.product.priceYER * item.quantity,
-    0,
+    0
   );
 
-  const isFreeShipping = subtotalYER >= freeShippingThresholdYER;
+  const isFreeShipping = subtotalYER >= STORE_INFO.freeShippingThresholdYER;
   const shippingFeeYER = isFreeShipping || cartItems.length === 0 ? 0 : 3000;
   const discountAmountYER = (subtotalYER * couponDiscount) / 100;
   const totalYER = subtotalYER - discountAmountYER + shippingFeeYER;
 
-  const progressPercent = Math.min(100, Math.round((subtotalYER / freeShippingThresholdYER) * 100));
+  const progressPercent = Math.min(
+    100,
+    Math.round((subtotalYER / STORE_INFO.freeShippingThresholdYER) * 100)
+  );
 
-  const applyCoupon = () => {
-    if (coupon.trim().toUpperCase() === "INDEXES10") {
+  const applyCoupon = (codeToApply?: string) => {
+    const code = (codeToApply || coupon).trim().toUpperCase();
+    if (code === 'INDEXES10') {
       setCouponDiscount(10);
-      setCouponAppliedText("تم تطبيق كود الخصم (10% خصم)!");
-      setCouponError("");
-    } else if (coupon.trim().toUpperCase() === "INDEXES20") {
+      setCouponAppliedText('تم تطبيق كود الخصم (10% خصم)! 🎉');
+      setCouponError('');
+      setCoupon('INDEXES10');
+    } else if (code === 'INDEXES20') {
       setCouponDiscount(20);
-      setCouponAppliedText("تم تطبيق كود الخصم (20% خصم VIP)!");
-      setCouponError("");
+      setCouponAppliedText('تم تطبيق كود الخصم (20% خصم VIP)! 🔥');
+      setCouponError('');
+      setCoupon('INDEXES20');
     } else {
-      setCouponError("كود الخصم غير صحيح أو منتهي الصلاحية");
-      setCouponAppliedText("");
+      setCouponError('كود الخصم غير صحيح أو منتهي الصلاحية');
+      setCouponAppliedText('');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fadeIn text-right dir-rtl">
-      {/* Backdrop click to close */}
-      <div className="flex-1" onClick={onClose} />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="cart-drawer-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex justify-end bg-black/80 backdrop-blur-md dir-rtl"
+        >
+          {/* Backdrop click to close */}
+          <div className="flex-1 cursor-pointer" onClick={onClose} />
 
-      {/* Drawer */}
-      <div className="w-full max-w-md bg-[#100B1A] border-r border-gray-800 h-full flex flex-col justify-between p-6 shadow-2xl relative overflow-y-auto no-scrollbar">
-        {/* Header */}
-        <div>
-          <div className="flex items-center justify-between pb-4 border-b border-gray-800 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[28px] text-[#7B3FFF]">
-                shopping_cart
-              </span>
-              <h3 className="text-xl font-bold text-white">سلة التسوق</h3>
-              <span className="bg-[#7B3FFF]/15 text-[#7B3FFF] text-xs font-bold px-2.5 py-0.5 rounded-full border border-[#7B3FFF]/30">
-                {cartItems.reduce((acc, i) => acc + i.quantity, 0)} منتجات
-              </span>
-            </div>
+          {/* Drawer Content */}
+          <motion.div
+            key="cart-drawer-content"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+            className="w-full max-w-md bg-[var(--color-surface-1)] border-r border-[var(--color-border-default)] h-full flex flex-col justify-between p-5 sm:p-6 shadow-2xl relative overflow-y-auto no-scrollbar"
+          >
+            {/* Header */}
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-[var(--color-border-default)] mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-[#2F6BFF]/10 border border-[#2F6BFF]/30 flex items-center justify-center text-[#2F6BFF]">
+                    <ShoppingCart className="w-5 h-5 text-[#2F6BFF]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-[var(--color-text-primary)]">سلة التسوق</h3>
+                    <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
+                      {cartItems.reduce((acc, i) => acc + i.quantity, 0)} منتجات مضافة
+                    </p>
+                  </div>
+                </div>
 
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-full bg-[#18112B] border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
+                <div className="flex items-center gap-2">
+                  {onOpenShareCart && (
+                    <button
+                      onClick={onOpenShareCart}
+                      aria-label="مشاركة أو استعادة السلة"
+                      title="حفظ ومشاركة السلة"
+                      className="w-9 h-9 rounded-2xl bg-[#2F6BFF]/10 border border-[#2F6BFF]/30 flex items-center justify-center text-[#2F6BFF] hover:bg-[#2F6BFF]/20 transition-colors cursor-pointer"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  )}
 
-          {/* Free Shipping Progress Indicator */}
-          <div className="bg-[#18112B] p-4 rounded-2xl border border-gray-800 mb-5">
-            <div className="flex justify-between items-center text-xs text-gray-300 font-semibold mb-2">
-              <span>
-                {isFreeShipping ? (
-                  <strong className="text-emerald-400">🎉 مبروك! حصلت على شحن مجاني!</strong>
-                ) : (
-                  <span>
-                    تبقي{" "}
-                    <strong className="text-[#7B3FFF]">
-                      {formatPrice(freeShippingThresholdYER - subtotalYER, currency)}
-                    </strong>{" "}
-                    للحصول على شحن مجاني 🚚
-                  </span>
-                )}
-              </span>
-              <span>{progressPercent}%</span>
-            </div>
-            <div className="w-full bg-[#120D22] h-2.5 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-[#7B3FFF] to-[#3B82F6] h-full transition-all duration-500 rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
+                  <button
+                    onClick={onClose}
+                    aria-label="إغلاق السلة"
+                    className="w-9 h-9 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
 
-          {/* Item List */}
-          {cartItems.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 flex flex-col items-center gap-3">
-              <span className="material-symbols-outlined text-[64px] text-gray-600">
-                remove_shopping_cart
-              </span>
-              <p className="text-base font-medium">سلة التسوق فارغة حالياً</p>
-              <button
-                onClick={onClose}
-                className="mt-2 text-[#7B3FFF] font-bold text-sm hover:underline"
-              >
-                تصفح المنتجات الآن
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4 max-h-[380px] overflow-y-auto no-scrollbar pr-1">
-              {cartItems.map((item) => (
-                <div
-                  key={item.product.id}
-                  className="bg-[#18112B] p-3.5 rounded-2xl border border-gray-800/60 flex items-center gap-3 relative group"
-                >
-                  {/* Thumbnail */}
-                  <img
-                    src={item.product.image}
-                    alt={item.product.name}
-                    className="w-16 h-16 object-contain bg-[#100B1A] rounded-xl p-1 border border-gray-800 shrink-0"
-                  />
-
-                  {/* Info */}
-                  <div className="flex-grow min-w-0">
-                    <h4 className="text-sm font-bold text-white truncate">{item.product.name}</h4>
-                    {item.selectedColor && (
-                      <span className="text-[11px] text-gray-400 block">
-                        اللون: {item.selectedColor}
+              {/* Free Shipping Progress Indicator */}
+              <div className="bg-[var(--color-surface-2)] p-4 rounded-2xl border border-[var(--color-border-default)] mb-4 relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs text-[var(--color-text-secondary)] font-bold mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-[#2F6BFF]" />
+                    {isFreeShipping ? (
+                      <strong className="text-emerald-400 font-black">🎉 مبروك! حصلت على شحن مجاني!</strong>
+                    ) : (
+                      <span>
+                        تبقي{' '}
+                        <strong className="text-[#2F6BFF] font-black">
+                          {formatPrice(STORE_INFO.freeShippingThresholdYER - subtotalYER, currency)}
+                        </strong>{' '}
+                        للحصول على شحن مجاني
                       </span>
                     )}
-                    <span className="text-white font-bold text-sm block mt-1">
-                      {formatPrice(item.product.priceYER, currency)}
+                  </span>
+                  <span className="text-amber-400 font-mono font-bold">{progressPercent}%</span>
+                </div>
+                <div className="w-full bg-[var(--color-surface-3)] h-2 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="bg-gradient-to-r from-[#2F6BFF] to-blue-400 h-full rounded-full"
+                  />
+                </div>
+              </div>
+
+              {/* Item List */}
+              {cartItems.length === 0 ? (
+                <div className="py-16 text-center text-[var(--color-text-muted)] flex flex-col items-center gap-3">
+                  <div className="w-20 h-20 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-muted)]">
+                    <ShoppingCart className="w-10 h-10 stroke-[1.5]" />
+                  </div>
+                  <p className="text-base font-bold text-[var(--color-text-primary)]">سلة التسوق فارغة حالياً</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] max-w-xs">
+                    استكشف أحدث عروض متجر إندكس وأضف المنتجات إلى سلتك
+                  </p>
+                  <button
+                    onClick={onClose}
+                    className="mt-3 bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-bold px-6 py-2.5 rounded-full text-xs transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                  >
+                    تصفح المنتجات الآن
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-1">
+                  {cartItems.map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="bg-[var(--color-surface-2)] p-3.5 rounded-2xl border border-[var(--color-border-subtle)] flex items-center gap-3 relative group hover:border-[var(--color-border-default)] transition-all"
+                    >
+                      {/* Thumbnail */}
+                      <img
+                        src={item.product.image}
+                        alt={item.product.name}
+                        className="w-16 h-16 object-contain bg-[var(--color-surface-1)] rounded-xl p-1 border border-[var(--color-border-default)] shrink-0"
+                      />
+
+                      {/* Info */}
+                      <div className="flex-grow min-w-0">
+                        <h4 className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">
+                          {item.product.name}
+                        </h4>
+                        {item.selectedColor && (
+                          <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--color-text-muted)]">
+                            <span>اللون:</span>
+                            <span
+                              className="w-3 h-3 rounded-full border border-white/20 inline-block"
+                              style={{ backgroundColor: item.selectedColor }}
+                            />
+                          </div>
+                        )}
+                        <span className="text-[#2F6BFF] font-black text-xs sm:text-sm block mt-1">
+                          {formatPrice(item.product.priceYER, currency)}
+                        </span>
+                      </div>
+
+                      {/* Quantity Controls & Delete */}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <button
+                          onClick={() => onRemoveItem(item.product.id)}
+                          className="text-[var(--color-text-muted)] hover:text-rose-400 transition-colors p-1 cursor-pointer"
+                          aria-label="حذف المنتج"
+                          title="حذف من السلة"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-1.5 bg-[var(--color-surface-3)] border border-[var(--color-border-default)] px-2 py-1 rounded-xl">
+                          <button
+                            onClick={() =>
+                              onUpdateQuantity(item.product.id, Math.max(1, item.quantity - 1))
+                            }
+                            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] font-bold text-xs p-0.5 cursor-pointer"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-[var(--color-text-primary)] font-black text-xs px-1">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] font-bold text-xs p-0.5 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Summary & Checkout */}
+            {cartItems.length > 0 && (
+              <div className="pt-4 border-t border-[var(--color-border-default)] space-y-3 mt-4">
+                {/* Coupon Code Section */}
+                <div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-grow">
+                      <input
+                        type="text"
+                        value={coupon}
+                        onChange={(e) => setCoupon(e.target.value)}
+                        placeholder="كود الخصم (INDEXES10)"
+                        className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl pl-8 pr-3 py-2 text-xs text-[var(--color-text-primary)] uppercase placeholder-[var(--color-text-muted)] focus:border-[#2F6BFF] outline-none font-mono"
+                      />
+                      <Tag className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                    </div>
+                    <button
+                      onClick={() => applyCoupon()}
+                      className="bg-[#2F6BFF]/15 hover:bg-[#2F6BFF] text-[#2F6BFF] hover:text-white border border-[#2F6BFF]/30 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer shrink-0"
+                    >
+                      تطبيق
+                    </button>
+                  </div>
+
+                  {/* Coupon Quick Preset Chips */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-medium">جرّب:</span>
+                    <button
+                      onClick={() => applyCoupon('INDEXES10')}
+                      className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md hover:bg-blue-500/20 transition-colors font-mono font-bold"
+                    >
+                      INDEXES10 (-10%)
+                    </button>
+                    <button
+                      onClick={() => applyCoupon('INDEXES20')}
+                      className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md hover:bg-amber-500/20 transition-colors font-mono font-bold"
+                    >
+                      INDEXES20 (-20% VIP)
+                    </button>
+                  </div>
+
+                  {couponAppliedText && (
+                    <p className="text-emerald-400 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{couponAppliedText}</span>
+                    </p>
+                  )}
+                  {couponError && <p className="text-rose-400 text-xs mt-1 font-medium">{couponError}</p>}
+                </div>
+
+                {/* Price Calculations */}
+                <div className="space-y-2 text-xs text-[var(--color-text-secondary)] pt-3 border-t border-[var(--color-border-subtle)]">
+                  <div className="flex justify-between font-medium">
+                    <span>المجموع الفرعي:</span>
+                    <span className="font-bold text-[var(--color-text-primary)]">{formatPrice(subtotalYER, currency)}</span>
+                  </div>
+
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-bold">
+                      <span>خصم الكوبون ({couponDiscount}%):</span>
+                      <span>-{formatPrice(discountAmountYER, currency)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between font-medium">
+                    <span>رسوم الشحن والتوصيل:</span>
+                    <span className="font-bold text-[var(--color-text-primary)]">
+                      {isFreeShipping ? (
+                        <strong className="text-emerald-400 font-black">مجاني 🚚</strong>
+                      ) : (
+                        formatPrice(shippingFeeYER, currency)
+                      )}
                     </span>
                   </div>
 
-                  {/* Quantity Controls */}
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <button
-                      onClick={() => onRemoveItem(item.product.id)}
-                      className="text-gray-400 hover:text-rose-500 transition-colors p-1"
-                      aria-label="حذف"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
-
-                    <div className="flex items-center gap-2 bg-[#120D22] border border-gray-800 px-2 py-1 rounded-xl">
-                      <button
-                        onClick={() =>
-                          onUpdateQuantity(item.product.id, Math.max(1, item.quantity - 1))
-                        }
-                        className="text-gray-300 hover:text-white font-bold text-xs px-1"
-                      >
-                        -
-                      </button>
-                      <span className="text-white font-bold text-xs">{item.quantity}</span>
-                      <button
-                        onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
-                        className="text-gray-300 hover:text-white font-bold text-xs px-1"
-                      >
-                        +
-                      </button>
-                    </div>
+                  <div className="flex justify-between items-center text-sm font-black text-[var(--color-text-primary)] pt-2.5 border-t border-[var(--color-border-default)]">
+                    <span>الإجمالي النهائي:</span>
+                    <span className="text-[#2F6BFF] text-lg font-black">
+                      {formatPrice(totalYER, currency)}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Footer Summary & Checkout */}
-        {cartItems.length > 0 && (
-          <div className="pt-4 border-t border-gray-800 space-y-3 mt-4">
-            {/* Coupon Code Input */}
-            <div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="كود الخصم (جرّب INDEXES10)"
-                  className="flex-grow bg-[#18112B] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white uppercase placeholder-gray-500 focus:border-[#7B3FFF] outline-none text-right"
-                />
+                {/* Checkout Button */}
                 <button
-                  onClick={applyCoupon}
-                  className="bg-[#120D22] hover:bg-[#7B3FFF] border border-gray-800 text-white font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer shrink-0 text-xs"
+                  onClick={() => onCheckout(couponDiscount)}
+                  className="w-full bg-gradient-to-r from-[#2F6BFF] to-[#3B75FF] hover:from-[#2458D8] hover:to-[#2F6BFF] text-white font-black py-3.5 rounded-2xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all active:scale-98 text-sm cursor-pointer"
                 >
-                  تطبيق
+                  <span>المتابعة لإتمام الطلب</span>
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               </div>
-              {couponAppliedText && (
-                <p className="text-emerald-400 text-xs mt-1">{couponAppliedText}</p>
-              )}
-              {couponError && <p className="text-rose-400 text-xs mt-1">{couponError}</p>}
-            </div>
-
-            {/* Price Calculations */}
-            <div className="space-y-1.5 text-xs text-gray-300 pt-2 border-t border-gray-800/60">
-              <div className="flex justify-between">
-                <span>المجموع الفرعي:</span>
-                <span className="font-semibold text-white">
-                  {formatPrice(subtotalYER, currency)}
-                </span>
-              </div>
-
-              {couponDiscount > 0 && (
-                <div className="flex justify-between text-emerald-400">
-                  <span>خصم الكوبون ({couponDiscount}%):</span>
-                  <span>-{formatPrice(discountAmountYER, currency)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between">
-                <span>رسوم التوصيل:</span>
-                <span className="font-semibold text-white">
-                  {isFreeShipping ? (
-                    <strong className="text-emerald-400">مجاني 🚚</strong>
-                  ) : (
-                    formatPrice(shippingFeeYER, currency)
-                  )}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-base font-extrabold text-white pt-2 border-t border-gray-800">
-                <span>الإجمالي النهائي:</span>
-                <span className="text-white text-xl">{formatPrice(totalYER, currency)}</span>
-              </div>
-            </div>
-
-            {/* Checkout Button */}
-            <button
-              onClick={() => onCheckout(couponDiscount)}
-              className="w-full bg-[#7B3FFF] hover:bg-[#682BDD] text-white font-bold py-3.5 rounded-2xl shadow-xl shadow-purple-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 text-base cursor-pointer"
-            >
-              <span>متابعة لإتمام الطلب</span>
-              <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
+

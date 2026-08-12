@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { getSmartProductFallbackImage, isSvgFallbackOrEmpty } from "@/lib/product-fallback-image";
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -60,23 +61,31 @@ export function OptimizedImage({
   };
 
   useEffect(() => {
-    // Set target optimized image URL (CSS background skeleton prevents layout shift)
-    setOptimizedSrc(getOptimizedUrl(src, size));
-    setBlurSrc(""); // Skip extra blur network fetch to eliminate 50% overfetch calls
+    let target = src;
+    if (!target || isSvgFallbackOrEmpty(target)) {
+      target = getSmartProductFallbackImage(alt);
+    }
+    setOptimizedSrc(getOptimizedUrl(target, size));
+    setBlurSrc("");
     setIsLoaded(false);
     setErrorCount(0);
-  }, [src, size]);
+  }, [src, alt, size]);
 
   const handleError = () => {
     setErrorCount((current) => {
+      const fallback = getSmartProductFallbackImage(alt);
       if (current === 0) {
-        // First retry: use original source directly bypassing proxy
-        setOptimizedSrc(src);
+        // First retry: try original direct URL if available, else smart fallback
+        if (src && !isSvgFallbackOrEmpty(src)) {
+          setOptimizedSrc(src);
+        } else {
+          setOptimizedSrc(fallback);
+        }
         return 1;
       }
-      if (current === 1) {
-        // Second failure: use local fallback placeholder
-        setOptimizedSrc("/images/product-placeholder.webp");
+      if (current >= 1) {
+        // Subsequent failures: use smart fallback image
+        setOptimizedSrc(fallback);
         setBlurSrc("");
         return 2;
       }
