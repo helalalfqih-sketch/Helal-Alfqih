@@ -191,6 +191,55 @@ app.post("/api/orders", async (req, res) => {
     const message = errObj?.message || "حدث خطأ أثناء إنشاء الطلب";
     return res.status(status).json({ error: message });
   }
+// TanStack Start Server Handler for /_server and /_serverFn
+app.all(["/_server*", "/_serverFn*"], async (req, res, next) => {
+  try {
+    const url = new URL(
+      req.originalUrl || req.url,
+      `http://${req.headers.host || "localhost:3000"}`
+    );
+
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          value.forEach((v) => headers.append(key, v));
+        } else {
+          headers.set(key, value);
+        }
+      }
+    }
+
+    const init: RequestInit = {
+      method: req.method,
+      headers,
+    };
+
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      if (req.body && typeof req.body === "object") {
+        init.body = JSON.stringify(req.body);
+      } else if (typeof req.body === "string") {
+        init.body = req.body;
+      }
+    }
+
+    const webRequest = new Request(url.href, init);
+    const serverModule = await import("./src/server");
+    const serverHandler = serverModule.default || serverModule;
+
+    const webResponse = await serverHandler.fetch(webRequest, process.env, {});
+
+    res.status(webResponse.status);
+    webResponse.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    const arrayBuffer = await webResponse.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error("Error handling /_server route:", err);
+    next(err);
+  }
 });
 
 async function startServer() {
