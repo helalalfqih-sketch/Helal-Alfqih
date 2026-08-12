@@ -61,7 +61,7 @@ export const getOnboardingStatus = createServerFn({ method: "GET" })
 
 export const checkSlugAvailability = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => slugCheckSchema.parse(raw))
+  .validator((raw: unknown) => slugCheckSchema.parse(raw))
   .handler(async ({ data }) => {
     if (RESERVED_SLUGS.has(data.slug)) {
       return { available: false, reason: "reserved" as const };
@@ -82,7 +82,7 @@ export const checkSlugAvailability = createServerFn({ method: "POST" })
 
 export const completeOnboarding = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => onboardingSchema.parse(raw))
+  .validator((raw: unknown) => onboardingSchema.parse(raw))
   .handler(async ({ data, context }): Promise<TenantRow> => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

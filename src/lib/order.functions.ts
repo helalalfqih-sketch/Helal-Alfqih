@@ -128,7 +128,7 @@ export const getMyOrders = createServerFn({ method: "GET" })
  */
 export const getMyOrderDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ orderId: z.string().uuid() }).parse(raw))
+  .validator((raw: unknown) => z.object({ orderId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }): Promise<MyOrderDetails | null> => {
     const { supabase, userId } = context as unknown as {
       supabase: SupabaseClient<Database>;
@@ -144,7 +144,7 @@ export const getMyOrderDetails = createServerFn({ method: "GET" })
  * response never contains name / email / address / full phone / tenant data.
  */
 export const getTrackedOrder = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         orderNumber: z.string().trim().min(8).max(45),

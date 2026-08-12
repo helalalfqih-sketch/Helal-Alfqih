@@ -58,7 +58,7 @@ export const listTenantReviews = createServerFn({ method: "GET" })
   });
 
 export const moderateReview = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => 
+  .validator((raw: unknown) => 
     z.object({
       id: z.string().uuid(),
       status: z.enum(["approved", "rejected"]),
@@ -92,7 +92,7 @@ export const moderateReview = createServerFn({ method: "POST" })
   });
 
 export const deleteReview = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => 
+  .validator((raw: unknown) => 
     z.object({
       id: z.string().uuid(),
     }).parse(raw)

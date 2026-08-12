@@ -47,7 +47,7 @@ const readRequestHeaders = async (): Promise<Headers | null> => {
 };
 
 export const getCurrentTenant = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         slug: z.string().trim().toLowerCase().min(2).max(32).optional(),

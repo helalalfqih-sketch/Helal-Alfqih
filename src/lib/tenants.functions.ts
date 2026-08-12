@@ -67,7 +67,7 @@ export const getMyTenant = createServerFn({ method: "GET" })
 
 export const createTenant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
@@ -84,7 +84,7 @@ export const createTenant = createServerFn({ method: "POST" })
 
 export const updateTenantPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({ id: z.string().uuid(), plan: z.enum(["free", "pro", "enterprise"]) })
       .parse(raw),
@@ -96,7 +96,7 @@ export const updateTenantPlan = createServerFn({ method: "POST" })
 
 export const updateTenantStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         id: z.string().uuid(),

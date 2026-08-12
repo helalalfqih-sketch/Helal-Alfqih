@@ -68,7 +68,7 @@ const listInput = z
 
 /** List orders the caller may manage (RLS-scoped), newest first. */
 export const listTenantOrders = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) => listInput.parse(raw))
+  .validator((raw: unknown) => listInput.parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<TenantOrdersPage> => {
     const { supabase } = context as unknown as { supabase: any };
@@ -105,7 +105,7 @@ export const listTenantOrders = createServerFn({ method: "GET" })
 
 /** Full order details for staff (items + timeline + customer contact). */
 export const getTenantOrderDetails = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) => z.object({ orderId: z.string().uuid() }).parse(raw))
+  .validator((raw: unknown) => z.object({ orderId: z.string().uuid() }).parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<StaffOrderDetails | null> => {
     const { supabase } = context as unknown as { supabase: any };
@@ -117,7 +117,7 @@ export const getTenantOrderDetails = createServerFn({ method: "GET" })
  * Both writes run under the caller's RLS (staff policies) — no service role.
  */
 export const updateOrderStatus = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         orderId: z.string().uuid(),

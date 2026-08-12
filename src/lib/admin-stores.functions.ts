@@ -34,7 +34,7 @@ export const listStoresAdmin = createServerFn({ method: "GET" })
   });
 
 export const getStoreDetailsAdmin = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) => tenantIdSchema.parse(raw))
+  .validator((raw: unknown) => tenantIdSchema.parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<adminStore.StoreDetails | null> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };
@@ -44,7 +44,7 @@ export const getStoreDetailsAdmin = createServerFn({ method: "GET" })
   });
 
 export const updateStoreStatusAdmin = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     tenantIdSchema.extend({ status: z.enum(["active", "suspended", "pending"]) }).parse(raw),
   )
   .middleware([requireSupabaseAuth])
@@ -67,7 +67,7 @@ export const updateStoreStatusAdmin = createServerFn({ method: "POST" })
   });
 
 export const updateStorePlanAdmin = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     tenantIdSchema
       .extend({
         plan: z.enum(["free", "pro", "enterprise"]),
@@ -95,7 +95,7 @@ export const updateStorePlanAdmin = createServerFn({ method: "POST" })
   });
 
 export const updateStoreProfileAdmin = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ tenantId: z.string().uuid(), profile: storeProfileSchema }).parse(raw),
   )
   .middleware([requireSupabaseAuth])
@@ -118,7 +118,7 @@ export const updateStoreProfileAdmin = createServerFn({ method: "POST" })
   });
 
 export const upsertStoreMemberAdmin = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     tenantIdSchema
       .extend({
         userId: z.string().uuid(),
@@ -146,7 +146,7 @@ export const upsertStoreMemberAdmin = createServerFn({ method: "POST" })
   });
 
 export const removeStoreMemberAdmin = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => tenantIdSchema.extend({ userId: z.string().uuid() }).parse(raw))
+  .validator((raw: unknown) => tenantIdSchema.extend({ userId: z.string().uuid() }).parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };

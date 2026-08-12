@@ -155,7 +155,7 @@ const resolveAdminTenant = async (
 
 export const adminImportCatalogFromUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         url: z.string().url().optional(),

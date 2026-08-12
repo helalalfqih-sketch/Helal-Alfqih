@@ -38,7 +38,7 @@ const branchInputSchema = z.object({
 
 export const listBranches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ tenantId: z.string().uuid() }).parse(raw))
+  .validator((raw: unknown) => z.object({ tenantId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as AuthContext;
     const { data: result, error } = await ctx.supabase
@@ -53,7 +53,7 @@ export const listBranches = createServerFn({ method: "GET" })
 
 export const createBranch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => branchInputSchema.parse(raw))
+  .validator((raw: unknown) => branchInputSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const ctx = context as unknown as AuthContext;
     const { data: result, error } = await ctx.supabase
@@ -83,7 +83,7 @@ export const createBranch = createServerFn({ method: "POST" })
 
 export const updateBranch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -122,7 +122,7 @@ export const updateBranch = createServerFn({ method: "POST" })
 
 export const deleteBranch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -143,7 +143,7 @@ export const deleteBranch = createServerFn({ method: "POST" })
 
 export const getBranchBySlug = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         tenantId: z.string().uuid(),
