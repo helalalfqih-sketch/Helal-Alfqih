@@ -311,25 +311,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       return { settings: DEFAULT_STOREFRONT_SETTINGS };
     }
   },
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="ar" dir="rtl">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <div id="root">{children}</div>
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
