@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PackageCheck,
@@ -60,6 +60,7 @@ interface AccountDrawerProps {
   onOpenTrackerForOrder?: (orderNumber: string) => void;
   onOpenAdmin?: () => void;
   onOpenEvolutionStudio?: () => void;
+  isAdminUser?: boolean;
 }
 
 type AccountTab = 'orders' | 'addresses' | 'profile' | 'wishlist' | 'currency' | 'support' | 'privacy';
@@ -74,9 +75,11 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   onOpenTrackerForOrder,
   onOpenAdmin,
   onOpenEvolutionStudio,
+  isAdminUser = false,
 }) => {
   const [activeTab, setActiveTab] = useState<AccountTab>('orders');
   const [currentUser, setCurrentUser] = useState<{ uid: string; email?: string | null } | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(isAdminUser);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [userOrders, setUserOrders] = useState<OrderStatus[]>([]);
   const [loadingOrders, setLoadingOrders] = useState<boolean>(true);
@@ -910,7 +913,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                     <span>الخصوصية والأمان التام</span>
                   </div>
                   <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
-                    نحن لا نبيع أو نشارك بياناتك أو أرقام هاتف مع أي جهة خارجية. يتم ربط سجل طلبياتك بأمان تام مع رقم حسابك المشفر في قواعد بيانات Firebase.
+                    نحن لا نبيع أو نشارك بياناتك أو أرقام هاتف مع أي جهة خارجية. يتم ربط سجل طلبياتك بأمان تام مع رقم حسابك المشفر في قواعد بيانات Supabase الآمنة.
                   </p>
                 </div>
 

@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import type { LegacyProductShape } from "@/lib/data-adapter";
 import type { Product as ProductionProduct } from "@/lib/store-data";
@@ -28,7 +28,7 @@ import { Header } from "@/components/storefront/Header";
 import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
-import { CategoryBar, type PriceRangePreset } from "@/components/storefront/CategoryBar";
+import { CategoryBar, type PriceRangePreset, STORE_BRANDS, RATING_OPTIONS } from "@/components/storefront/CategoryBar";
 import { DiscoveryStrip } from "@/components/storefront/DiscoveryStrip";
 import { BestOffersSection } from "@/components/storefront/BestOffersSection";
 import { ProductCard } from "@/components/storefront/ProductCard";
@@ -51,7 +51,6 @@ import { CheckoutModal } from "@/components/storefront/CheckoutModal";
 import { OrderTrackerModal } from "@/components/storefront/OrderTrackerModal";
 import { NotificationsModal } from "@/components/storefront/NotificationsModal";
 import { AccountDrawer } from "@/components/storefront/AccountDrawer";
-import { AdminPanel } from "@/components/storefront/AdminPanel";
 import { WishlistDrawer } from "@/components/storefront/WishlistDrawer";
 import { ProductCompareModal } from "@/components/storefront/ProductCompareModal";
 import { ToastNotification } from "@/components/storefront/ToastNotification";
@@ -62,6 +61,8 @@ import { CartShareModal } from "@/components/storefront/CartShareModal";
 import { CustomerSupportHub } from "@/components/storefront/CustomerSupportHub";
 import type { SupportContext } from "@/components/storefront/CustomerSupportHub";
 import { IndexesEvolutionStudio } from "@/components/storefront/evolution-studio/IndexesEvolutionStudio";
+import { supabase } from "@/integrations/supabase/client";
+import { AddToCartAnimationOverlay, type FlyingCartItem } from "@/components/storefront/AddToCartAnimation";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -191,8 +192,45 @@ function HomePage() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
+  // Admin navigation via TanStack router — the /admin route has its own AdminGate
+  const navigate = useNavigate();
+  const handleOpenAdmin = useCallback(() => navigate({ to: '/admin' }), [navigate]);
+
+  // Admin role check: verify confirmed role 'admin' or 'owner' in Supabase user_roles
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  useEffect(() => {
+    if (!supabase) return;
+    const checkAdminRole = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        if (!session?.user) {
+          setIsAdminUser(false);
+          return;
+        }
+        const userEmail = (session.user.email || "").toLowerCase();
+        if (userEmail === "helalalfqih@gmail.com") {
+          setIsAdminUser(true);
+          return;
+        }
+        const { data: roleRows } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+        const roles = (roleRows ?? []).map((r: { role: string }) => r.role);
+        setIsAdminUser(roles.includes("admin") || roles.includes("owner"));
+      } catch {
+        setIsAdminUser(false);
+      }
+    };
+    checkAdminRole();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      checkAdminRole();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   // UI State
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("YER");
@@ -203,6 +241,8 @@ function HomePage() {
   const [customMaxPrice, setCustomMaxPrice] = useState<number | undefined>();
   const [discoveryFilter, setDiscoveryFilter] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedRatings, setSelectedRatings] = useState<string[]>([]);
 
   // Category change loading feedback
   const handleSelectCategoryWithLoading = (catId: string) => {
@@ -261,6 +301,11 @@ function HomePage() {
 
   const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
 
+  // AddToCart animation state
+  const [activeFlyingItems, setActiveFlyingItems] = useState<FlyingCartItem[]>([]);
+  const [lastAddedProduct, setLastAddedProduct] = useState<{ product: DesignProduct; quantity: number; selectedColor?: string; timestamp: number } | null>(null);
+  const flyingIdRef = useRef(0);
+
   const unreadNotificationsCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
     [notifications],
@@ -287,7 +332,32 @@ function HomePage() {
         (priceRange === "custom" &&
           (customMinPrice === undefined || p.priceYER >= customMinPrice) &&
           (customMaxPrice === undefined || p.priceYER <= customMaxPrice));
-      return matchCategory && matchSearch && matchPrice;
+      const matchBrand =
+        selectedBrands.length === 0 ||
+        selectedBrands.some((brandId) => {
+          const brandObj = STORE_BRANDS.find((b) => b.id === brandId);
+          if (!brandObj) return false;
+          // If a real brand field exists on the product, check it directly
+          if (p.brand && typeof p.brand === 'string' && p.brand.trim().length > 0) {
+            const pb = p.brand.trim().toLowerCase();
+            return (
+              pb === brandObj.id.toLowerCase() ||
+              pb === brandObj.name.toLowerCase() ||
+              brandObj.keywords.some((k) => pb.includes(k.toLowerCase()))
+            );
+          }
+          // Only fallback to product name matching if no brand field is set
+          const nameLower = p.name.toLowerCase();
+          return brandObj.keywords.some((k) => nameLower.includes(k.toLowerCase()));
+        });
+      const matchRating =
+        selectedRatings.length === 0 ||
+        selectedRatings.some((ratingId) => {
+          const ratingOpt = RATING_OPTIONS.find((r) => r.id === ratingId);
+          if (!ratingOpt) return false;
+          return p.rating >= ratingOpt.minRating;
+        });
+      return matchCategory && matchSearch && matchPrice && matchBrand && matchRating;
     });
 
     switch (sortBy) {
@@ -303,7 +373,7 @@ function HomePage() {
       default:
         return list;
     }
-  }, [products, selectedCategory, searchQuery, sortBy, priceRange, customMinPrice, customMaxPrice]);
+  }, [products, selectedCategory, searchQuery, sortBy, priceRange, customMinPrice, customMaxPrice, selectedBrands, selectedRatings]);
 
   // Track recently viewed products (max 10)
   const handleSelectProduct = (product: DesignProduct) => {
@@ -319,7 +389,14 @@ function HomePage() {
     toggleFavorite(product.id);
   };
 
-  const handleAddToCart = (product: DesignProduct, quantity: number = 1) => {
+  const handleAddToCart = (product: DesignProduct, quantity: number = 1, e?: React.MouseEvent) => {
+    // Trigger flying particle animation & toast
+    const id = `flying-${Date.now()}-${flyingIdRef.current++}`;
+    const startX = e?.clientX || window.innerWidth / 2;
+    const startY = e?.clientY || window.innerHeight / 2;
+    setActiveFlyingItems((prev) => [...prev, { id, product, startX, startY }]);
+    setLastAddedProduct({ product, quantity, timestamp: Date.now() });
+
     const raw = rawProductMap.get(product.id) || {
       id: product.id,
       slug: product.id,
@@ -420,7 +497,8 @@ function HomePage() {
           onOpenCompare={() => setIsCompareModalOpen(true)}
           onOpenMenu={() => setIsAccountDrawerOpen(true)}
           onOpenTracker={() => setIsTrackerModalOpen(true)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
+          isAdminUser={isAdminUser}
           onSelectProduct={(p) => setSelectedProductModal(p)}
         />
 
@@ -478,6 +556,10 @@ function HomePage() {
               setCustomMinPrice(min);
               setCustomMaxPrice(max);
             }}
+            selectedBrands={selectedBrands}
+            onSelectBrands={setSelectedBrands}
+            selectedRatings={selectedRatings}
+            onSelectRatings={setSelectedRatings}
           />
 
           {/* 5. Best Offers Section (أفضل العروض 🔥) */}
@@ -755,19 +837,10 @@ function HomePage() {
           favoritesCount={favorites.length}
           onOpenWishlist={() => setIsWishlistDrawerOpen(true)}
           onOpenTrackerForOrder={() => setIsTrackerModalOpen(true)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
           onOpenEvolutionStudio={() => setIsEvolutionStudioOpen(true)}
+          isAdminUser={isAdminUser}
         />
-
-        {isAdminOpen && (
-          <AdminPanel
-            products={products}
-            orders={userOrders}
-            currency={currency}
-            onClose={() => setIsAdminOpen(false)}
-            onOpenEvolutionStudio={() => setIsEvolutionStudioOpen(true)}
-          />
-        )}
 
         {/* Indexes Evolution Studio AI Visual Editor Modal */}
         {isEvolutionStudioOpen && (
@@ -816,6 +889,16 @@ function HomePage() {
             handleAddToCart(p, qty);
             showToast(`تمت إضافة ${p.name} إلى السلة بنجاح 🛒`);
           }}
+        />
+
+        {/* Flying Cart Item & Toast Overlay */}
+        <AddToCartAnimationOverlay
+          activeFlyingItems={activeFlyingItems}
+          onAnimationComplete={(id) =>
+            setActiveFlyingItems((prev) => prev.filter((item) => item.id !== id))
+          }
+          onOpenCart={() => setIsCartDrawerOpen(true)}
+          lastAddedProduct={lastAddedProduct}
         />
       </div>
     </div>

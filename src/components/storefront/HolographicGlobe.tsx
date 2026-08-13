@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useMemo, useRef, useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Sparkles, Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from './types';
 import { useLiteMode } from '@/lib/liteMode';
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
+const FALLBACK_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23181825"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2371717a" font-family="sans-serif" font-size="16">&#1604;&#1575; &#1578;&#1578;&#1608;&#1601;&#1585; &#1589;&#1608;&#1585;&#1577;</text></svg>';
 const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
   e.currentTarget.src = FALLBACK_IMAGE;
 };

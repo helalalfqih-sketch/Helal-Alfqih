@@ -1,10 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product, Currency } from './types';
 import { formatPrice } from './currency';
 import { Heart, ShoppingCart, Star, Sparkles, Eye, ZoomIn, X, Share2, Check, Flame, AlertTriangle, Clock } from 'lucide-react';
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
+const FALLBACK_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23181825"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2371717a" font-family="sans-serif" font-size="16">&#1604;&#1575; &#1578;&#1578;&#1608;&#1601;&#1585; &#1589;&#1608;&#1585;&#1577;</text></svg>';
 
 interface ProductCardProps {
   product: Product;
@@ -45,10 +45,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [product]);
 
-  const images =
-    product.gallery && product.gallery.length > 0
-      ? [product.image, ...product.gallery.filter((img) => img !== product.image)]
-      : [product.image];
+  const images = React.useMemo(() => {
+    const list: string[] = [];
+    const seen = new Set<string>();
+    const add = (url: string | undefined | null) => {
+      if (url && typeof url === 'string') {
+        const clean = url.trim();
+        if (clean && !clean.startsWith('data:image/svg') && !seen.has(clean)) {
+          seen.add(clean);
+          list.push(clean);
+        }
+      }
+    };
+    add(product.image);
+    if (Array.isArray(product.gallery)) {
+      product.gallery.forEach(add);
+    }
+    return list;
+  }, [product.image, product.gallery]);
 
   const currentImage = images[selectedImageIndex] || product.image;
 
@@ -105,19 +119,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     (product.rating >= 4.8 && product.reviewsCount >= 80) ||
     product.reviewsCount >= 100;
 
-  const isNewArrival =
-    product.isNewArrival ||
-    product.id === 'prod-5' ||
-    product.id === 'prod-6' ||
-    product.id === 'prod-7';
+  const isNewArrival = product.isNewArrival || false;
 
   const isLowStock =
     product.inStock !== false &&
     (product.isLowStock ||
-      (product.stockCount !== undefined && product.stockCount > 0 && product.stockCount <= 5) ||
-      product.id === 'prod-1' ||
-      product.id === 'prod-3' ||
-      product.id === 'prod-9');
+      (product.stockCount !== undefined && product.stockCount > 0 && product.stockCount <= 5));
 
   const stockText =
     product.stockCount !== undefined ? `متبقي ${product.stockCount} قطع` : 'كمية محدودة';

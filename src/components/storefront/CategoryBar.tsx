@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SortOption } from './types';
 import {
@@ -24,9 +24,48 @@ import {
   Coins,
   ArrowUpDown,
   Sliders,
+  Tag,
+  Star,
+  Award,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 
 export type PriceRangePreset = 'all' | 'under-20k' | '20k-50k' | 'over-50k' | 'custom';
+
+export interface BrandOption {
+  id: string;
+  name: string;
+  label: string;
+  keywords: string[];
+}
+
+export const STORE_BRANDS: BrandOption[] = [
+  { id: 'indexes', name: 'إندكس', label: 'إندكس INDEXES', keywords: ['إندكس', 'indexes', 'vip'] },
+  { id: 'anker', name: 'أنكر', label: 'أنكر Anker', keywords: ['anker', 'أنكر', 'eufy', 'soundcore'] },
+  { id: 'apple', name: 'أبل', label: 'أبل Apple', keywords: ['apple', 'أبل', 'آيفون', 'ايفون', 'airpods', 'ipad'] },
+  { id: 'samsung', name: 'سامسونج', label: 'سامسونج Samsung', keywords: ['samsung', 'سامسونج', 'galaxy'] },
+  { id: 'xiaomi', name: 'شاومي', label: 'شاومي Xiaomi', keywords: ['xiaomi', 'شاومي', 'redmi', 'poco'] },
+  { id: 'hoco', name: 'هوكو', label: 'هوكو Hoco', keywords: ['hoco', 'هوكو'] },
+  { id: 'baseus', name: 'بيسوس', label: 'بيسوس Baseus', keywords: ['baseus', 'بيسوس'] },
+  { id: 'joyroom', name: 'جويروم', label: 'جويروم Joyroom', keywords: ['joyroom', 'جويروم'] },
+  { id: 'sony', name: 'سوني', label: 'سوني Sony', keywords: ['sony', 'سوني'] },
+  { id: 'denx', name: 'دنيكس', label: 'دنيكس Denx', keywords: ['denx', 'دنيكس'] },
+];
+
+export interface RatingOption {
+  id: string;
+  label: string;
+  minRating: number;
+  stars: number;
+}
+
+export const RATING_OPTIONS: RatingOption[] = [
+  { id: '5.0', label: '5.0 نجوم (أعلى تقييم)', minRating: 4.9, stars: 5 },
+  { id: '4.8', label: '4.8+ نجوم (ممتاز جداً)', minRating: 4.8, stars: 4.8 },
+  { id: '4.5', label: '4.5+ نجوم (ممتاز)', minRating: 4.5, stars: 4.5 },
+  { id: '4.0', label: '4.0+ نجوم (جيد جداً)', minRating: 4.0, stars: 4 },
+];
 
 export interface CategoryBarProps {
   selectedCategoryId: string;
@@ -37,6 +76,10 @@ export interface CategoryBarProps {
   onSelectPriceRange?: (range: PriceRangePreset, customMin?: number, customMax?: number) => void;
   customMinPrice?: number;
   customMaxPrice?: number;
+  selectedBrands?: string[];
+  onSelectBrands?: (brands: string[]) => void;
+  selectedRatings?: string[];
+  onSelectRatings?: (ratings: string[]) => void;
 }
 
 const CATEGORY_ITEMS = [
@@ -76,9 +119,15 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
   onSelectPriceRange,
   customMinPrice,
   customMaxPrice,
+  selectedBrands = [],
+  onSelectBrands,
+  selectedRatings = [],
+  onSelectRatings,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCustomDrawerOpen, setIsCustomDrawerOpen] = useState(false);
+  const [isBrandDrawerOpen, setIsBrandDrawerOpen] = useState(false);
+  const [isRatingDrawerOpen, setIsRatingDrawerOpen] = useState(false);
   const [tempMin, setTempMin] = useState<string>(customMinPrice ? String(customMinPrice) : '');
   const [tempMax, setTempMax] = useState<string>(customMaxPrice ? String(customMaxPrice) : '');
   
@@ -108,7 +157,41 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
     setIsCustomDrawerOpen(false);
   };
 
-  const activePricePresetObj = PRICE_PRESETS.find((p) => p.id === selectedPriceRange);
+  const handleToggleBrand = (brandId: string) => {
+    if (!onSelectBrands) return;
+    if (selectedBrands.includes(brandId)) {
+      onSelectBrands(selectedBrands.filter((b) => b !== brandId));
+    } else {
+      onSelectBrands([...selectedBrands, brandId]);
+    }
+  };
+
+  const handleToggleRating = (ratingId: string) => {
+    if (!onSelectRatings) return;
+    if (selectedRatings.includes(ratingId)) {
+      onSelectRatings(selectedRatings.filter((r) => r !== ratingId));
+    } else {
+      onSelectRatings([...selectedRatings, ratingId]);
+    }
+  };
+
+  const handleResetAllFilters = () => {
+    onSelectCategory('all');
+    if (onSelectPriceRange) onSelectPriceRange('all');
+    if (onSelectBrands) onSelectBrands([]);
+    if (onSelectRatings) onSelectRatings([]);
+    onSelectSort('default');
+    setIsCustomDrawerOpen(false);
+    setIsBrandDrawerOpen(false);
+    setIsRatingDrawerOpen(false);
+  };
+
+  const hasActiveFilters =
+    selectedCategoryId !== 'all' ||
+    selectedPriceRange !== 'all' ||
+    selectedBrands.length > 0 ||
+    selectedRatings.length > 0 ||
+    selectedSort !== 'default';
 
   return (
     <div className="px-3 sm:px-6 py-2 space-y-3">
@@ -276,10 +359,50 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
               )}
             </AnimatePresence>
           </div>
+
+          {/* Brand Filter Trigger */}
+          {onSelectBrands && (
+            <button
+              type="button"
+              onClick={() => { setIsBrandDrawerOpen(!isBrandDrawerOpen); setIsRatingDrawerOpen(false); setIsCustomDrawerOpen(false); }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+                selectedBrands.length > 0
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]'
+              }`}
+              title="فلترة حسب العلامة التجارية"
+            >
+              <Award className="w-3 h-3" />
+              <span className="hidden sm:inline">العلامة</span>
+              {selectedBrands.length > 0 && (
+                <span className="bg-amber-400 text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{selectedBrands.length}</span>
+              )}
+            </button>
+          )}
+
+          {/* Rating Filter Trigger */}
+          {onSelectRatings && (
+            <button
+              type="button"
+              onClick={() => { setIsRatingDrawerOpen(!isRatingDrawerOpen); setIsBrandDrawerOpen(false); setIsCustomDrawerOpen(false); }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+                selectedRatings.length > 0
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]'
+              }`}
+              title="فلترة حسب التقييم"
+            >
+              <Star className="w-3 h-3" />
+              <span className="hidden sm:inline">التقييم</span>
+              {selectedRatings.length > 0 && (
+                <span className="bg-rose-400 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{selectedRatings.length}</span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Applied Filters Active Status Bar & Reset Button */}
-        {(selectedPriceRange !== 'all' || selectedSort !== 'default') && (
+        {hasActiveFilters && (
           <div className="pt-1 border-t border-[var(--color-border-subtle)] flex items-center justify-between gap-2 flex-wrap text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-extrabold text-[var(--color-text-secondary)]">الفلاتر المطبقة:</span>
@@ -288,7 +411,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                 <div className="inline-flex items-center gap-1 bg-[#2F6BFF]/15 text-[#2F6BFF] border border-[#2F6BFF]/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                   <Filter className="w-3 h-3 animate-pulse" />
                   <span>
-                    السعر: {activePricePresetObj ? activePricePresetObj.label : `مخصص (${customMinPrice || 0} - ${customMaxPrice || '∞'} ر.ي)`}
+                    السعر: {PRICE_PRESETS.find((p) => p.id === selectedPriceRange)?.label ?? `مخصص (${customMinPrice || 0} - ${customMaxPrice || '∞'} ر.ي)`}
                   </span>
                   <button
                     type="button"
@@ -301,35 +424,137 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                 </div>
               )}
 
+              {selectedBrands.map((bid) => {
+                const br = STORE_BRANDS.find((b) => b.id === bid);
+                return br ? (
+                  <div key={bid} className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                    <Tag className="w-3 h-3" />
+                    <span>{br.name}</span>
+                    <button type="button" onClick={() => handleToggleBrand(bid)} className="p-0.5 hover:text-rose-500 transition-colors cursor-pointer mr-1" title="إزالة"><X className="w-3 h-3" /></button>
+                  </div>
+                ) : null;
+              })}
+
+              {selectedRatings.map((rid) => {
+                const ratingOpt = RATING_OPTIONS.find((r) => r.id === rid);
+                return ratingOpt ? (
+                  <div key={rid} className="inline-flex items-center gap-1 bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                    <Star className="w-3 h-3" />
+                    <span>{ratingOpt.id}+</span>
+                    <button type="button" onClick={() => handleToggleRating(rid)} className="p-0.5 hover:text-rose-500 transition-colors cursor-pointer mr-1" title="إزالة"><X className="w-3 h-3" /></button>
+                  </div>
+                ) : null;
+              })}
+
               {selectedSort !== 'default' && (
                 <div className="inline-flex items-center gap-1 bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                   <ArrowUpDown className="w-3 h-3" />
-                  <span>الترتيب: {currentSortObj.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => onSelectSort('default')}
-                    className="p-0.5 hover:text-rose-500 transition-colors cursor-pointer mr-1"
-                    title="إعادة الترتيب للافتراضي"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                  <span>الترتيب: {SORT_OPTIONS.find((s) => s.id === selectedSort)?.label ?? selectedSort}</span>
+                  <button type="button" onClick={() => onSelectSort('default')} className="p-0.5 hover:text-rose-500 transition-colors cursor-pointer mr-1" title="إعادة الترتيب للافتراضي"><X className="w-3 h-3" /></button>
                 </div>
               )}
             </div>
 
             <button
-              onClick={() => {
-                if (onSelectPriceRange) onSelectPriceRange('all');
-                onSelectSort('default');
-              }}
+              onClick={handleResetAllFilters}
               className="text-[11px] font-extrabold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer flex items-center gap-1 mr-auto"
             >
-              <X className="w-3 h-3" />
+              <RotateCcw className="w-3 h-3" />
               <span>إعادة ضبط الكل</span>
             </button>
           </div>
         )}
 
+        {/* Brand Drawer */}
+        <AnimatePresence>
+          {isBrandDrawerOpen && onSelectBrands && (
+            <motion.div
+              key="brand-drawer"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl p-3 mt-2 dir-rtl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-text-primary)]">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تصفية حسب العلامة التجارية</span>
+                </div>
+                <button type="button" onClick={() => setIsBrandDrawerOpen(false)} className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {STORE_BRANDS.map((brand) => {
+                  const isSelected = selectedBrands.includes(brand.id);
+                  return (
+                    <button
+                      key={brand.id}
+                      type="button"
+                      onClick={() => handleToggleBrand(brand.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500/25 text-amber-200 border-amber-500/50'
+                          : 'bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3" />}
+                      <span>{brand.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedBrands.length > 0 && (
+                <button type="button" onClick={() => onSelectBrands([])} className="mt-2 text-[11px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer">
+                  <RotateCcw className="w-3 h-3" />
+                  <span>إلغاء تحديد العلامات</span>
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Rating Drawer */}
+        <AnimatePresence>
+          {isRatingDrawerOpen && onSelectRatings && (
+            <motion.div
+              key="rating-drawer"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl p-3 mt-2 dir-rtl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-text-primary)]">
+                  <Star className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تصفية حسب التقييم</span>
+                </div>
+                <button type="button" onClick={() => setIsRatingDrawerOpen(false)} className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {RATING_OPTIONS.map((ratingOpt) => {
+                  const isSelected = selectedRatings.includes(ratingOpt.id);
+                  return (
+                    <button
+                      key={ratingOpt.id}
+                      type="button"
+                      onClick={() => handleToggleRating(ratingOpt.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold transition-all cursor-pointer text-right ${
+                        isSelected
+                          ? 'bg-rose-500/20 text-rose-200 border-rose-500/40'
+                          : 'bg-[var(--color-surface-1)] border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3" />}
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        {ratingOpt.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Expandable Custom Range Drawer */}
         <AnimatePresence>
           {isCustomDrawerOpen && (

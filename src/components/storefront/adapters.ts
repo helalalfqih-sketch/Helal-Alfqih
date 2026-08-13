@@ -133,6 +133,7 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
     gallery,
     videoUrl,
     category: p.categoryId || "all",
+    brand: p.brand || (p as any).brand_id || undefined,
     inStock: p.stock > 0,
     isBestOffer: p.isDeal || Boolean(rawOldPrice && rawOldPrice > priceYER),
     isNewArrival: p.featured || false,

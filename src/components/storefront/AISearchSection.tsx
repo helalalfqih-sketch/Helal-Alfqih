@@ -1,19 +1,42 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Product, Currency } from './types';
 import { formatPrice } from './currency';
 import { Bot, Sparkles, Search, Headphones, Radio, Camera, Watch, Gamepad2, Zap, Tag, ChevronLeft, ArrowLeft, History, X } from 'lucide-react';
 import { getRecentSearches, saveRecentSearch, removeRecentSearch, clearRecentSearches } from './searchHistory';
 
+const FALLBACK_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23181825"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2371717a" font-family="sans-serif" font-size="16">&#1604;&#1575; &#1578;&#1578;&#1608;&#1601;&#1585; &#1589;&#1608;&#1585;&#1577;</text></svg>';
+
+const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+  e.currentTarget.src = FALLBACK_IMAGE;
+};
+
+// Highlight search match within product names and categories
+const highlightMatch = (text: string, queryText: string): React.ReactNode => {
+  if (!queryText || !text) return text;
+  const index = text.toLowerCase().indexOf(queryText.toLowerCase());
+  if (index === -1) return text;
+  const before = text.slice(0, index);
+  const match = text.slice(index, index + queryText.length);
+  const after = text.slice(index + queryText.length);
+  return (
+    <>
+      {before}
+      <mark className="bg-[#2F6BFF]/30 text-[#2F6BFF] font-extrabold rounded px-0.5 bg-transparent">{match}</mark>
+      {after}
+    </>
+  );
+};
+
 interface AISearchSectionProps {
-  products: Product[];
+  products?: Product[];
   onFilteredproductsChange?: (products: Product[]) => void;
   onSelectProduct: (product: Product) => void;
   currency: Currency;
   onSearchQuerySubmit?: (query: string) => void;
 }
 
-export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
+export const AISearchSection: React.FC<AISearchSectionProps> = ({ products = [],
   onSelectProduct,
   currency,
   onSearchQuerySubmit,
@@ -21,6 +44,7 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [aiResult, setAiResult] = useState<{
     aiSummary: string;
@@ -147,8 +171,10 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
       setAiResult({
         aiSummary:
           data.aiSummary ||
-          `تم تحليل طلبك "${textToSearch}" وعرض المنتجات الأكثر ملاءمة.`,
-        matchedproducts: matchedProds.length > 0 ? matchedProds : products.slice(0, 4),
+          (matchedProds.length > 0
+            ? `تم تحليل طلبك "${textToSearch}" وعرض المنتجات الأكثر ملاءمة.`
+            : `لم نتمكن من العثور على منتجات مطابقة لطلبك "${textToSearch}". جرب كلمات بحث أخرى.`),
+        matchedproducts: matchedProds,
         recommendedKeywords: data.recommendedKeywords || ['ضمان متجر إندكس', 'أصلي 100%'],
       });
     } catch (err) {
@@ -165,8 +191,11 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
       );
 
       setAiResult({
-        aiSummary: `نتائج البحث الذكي عن "${textToSearch}": إندكس يقدم أفضل الخيارات المتطابقة.`,
-        matchedproducts: matchedProds.length > 0 ? matchedProds : products.slice(0, 3),
+        aiSummary:
+          matchedProds.length > 0
+            ? `نتائج البحث الذكي عن "${textToSearch}": إندكس يقدم أفضل الخيارات المتطابقة.`
+            : `لم يتم العثور على منتجات مطابقة لـ "${textToSearch}".`,
+        matchedproducts: matchedProds,
       });
     } finally {
       setLoading(false);
@@ -261,7 +290,26 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
                   if (query.trim()) setShowSuggestions(true);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') setShowSuggestions(false);
+                  if (e.key === 'Escape') {
+                    setShowSuggestions(false);
+                    setSelectedIndex(-1);
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (suggestions.products.length > 0) {
+                      setSelectedIndex((prev) => (prev < suggestions.products.length - 1 ? prev + 1 : 0));
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (suggestions.products.length > 0) {
+                      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.products.length - 1));
+                    }
+                  } else if (e.key === 'Enter' && selectedIndex >= 0 && selectedIndex < suggestions.products.length) {
+                    e.preventDefault();
+                    const chosen = suggestions.products[selectedIndex];
+                    setShowSuggestions(false);
+                    setSelectedIndex(-1);
+                    onSelectProduct(chosen);
+                  }
                 }}
                 placeholder="مثال : أريد ساعة ذكية مقاومة للماء مع بطارية قوية"
                 className="w-full bg-transparent border-none text-[var(--color-text-primary)] text-xs sm:text-sm px-2 focus:outline-none placeholder-[var(--color-text-muted)] font-medium text-right"
@@ -356,11 +404,12 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
                           onClick={() => {
                             setQuery(cat);
                             setShowSuggestions(false);
+                            setSelectedIndex(-1);
                             handleAISearch(cat);
                           }}
                           className="bg-[var(--color-surface-2)] hover:bg-[#2F6BFF] hover:text-white border border-[var(--color-border-default)] text-[var(--color-text-secondary)] text-xs font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer flex items-center gap-1"
                         >
-                          <span>{cat}</span>
+                          <span>{highlightMatch(cat, query)}</span>
                         </button>
                       ))}
                     </div>
@@ -374,38 +423,47 @@ export const AISearchSection: React.FC<AISearchSectionProps> = ({ products,
                       <span>اقتراحات المنتجات ({suggestions.products.length})</span>
                       <span className="text-[10px] text-[#2F6BFF]">انقر للمعاينة والطلب</span>
                     </div>
-                    {suggestions.products.map((prod) => (
-                      <div
-                        key={prod.id}
-                        onClick={() => {
-                          setShowSuggestions(false);
-                          onSelectProduct(prod);
-                        }}
-                        className="group/item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-[var(--color-surface-2)] transition-all cursor-pointer border border-transparent hover:border-[var(--color-border-subtle)]"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <img
-                            src={prod.image}
-                            alt={prod.name}
-                            className="w-9 h-9 rounded-lg object-contain bg-[var(--color-surface-2)] p-0.5 shrink-0 border border-[var(--color-border-subtle)]"
-                          />
-                          <div className="min-w-0 text-right">
-                            <h6 className="text-xs font-bold text-[var(--color-text-primary)] group-hover/item:text-[#2F6BFF] transition-colors truncate">
-                              {prod.name}
-                            </h6>
-                            <span className="text-[10px] text-[var(--color-text-muted)] block truncate">
-                              {prod.category}
+                    {suggestions.products.map((prod, idx) => {
+                      const isSelected = selectedIndex === idx;
+                      return (
+                        <div
+                          key={prod.id}
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            setSelectedIndex(-1);
+                            onSelectProduct(prod);
+                          }}
+                          className={`group/item flex items-center justify-between gap-3 p-2 rounded-xl transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-[var(--color-surface-3)] border-[#2F6BFF]/50 ring-1 ring-[#2F6BFF]'
+                              : 'hover:bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border-subtle)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={prod.image || FALLBACK_IMAGE}
+                              alt={prod.name}
+                              onError={handleImageError}
+                              className="w-9 h-9 rounded-lg object-contain bg-[var(--color-surface-2)] p-0.5 shrink-0 border border-[var(--color-border-subtle)]"
+                            />
+                            <div className="min-w-0 text-right">
+                              <h6 className="text-xs font-bold text-[var(--color-text-primary)] group-hover/item:text-[#2F6BFF] transition-colors truncate">
+                                {highlightMatch(prod.name, query)}
+                              </h6>
+                              <span className="text-[10px] text-[var(--color-text-muted)] block truncate">
+                                {prod.category}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-left dir-ltr">
+                            <span className="text-xs font-black text-[#2F6BFF]">
+                              {formatPrice(prod.priceYER, currency)}
                             </span>
                           </div>
                         </div>
-
-                        <div className="shrink-0 text-left dir-ltr">
-                          <span className="text-xs font-black text-[#2F6BFF]">
-                            {formatPrice(prod.priceYER, currency)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : suggestions.categories.length === 0 ? (
                   <div className="p-3 text-center text-xs text-[var(--color-text-muted)] font-medium">

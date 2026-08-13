@@ -1,4 +1,4 @@
-﻿export type Currency = 'YER' | 'SAR' | 'USD';
+export type Currency = 'YER' | 'SAR' | 'USD';
 
 export interface Product {
   id: string;
@@ -22,6 +22,7 @@ export interface Product {
   isBestSeller?: boolean;
   isNewArrival?: boolean;
   isFeatured?: boolean;
+  brand?: string;
   specs?: Record<string, string>;
   colors?: string[];
 }

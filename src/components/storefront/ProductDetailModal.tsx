@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product, Currency } from './types';
 import { formatPrice } from './currency';
@@ -115,6 +115,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [addedToast, setAddedToast] = useState(false);
   const [sharedToast, setSharedToast] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
 
   // Close modal on Escape key press
   useEffect(() => {
@@ -127,11 +128,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Reset selected media when product changes
+  // Reset selected media and failedUrls when product changes
   useEffect(() => {
     setSelectedMediaIndex(0);
     setQuantity(1);
     setSelectedColor(product?.colors?.[0]);
+    setFailedUrls(new Set());
   }, [product?.id]);
 
   // Rating breakdown chart data
@@ -208,14 +210,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   };
 
-  // Construct real media items list from product
+  // Build media list; failed URLs are excluded lazily as onError fires during render
   const mediaList: MediaItem[] = [];
-  if (product.image) {
+  if (product.image && !failedUrls.has(product.image)) {
     mediaList.push({ type: 'image', url: product.image, label: 'الصورة الرئيسية' });
   }
   if (product.gallery && product.gallery.length > 0) {
     product.gallery.forEach((imgUrl, idx) => {
-      if (imgUrl !== product.image) {
+      if (imgUrl && imgUrl !== product.image && !failedUrls.has(imgUrl)) {
         mediaList.push({ type: 'image', url: imgUrl, label: `صورة ${idx + 1}` });
       }
     });
@@ -224,7 +226,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     mediaList.push({ type: 'video', url: product.videoUrl, label: 'فيديو المنتج' });
   }
 
-  const activeMedia = mediaList[selectedMediaIndex] || mediaList[0];
+  const safeMediaIndex = Math.min(selectedMediaIndex, Math.max(0, mediaList.length - 1));
+  const activeMedia = mediaList[safeMediaIndex] || mediaList[0];
+
+  // Called by <img onError>: marks URL as failed and falls back to index 0
+  const handleImageLoadError = (url: string) => {
+    setFailedUrls(prev => new Set([...prev, url]));
+    setSelectedMediaIndex(0);
+  };
 
   const handleAddToCart = () => {
     onAddToCart(product, quantity, selectedColor);

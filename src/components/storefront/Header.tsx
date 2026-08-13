@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Plus, Search, Bell, ShoppingCart, X, Sparkles, ShieldCheck, Heart, Sun, Moon, History, MessageCircle } from 'lucide-react';
 import { Product, Currency } from './types';
@@ -27,6 +27,7 @@ interface HeaderProps {
   onOpenTracker: () => void;
   onOpenAdmin?: () => void;
   onSelectProduct?: (product: Product) => void;
+  isAdminUser?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenTracker,
   onOpenAdmin,
   onSelectProduct,
+  isAdminUser = false,
 }) => {
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -362,17 +364,21 @@ export const Header: React.FC<HeaderProps> = ({
           <Plus className="w-5 h-5 text-white" />
         </motion.button>
 
-        {/* 7. Admin Panel Shield Button (Desktop / Tablet) */}
         {onOpenAdmin && (
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={onOpenAdmin}
-            aria-label="لوحة الأدمن"
-            className="hidden md:flex w-10 h-10 sm:w-11 sm:h-11 items-center justify-center text-emerald-400 border border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-all cursor-pointer shrink-0 shadow-sm"
+            aria-label="لوحة التحكم"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl transition-all cursor-pointer shrink-0 shadow-md ${
+              isAdminUser
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white font-black border border-purple-400/50 shadow-purple-900/40'
+                : 'bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-emerald-400 border border-[var(--color-border-default)] font-bold'
+            }`}
             title="لوحة تحكم الأدمن"
           >
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            <ShieldCheck className={`w-5 h-5 ${isAdminUser ? 'text-amber-300' : 'text-emerald-400'}`} />
+            <span className="text-xs font-black whitespace-nowrap hidden sm:inline">لوحة التحكم</span>
           </motion.button>
         )}
 
