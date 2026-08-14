@@ -168,7 +168,7 @@ function DashboardPage() {
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
               <a
-                href="/"
+                href="/app/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold hover:bg-accent transition"

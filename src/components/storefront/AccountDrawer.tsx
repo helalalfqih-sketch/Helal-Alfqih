@@ -29,7 +29,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Currency, OrderStatus } from './types';
-
+import { STORE_INFO } from './constants';
 import { formatPrice } from './currency';
 import { StoreLogo } from './StoreLogo';
 import { LiteModeToggle } from './LiteModeToggle';
@@ -48,8 +48,6 @@ import {
 } from '@/lib/customerProfile';
 import { supabase } from '@/integrations/supabase/client';
 
-import { STORE_INFO } from './constants';
-
 interface AccountDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -60,6 +58,7 @@ interface AccountDrawerProps {
   onOpenTrackerForOrder?: (orderNumber: string) => void;
   onOpenAdmin?: () => void;
   onOpenEvolutionStudio?: () => void;
+  onOpenUniverse?: () => void;
   isAdminUser?: boolean;
 }
 
@@ -75,12 +74,27 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   onOpenTrackerForOrder,
   onOpenAdmin,
   onOpenEvolutionStudio,
+  onOpenUniverse,
   isAdminUser = false,
 }) => {
   const [activeTab, setActiveTab] = useState<AccountTab>('orders');
   const [currentUser, setCurrentUser] = useState<{ uid: string; email?: string | null } | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(isAdminUser);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+
+  // Check admin session when user or drawer status changes
+  useEffect(() => {
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (isMounted) {
+        setIsAdmin(Boolean(data.session?.user));
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, isOpen, isAdminUser]);
+
   const [userOrders, setUserOrders] = useState<OrderStatus[]>([]);
   const [loadingOrders, setLoadingOrders] = useState<boolean>(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -108,7 +122,48 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   // Copy feedback
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
-  // Listen to Auth State (Supabase) & load customer data
+  // Customer Supabase Auth state
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authFullName, setAuthFullName] = useState('');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+
+  const handleCustomerAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthSuccessMsg(null);
+    setIsSubmittingAuth(true);
+
+    if (authMode === 'signin') {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+      setIsSubmittingAuth(false);
+      if (signInError) { setAuthError(signInError.message); return; }
+      // Admin role is handled via isAdminUser prop from parent
+    } else {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: authEmail,
+        password: authPassword,
+        options: { data: { full_name: authFullName } },
+      });
+      setIsSubmittingAuth(false);
+      if (signUpError) {
+        setAuthError(signUpError.message);
+      } else {
+        setAuthSuccessMsg('تم إنشاء الحساب! تحقق من بريدك الإلكتروني.');
+      }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    const { error: googleError } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (googleError) setAuthError(googleError.message);
+  };
+
+  // Listen to Auth State & load customer data
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const user = data?.session?.user;
@@ -329,6 +384,223 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
           {/* Tab Content Container */}
           <div className="flex-1 overflow-y-auto no-scrollbar py-4 space-y-4">
+            {/* Top Admin Banner & Direct Access Button */}
+            {onOpenAdmin && (
+              <div className="bg-gradient-to-r from-purple-950/80 via-indigo-950/80 to-slate-900/90 border border-purple-500/50 p-4 rounded-2xl flex items-center justify-between shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0 border border-purple-300/30">
+                    🛠️
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-extrabold text-sm text-purple-100">
+                        لوحة التحكم الإدارية
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black border border-emerald-500/30">
+                        أدمن موثّق
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-purple-300/80 mt-0.5">
+                      إدارة الطلبات والمنتجات والمخزون والإعدادات
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAdmin();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-purple-500/30 transition-all cursor-pointer whitespace-nowrap border border-purple-400/40"
+                >
+                  <span>دخول اللوحة</span>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Indexes Evolution Studio AI Visual Editor Banner */}
+            {onOpenEvolutionStudio && (
+              <div className="bg-gradient-to-r from-blue-950/80 via-cyan-950/80 to-slate-900/90 border border-cyan-500/40 p-4 rounded-2xl flex items-center justify-between shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0 border border-cyan-300/30">
+                    ✨
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-extrabold text-sm text-cyan-100">
+                        استديو التطور البصري (Evolution Studio)
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-black border border-cyan-500/30">
+                        AI Visual Lab
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-cyan-200/80 mt-0.5">
+                      محرر التصميم البصري، مختبر الأجهزة، والذكاء الإبداعي
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenEvolutionStudio();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-cyan-500/30 transition-all cursor-pointer whitespace-nowrap border border-cyan-400/40"
+                >
+                  <span>فتح الاستديو</span>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* 3D Product Universe Explorer Banner */}
+            {onOpenUniverse && (
+              <div className="bg-gradient-to-r from-indigo-950/90 via-purple-950/80 to-slate-950/90 border border-purple-500/40 p-4 rounded-2xl flex items-center justify-between shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0 border border-purple-300/30">
+                    🪐
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-extrabold text-sm text-purple-100">
+                        عالم المنتجات الفضائي 3D (Universe)
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black border border-purple-500/30">
+                        3D Explorer
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-purple-200/80 mt-0.5">
+                      استكشاف سينمائي تفاعلي للمنتجات في الفضاء ثلاثي الأبعاد
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenUniverse();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-purple-500/30 transition-all cursor-pointer whitespace-nowrap border border-purple-400/40"
+                >
+                  <span>استكشاف الآن</span>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            {!currentUser && (
+              <div className="bg-[var(--color-surface-2)] p-4 rounded-2xl border border-[var(--color-border-default)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-text-primary)]">
+                    <User className="w-4 h-4 text-[#2F6BFF]" />
+                    <span>{authMode === 'signin' ? 'تسجيل الدخول إلى حسابك' : 'إنشاء حساب عميل جديد'}</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl text-[11px] border border-[var(--color-border-default)]">
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode('signin'); setAuthError(null); setAuthSuccessMsg(null); }}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                        authMode === 'signin'
+                          ? 'bg-[#2F6BFF] text-white'
+                          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      دخول
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode('signup'); setAuthError(null); setAuthSuccessMsg(null); }}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                        authMode === 'signup'
+                          ? 'bg-[#2F6BFF] text-white'
+                          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      حساب جديد
+                    </button>
+                  </div>
+                </div>
+
+                {authError && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                {authSuccessMsg && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{authSuccessMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleCustomerAuth} className="space-y-2.5 text-xs">
+                  {authMode === 'signup' && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">الاسم الكامل</label>
+                      <input
+                        type="text"
+                        required
+                        value={authFullName}
+                        onChange={(e) => setAuthFullName(e.target.value)}
+                        placeholder="علي أحمد"
+                        className="w-full h-9 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-xl px-3 text-xs text-[var(--color-text-primary)] outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      dir="ltr"
+                      className="w-full h-9 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-xl px-3 text-xs text-[var(--color-text-primary)] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">كلمة المرور</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="••••••••"
+                      dir="ltr"
+                      className="w-full h-9 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-xl px-3 text-xs text-[var(--color-text-primary)] outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAuth}
+                    className="w-full py-2.5 bg-[#2F6BFF] hover:bg-blue-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmittingAuth ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : authMode === 'signin' ? (
+                      'تسجيل الدخول'
+                    ) : (
+                      'إنشاء الحساب'
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="w-full py-2 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-primary)] font-semibold rounded-xl text-xs border border-[var(--color-border-default)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <span>التسجيل بواسطة Google</span>
+                  </button>
+                </form>
+              </div>
+            )}
             {/* 1. ORDERS TAB */}
             {activeTab === 'orders' && (
               <div className="space-y-3">
@@ -495,7 +767,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                             onChange={(e) => setNewAddrGov(e.target.value)}
                             className="w-full h-9 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] rounded-xl px-2 text-xs font-medium cursor-pointer"
                           >
-                            {STORE_INFO.governorates.map((gov: string) => (
+                            {STORE_INFO.governorates.map((gov) => (
                               <option key={gov} value={gov}>
                                 {gov}
                               </option>
@@ -519,7 +791,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
                       <div>
                         <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                          العنوان التفصيلي (الشارع والحي)
+                          العنوان التفصيلي (الشارع والحارة)
                         </label>
                         <input
                           type="text"
@@ -613,7 +885,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-extrabold text-sm text-[var(--color-text-primary)]">
-                              {addr.label === 'منزل' ? '🏠' : addr.label === 'عمل' ? '💼' : '📍'} {addr.label}
+                              {addr.label === 'منزل' ? '🏠' : addr.label === 'عمل' ? '🏢' : '📍'} {addr.label}
                             </span>
                             {addr.isDefault && (
                               <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-500/30">
@@ -628,13 +900,13 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                                 onClick={() => handleSetDefaultAddress(addr.id)}
                                 className="text-[10px] text-[#2F6BFF] hover:underline font-bold px-2 py-1 cursor-pointer"
                               >
-                                تعيين كافتراضي
+                                طھط¹ظٹظٹظ† ظƒط§ظپطھط±ط§ط¶ظٹ
                               </button>
                             )}
                             <button
                               onClick={() => handleDeleteAddress(addr.id)}
                               className="p-1 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
-                              title="حذف العنوان"
+                              title="ط­ط°ظپ ط§ظ„ط¹ظ†ظˆط§ظ†"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -651,7 +923,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                         </p>
 
                         <div className="text-[11px] text-[var(--color-text-secondary)] flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)]">
-                          <span>المستلم: {addr.recipientName}</span>
+                          <span>ط§ظ„ظ…ط³طھظ„ظ…: {addr.recipientName}</span>
                           <span className="font-mono dir-ltr">{maskPhoneNumber(addr.recipientPhone)}</span>
                         </div>
                       </div>
@@ -665,9 +937,9 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             {activeTab === 'profile' && (
               <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
                 <div className="flex items-center justify-between font-bold text-[var(--color-text-secondary)]">
-                  <span>بيانات الحساب الشخصية والتعبئة</span>
+                  <span>ط¨ظٹط§ظ†ط§طھ ط§ظ„ط­ط³ط§ط¨ ط§ظ„ط´ط®طµظٹط© ظˆط§ظ„طھط¹ط¨ط¦ط©</span>
                   <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-                    <ShieldCheck className="w-3 h-3" /> مشفرة وآمنة
+                    <ShieldCheck className="w-3 h-3" /> ظ…ط´ظپط±ط© ظˆط¢ظ…ظ†ط©
                   </span>
                 </div>
 
@@ -680,14 +952,14 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                    الاسم الكامل *
+                    ط§ظ„ط§ط³ظ… ط§ظ„ظƒط§ظ…ظ„ *
                   </label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="اسمك الثلاثي المعتمَد"
+                    placeholder="ط§ط³ظ…ظƒ ط§ظ„ط«ظ„ط§ط«ظٹ ط§ظ„ظ…ط¹طھظ…ظژط¯"
                     className="w-full h-10 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3 text-xs text-[var(--color-text-primary)] outline-none focus:border-[#2F6BFF]"
                   />
                 </div>
@@ -695,7 +967,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                      رقم الهاتف الرئيسي *
+                      ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ط§ظ„ط±ط¦ظٹط³ظٹ *
                     </label>
                     <input
                       type="tel"
@@ -709,7 +981,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                      رقم هاتف إضافي (اختياري)
+                      ط±ظ‚ظ… ظ‡ط§طھظپ ط¥ط¶ط§ظپظٹ (ط§ط®طھظٹط§ط±ظٹ)
                     </label>
                     <input
                       type="tel"
@@ -724,14 +996,14 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                    المحافظة المفضلّة
+                    ط§ظ„ظ…ط­ط§ظپط¸ط© ط§ظ„ظ…ظپط¶ظ„ظ‘ط©
                   </label>
                   <select
                     value={preferredGov}
                     onChange={(e) => setPreferredGov(e.target.value)}
                     className="w-full h-10 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3 text-xs font-medium cursor-pointer"
                   >
-                    {STORE_INFO.governorates.map((gov: string) => (
+                    {STORE_INFO.governorates.map((gov) => (
                       <option key={gov} value={gov}>
                         {gov}
                       </option>
@@ -741,13 +1013,13 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] mb-1">
-                    تعليمات التوصيل المفضلة
+                    طھط¹ظ„ظٹظ…ط§طھ ط§ظ„طھظˆطµظٹظ„ ط§ظ„ظ…ظپط¶ظ„ط©
                   </label>
                   <textarea
                     rows={2}
                     value={deliveryInstructions}
                     onChange={(e) => setDeliveryInstructions(e.target.value)}
-                    placeholder="مثال: اتصل قبل الوصول بـ 10 دقائق"
+                    placeholder="ظ…ط«ط§ظ„: ط§طھطµظ„ ظ‚ط¨ظ„ ط§ظ„ظˆطµظˆظ„ ط¨ظ€ 10 ط¯ظ‚ط§ط¦ظ‚"
                     className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl p-2.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[#2F6BFF] resize-none"
                   />
                 </div>
@@ -755,7 +1027,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                 <div className="bg-[var(--color-surface-2)] p-3 rounded-xl border border-[var(--color-border-default)] space-y-2">
                   <label className="flex items-center justify-between cursor-pointer">
                     <span className="font-bold text-[11px] text-[var(--color-text-primary)]">
-                      تفعيل التعبئة التلقائية للطلبات
+                      طھظپط¹ظٹظ„ ط§ظ„طھط¹ط¨ط¦ط© ط§ظ„طھظ„ظ‚ط§ط¦ظٹط© ظ„ظ„ط·ظ„ط¨ط§طھ
                     </span>
                     <input
                       type="checkbox"
@@ -824,7 +1096,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                   >
                     <div>
                       <span className="font-extrabold block">ريال يمني (YER)</span>
-                      <span className="text-[10px] opacity-80">العملة الرسمية المحلية بالريال اليمن</span>
+                      <span className="text-[10px] opacity-80">العملة الرسمية المحلية بالريال اليمني</span>
                     </div>
                     {currency === 'YER' && <CheckCircle2 className="w-5 h-5 text-white" />}
                   </button>
@@ -913,7 +1185,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                     <span>الخصوصية والأمان التام</span>
                   </div>
                   <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
-                    نحن لا نبيع أو نشارك بياناتك أو أرقام هاتف مع أي جهة خارجية. يتم ربط سجل طلبياتك بأمان تام مع رقم حسابك المشفر في قواعد بيانات Supabase الآمنة.
+                    نحن لا نبيع أو نشارك بياناتك أو أرقام هاتفك مع أي جهة خارجية. يتم ربط سجل طلباتك بأمان تام مع رقم حسابك المشفر في قاعدة البيانات.
                   </p>
                 </div>
 
@@ -949,7 +1221,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
           {/* Store Location Footer */}
           <div className="pt-3 border-t border-[var(--color-border-default)] text-[11px] text-[var(--color-text-secondary)] space-y-0.5 text-center">
             <p className="font-extrabold text-[var(--color-text-primary)]">{STORE_INFO.name}</p>
-            
+            <p>{STORE_INFO.address}</p>
           </div>
         </motion.div>
       </motion.div>

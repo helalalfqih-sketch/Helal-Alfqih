@@ -44,7 +44,8 @@ export const AddToCartAnimationOverlay: React.FC<AddToCartAnimationProps> = ({
   // Determine cart icon location on screen (defaults to top-left for RTL header)
   const getCartTargetPosition = () => {
     if (typeof document === 'undefined') return { x: 36, y: 32 };
-    const cartButton = document.querySelector('[aria-label="سلة التسوق"]');
+    if (typeof document === 'undefined') return { x: 36, y: 32 };
+    const cartButton = document.querySelector('[aria-label="ط³ظ„ط© ط§ظ„طھط³ظˆظ‚"]');
     if (cartButton) {
       const rect = cartButton.getBoundingClientRect();
       return {
@@ -155,13 +156,13 @@ export const AddToCartAnimationOverlay: React.FC<AddToCartAnimationProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
                   <Sparkles className="w-3 h-3" />
-                  <span>تمت الإضافة إلى سلة التسوق!</span>
+                  <span>طھظ…طھ ط§ظ„ط¥ط¶ط§ظپط© ط¥ظ„ظ‰ ط³ظ„ط© ط§ظ„طھط³ظˆظ‚!</span>
                 </div>
                 <h5 className="text-xs sm:text-sm font-black text-[var(--color-text-primary)] truncate">
                   {currentToast.product.name}
                 </h5>
                 <p className="text-[10px] text-[var(--color-text-secondary)] truncate">
-                  الكمية: {currentToast.quantity} {currentToast.selectedColor ? `• اللون: ${currentToast.selectedColor}` : ''}
+                  ط§ظ„ظƒظ…ظٹط©: {currentToast.quantity} {currentToast.selectedColor ? `â€¢ ط§ظ„ظ„ظˆظ†: ${currentToast.selectedColor}` : ''}
                 </p>
               </div>
             </div>
@@ -176,7 +177,7 @@ export const AddToCartAnimationOverlay: React.FC<AddToCartAnimationProps> = ({
                 }}
                 className="px-3.5 py-2 bg-[#2F6BFF] hover:bg-[#2458D8] active:scale-95 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/25"
               >
-                <span>السلة</span>
+                <span>ط§ظ„ط³ظ„ط©</span>
                 <ShoppingCart className="w-3.5 h-3.5" />
               </button>
 
@@ -184,9 +185,9 @@ export const AddToCartAnimationOverlay: React.FC<AddToCartAnimationProps> = ({
                 type="button"
                 onClick={() => setShowToast(false)}
                 className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg hover:bg-[var(--color-surface-2)] cursor-pointer"
-                title="إغلاق"
+                title="ط¥ط؛ظ„ط§ظ‚"
               >
-                ✕
+                âœ•
               </button>
             </div>
 

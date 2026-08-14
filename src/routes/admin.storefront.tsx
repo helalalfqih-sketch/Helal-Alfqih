@@ -2676,7 +2676,7 @@ function StorefrontCMSPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href="/"
+            href="/app/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-bold hover:bg-accent transition font-sans text-foreground"

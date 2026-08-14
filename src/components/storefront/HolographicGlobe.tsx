@@ -51,16 +51,20 @@ class WebGLErrorBoundary extends Component<WebGLErrorBoundaryProps, WebGLErrorBo
   }
 }
 
-// 3D Spherical Coordinates for Product Nodes
-const PRODUCT_COORDS = [
-  { lat: 20, lon: 10 },
-  { lat: 45, lon: 85 },
-  { lat: -25, lon: 155 },
-  { lat: 30, lon: 220 },
-  { lat: -35, lon: 295 },
-  { lat: 55, lon: 130 },
-  { lat: -40, lon: 40 },
-];
+// 3D Spherical Coordinates for up to 50 Product Nodes via Fibonacci Sphere
+const generateFibonacciCoords = (count: number) => {
+  const phi = (1 + Math.sqrt(5)) / 2; // Golden ratio
+  const coords: { lat: number; lon: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const y = 1 - (i / (count - 1)) * 2;
+    const lat = Math.asin(y) * (180 / Math.PI);
+    const lon = ((2 * Math.PI * i) / phi) * (180 / Math.PI);
+    coords.push({ lat, lon });
+  }
+  return coords;
+};
+
+const PRODUCT_COORDS_50 = generateFibonacciCoords(50);
 
 // Dense Photorealistic CGI Particle Sphere Component
 const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) => {
@@ -266,9 +270,9 @@ const ProductNode: React.FC<ProductNodeProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Convert Spherical Lat/Lon to 3D Cartesian coordinates on sphere radius ~2.55
+  // Convert Spherical Lat/Lon to 3D Cartesian coordinates on sphere radius ~1.8
   const position = useMemo(() => {
-    const radius = 2.55;
+    const radius = 1.8;
     const latRad = (lat * Math.PI) / 180;
     const lonRad = (lon * Math.PI) / 180;
 
@@ -282,7 +286,7 @@ const ProductNode: React.FC<ProductNodeProps> = ({
     <group position={position}>
       <Html
         center
-        distanceFactor={9}
+        distanceFactor={8}
         zIndexRange={[100, 0]}
         style={{ pointerEvents: 'auto' }}
       >
@@ -293,16 +297,26 @@ const ProductNode: React.FC<ProductNodeProps> = ({
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className="relative cursor-pointer group flex flex-col items-center select-none"
+          className="relative cursor-pointer group flex flex-col items-center select-none transition-transform duration-300 hover:scale-115"
         >
-          {/* Glassmorphic Squircle Container as specified */}
-          <div className="w-14 h-14 bg-[#0B0D14]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-1 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 group-hover:scale-110 active:scale-95 group-hover:border-purple-400/80 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]">
+          {/* Circular Round Card (دائري ناعم وجميل) */}
+          <div className="w-11 h-11 sm:w-13 sm:h-13 bg-[#09071a]/85 backdrop-blur-xl border border-cyan-400/50 rounded-full p-1 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all duration-300 group-hover:border-purple-400 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.7)]">
             <img
               src={product.image || FALLBACK_IMAGE}
               alt={product.name}
               onError={handleImageError}
-              className="w-full h-full object-contain bg-transparent transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-full object-contain rounded-full bg-transparent transition-transform duration-300 group-hover:scale-110"
             />
+          </div>
+
+          {/* Name & Price Badge (عرض الاسم والسعر مفعل) */}
+          <div className="mt-1 flex flex-col items-center pointer-events-none">
+            <span className="px-1.5 py-0.5 rounded-md bg-black/80 border border-white/15 text-[8px] sm:text-[9px] font-bold text-white max-w-[85px] truncate text-center leading-tight shadow-md">
+              {product.name}
+            </span>
+            <span className="text-[7.5px] sm:text-[8.5px] font-black text-cyan-300 font-mono mt-0.5 drop-shadow">
+              {product.priceYER.toLocaleString('ar-YE')} ر.ي
+            </span>
           </div>
 
           {/* Interactive Hover Tooltip */}
@@ -313,14 +327,14 @@ const ProductNode: React.FC<ProductNodeProps> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.92 }}
                 transition={{ duration: 0.18 }}
-                className="absolute top-full mt-2.5 z-50 bg-[#050514]/95 border border-white/20 text-white p-3 rounded-2xl shadow-2xl shadow-black/95 backdrop-blur-xl pointer-events-none whitespace-nowrap text-right min-w-[140px] flex flex-col gap-1 dir-rtl"
+                className="absolute top-full mt-1 z-50 bg-[#050514]/95 border border-white/20 text-white p-3 rounded-2xl shadow-2xl shadow-black/95 backdrop-blur-xl pointer-events-none whitespace-nowrap text-right min-w-[140px] flex flex-col gap-1 dir-rtl"
               >
                 <div className="text-xs font-bold text-white leading-tight truncate max-w-[160px]">
                   {product.name}
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="text-cyan-300 font-bold font-mono">
-                    {product.priceYER.toLocaleString('ar-YE')} ر.س
+                    {product.priceYER.toLocaleString('ar-YE')} ر.ي
                   </span>
                   <span className="text-slate-300 text-[9px] bg-white/10 px-1.5 py-0.5 rounded border border-white/10">
                     {product.category}
@@ -476,15 +490,19 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,10,40,0.8)_0%,rgba(2,0,10,1)_100%)] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-[radial-gradient(circle,rgba(0,240,255,0.12)_0%,rgba(255,0,127,0.08)_50%,transparent_100%)] pointer-events-none blur-xl" />
 
-      {/* Header Title Badge */}
+      {/* Header Title Badge & Overlay Typography */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-[#050514]/80 border border-white/15 px-3.5 py-1 rounded-full text-[11px] font-medium shadow-xl backdrop-blur-2xl whitespace-nowrap text-white pointer-events-none">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-300 to-purple-300 bg-clip-text text-transparent font-bold">
-            معرض إندكس 3D WebGL
-          </span>
-          <span className="text-slate-500">•</span>
-          <span className="text-slate-300 text-[10px]">اسحب للدوران</span>
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 text-center pointer-events-none px-4 w-full">
+          <div className="inline-flex items-center gap-1.5 bg-[#050514]/85 border border-cyan-400/30 px-3 py-0.5 rounded-full text-[10px] font-black shadow-xl backdrop-blur-2xl text-cyan-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span>INDEXES · LIVE SHOWCASE</span>
+          </div>
+          <h3 className="text-[28px] font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+            آلاف المنتجات
+          </h3>
+          <p className="text-[12px] text-gray-300 font-medium">
+            اسحب الكرة — كل وجه منتج، اضغط لتفتحه
+          </p>
         </div>
       )}
 
@@ -513,16 +531,16 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
               {/* Deep Space Background Stars */}
               <Stars radius={60} depth={40} count={600} factor={3} saturation={0} fade speed={1} />
 
-              {/* Atmospheric Space Dust Sparkles */}
+              {/* Atmospheric Space Dust Sparkles (تأثير الجسيمات الخلفية مفعّل) */}
               <Sparkles count={60} scale={10} size={2.5} speed={0.5} color="#00f0ff" />
               <Sparkles count={40} scale={12} size={2.0} speed={0.4} color="#ff007f" />
 
               {/* 3D CGI WebGL Particle Globe */}
               <ParticleSphere />
 
-              {/* Product Card Overlays (Glassmorphic Squircles) */}
-              {products.slice(0, 7).map((product, idx) => {
-                const coord = PRODUCT_COORDS[idx % PRODUCT_COORDS.length];
+              {/* Product Card Overlays (Up to 50 Circular Nodes) */}
+              {products.slice(0, 50).map((product, idx) => {
+                const coord = PRODUCT_COORDS_50[idx % PRODUCT_COORDS_50.length];
                 return (
                   <ProductNode
                     key={product.id}

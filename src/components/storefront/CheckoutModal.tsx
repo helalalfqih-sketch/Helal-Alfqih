@@ -1,10 +1,8 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { createOrder } from '@/lib/order.functions';
-import { supabase } from '@/integrations/supabase/client';
-import { CartItem, Currency, OrderStatus } from './types';
-import { formatPrice } from './currency';
-import { STORE_INFO } from './constants';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CartItem, Currency, OrderStatus } from "./types";
+import { formatPrice } from "./currency";
+import { STORE_INFO } from "./constants";
 import {
   CustomerProfile,
   SavedAddress,
@@ -17,7 +15,9 @@ import {
   clearCheckoutDraft,
   normalizePhoneDigits,
   maskPhoneNumber,
-} from '@/lib/customerProfile';
+} from "@/lib/customerProfile";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   User,
   Phone,
@@ -34,7 +34,7 @@ import {
   Plus,
   Edit2,
   Check,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -55,28 +55,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderPlaced,
   onOpenOrderTracker,
 }) => {
-  const currentUser: any = null;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [is402Error, setIs402Error] = useState<boolean>(false);
   const [placedOrder, setPlacedOrder] = useState<OrderStatus | null>(null);
+
+  // Fixed idempotencyKey for the checkout attempt
+  const idempotencyKeyRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c: string) =>
+          (
+            +c ^
+            (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))
+          ).toString(16),
+        ),
+  );
 
   // Profile prefill state
   const [isPrefilled, setIsPrefilled] = useState<boolean>(false);
-  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [customerProfile, setCustomerProfile] =
+    useState<CustomerProfile | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  );
 
   // Form Fields
-  const [customerName, setCustomerName] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
-  const [altPhone, setAltPhone] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [altPhone, setAltPhone] = useState<string>("");
   const [showAltPhone, setShowAltPhone] = useState<boolean>(false);
 
-  const [governorate, setGovernorate] = useState<string>(STORE_INFO.governorates[0]);
-  const [address, setAddress] = useState<string>('');
-  const [nearestLandmark, setNearestLandmark] = useState<string>('');
-  const [deliveryInstruction, setDeliveryInstruction] = useState<string>('');
+  const [governorate, setGovernorate] = useState<string>(
+    STORE_INFO.governorates[0],
+  );
+  const [address, setAddress] = useState<string>("");
+  const [nearestLandmark, setNearestLandmark] = useState<string>("");
+  const [deliveryInstruction, setDeliveryInstruction] = useState<string>("");
 
-  const [paymentMethod, setPaymentMethod] = useState<string>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [rememberDevice, setRememberDevice] = useState<boolean>(false);
 
   // Validation errors
@@ -108,44 +125,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    setIs402Error(false);
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "10000000-1000-4000-8000-100000000000".replace(
+              /[018]/g,
+              (c: string) =>
+                (
+                  +c ^
+                  (crypto.getRandomValues(new Uint8Array(1))[0] &
+                    (15 >> (+c / 4)))
+                ).toString(16),
+            );
+    }
+
     // Check if draft exists first and load it
     const draftLoaded = loadGuestProfileOrDraft();
 
-    if (currentUser) {
-      getCustomerProfile(currentUser.uid).then((prof) => {
-        if (prof && prof.autofillEnabled !== false) {
-          setCustomerProfile(prof);
-          // If no draft exists, populate from user profile defaults
-          if (!draftLoaded) {
-            if (prof.fullName) setCustomerName(prof.fullName);
-            if (prof.phone) setPhone(prof.phone);
-            if (prof.altPhone) {
-              setAltPhone(prof.altPhone);
-              setShowAltPhone(true);
-            }
-            if (prof.preferredGovernorate) setGovernorate(prof.preferredGovernorate);
-            if (prof.deliveryInstructions) setDeliveryInstruction(prof.deliveryInstructions);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ? { uid: session.user.id, email: session.user.email } : null;
+      if (currentUser) {
+        getCustomerProfile(currentUser.uid).then((prof) => {
+          if (prof && prof.autofillEnabled !== false) {
+            setCustomerProfile(prof);
+            // If no draft exists, populate from user profile defaults
+            if (!draftLoaded) {
+              if (prof.fullName) setCustomerName(prof.fullName);
+              if (prof.phone) setPhone(prof.phone);
+              if (prof.altPhone) {
+                setAltPhone(prof.altPhone);
+                setShowAltPhone(true);
+              }
+              if (prof.preferredGovernorate)
+                setGovernorate(prof.preferredGovernorate);
+              if (prof.deliveryInstructions)
+                setDeliveryInstruction(prof.deliveryInstructions);
 
-            // Default address
-            if (prof.addresses && prof.addresses.length > 0) {
-              const def = prof.addresses.find((a) => a.isDefault) || prof.addresses[0];
-              setSelectedAddressId(def.id);
-              setGovernorate(def.governorate);
-              setAddress(def.address);
-              if (def.nearestLandmark) setNearestLandmark(def.nearestLandmark);
+              // Default address
+              if (prof.addresses && prof.addresses.length > 0) {
+                const def =
+                  prof.addresses.find((a) => a.isDefault) || prof.addresses[0];
+                setSelectedAddressId(def.id);
+                setGovernorate(def.governorate);
+                setAddress(def.address);
+                if (def.nearestLandmark) setNearestLandmark(def.nearestLandmark);
+              }
             }
+            setIsPrefilled(true);
           }
-          setIsPrefilled(true);
-        }
-      });
-    }
+        });
+      }
+    });
   }, [isOpen]);
 
   const loadGuestProfileOrDraft = (): boolean => {
     // Check saved draft first
     const draft = getCheckoutDraft();
     if (draft && Object.keys(draft).length > 0) {
-      if (draft.step && typeof draft.step === 'number' && [1, 2, 3].includes(draft.step)) {
+      if (
+        draft.step &&
+        typeof draft.step === "number" &&
+        [1, 2, 3].includes(draft.step)
+      ) {
         setStep(draft.step as 1 | 2 | 3);
       }
       if (draft.customerName) setCustomerName(draft.customerName as string);
@@ -156,10 +199,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       if (draft.governorate) setGovernorate(draft.governorate as string);
       if (draft.address) setAddress(draft.address as string);
-      if (draft.nearestLandmark) setNearestLandmark(draft.nearestLandmark as string);
-      if (draft.deliveryInstruction) setDeliveryInstruction(draft.deliveryInstruction as string);
+      if (draft.nearestLandmark)
+        setNearestLandmark(draft.nearestLandmark as string);
+      if (draft.deliveryInstruction)
+        setDeliveryInstruction(draft.deliveryInstruction as string);
       if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod as string);
-      if (typeof draft.rememberDevice === 'boolean') setRememberDevice(draft.rememberDevice as boolean);
+      if (typeof draft.rememberDevice === "boolean")
+        setRememberDevice(draft.rememberDevice as boolean);
       return true;
     }
 
@@ -175,7 +221,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (guest.governorate) setGovernorate(guest.governorate);
       if (guest.address) setAddress(guest.address);
       if (guest.nearestLandmark) setNearestLandmark(guest.nearestLandmark);
-      if (guest.deliveryInstructions) setDeliveryInstruction(guest.deliveryInstructions);
+      if (guest.deliveryInstructions)
+        setDeliveryInstruction(guest.deliveryInstructions);
       setRememberDevice(true);
       setIsPrefilled(true);
       return true;
@@ -217,7 +264,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   if (!isOpen) return null;
 
   // Cart Calculations
-  const subtotalYER = cartItems.reduce((sum, item) => sum + item.product.priceYER * item.quantity, 0);
+  const subtotalYER = cartItems.reduce(
+    (sum, item) => sum + item.product.priceYER * item.quantity,
+    0,
+  );
   const isFreeShipping = subtotalYER >= STORE_INFO.freeShippingThresholdYER;
   const shippingFeeYER = isFreeShipping ? 0 : 3000;
   const discountAmountYER = (subtotalYER * couponDiscountPercent) / 100;
@@ -225,10 +275,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Instruction chips suggestions
   const instructionChips = [
-    'اتصل قبل الوصول',
-    'التسليم لي شخصياً',
-    'التسليم لشخص آخر',
-    'تجنب الاتصال في وقت محدد',
+    "ط§طھطµظ„ ظ‚ط¨ظ„ ط§ظ„ظˆطµظˆظ„",
+    "ط§ظ„طھط³ظ„ظٹظ… ظ„ظٹ ط´ط®طµظٹط§ظ‹",
+    "ط§ظ„طھط³ظ„ظٹظ… ظ„ط´ط®طµ ط¢ط®ط±",
+    "طھط¬ظ†ط¨ ط§ظ„ط§طھطµط§ظ„ ظپظٹ ظˆظ‚طھ ظ…ط­ط¯ط¯",
   ];
 
   // Address Selection handler
@@ -243,13 +293,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Step 1 Validation
   const validateStep1 = () => {
     const errs: { name?: string; phone?: string } = {};
-    const cleanPhone = normalizePhoneDigits(phone).replace(/[^\d]/g, '');
+    const cleanPhone = normalizePhoneDigits(phone).replace(/[^\d]/g, "");
 
     if (!customerName.trim() || customerName.trim().length < 2) {
-      errs.name = 'يرجى إدخال الاسم الكامل الثلاثي';
+      errs.name = "ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط§ط³ظ… ط§ظ„ظƒط§ظ…ظ„ ط§ظ„ط«ظ„ط§ط«ظٹ";
     }
     if (!cleanPhone || cleanPhone.length < 8) {
-      errs.phone = 'يرجى إدخال رقم هاتف صحيحة من 8 أرقام على الأقل';
+      errs.phone = "ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط±ظ‚ظ… ظ‡ط§طھظپ طµط­ظٹط­ط© ظ…ظ† 8 ط£ط±ظ‚ط§ظ… ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„";
     }
 
     setErrors(errs);
@@ -265,7 +315,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const validateStep2 = () => {
     const errs: { address?: string } = {};
     if (!address.trim() || address.trim().length < 5) {
-      errs.address = 'يرجى إدخال عنوان التفصيلي للتوصيل (الشارع والحي)';
+      errs.address = "ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط¹ظ†ظˆط§ظ† ط§ظ„طھظپطµظٹظ„ظٹ ظ„ظ„طھظˆطµظٹظ„ (ط§ظ„ط´ط§ط±ط¹ ظˆط§ظ„ط­ظٹ)";
     }
     setErrors((prev) => ({ ...prev, ...errs }));
     if (errs.address && addressInputRef.current) {
@@ -289,7 +339,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Submit Order
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return; // Prevent duplicate submission
+    if (isSubmitting || is402Error) return; // Prevent duplicate submission or retry on 402
 
     if (!validateStep1()) {
       setStep(1);
@@ -301,7 +351,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
 
     setIsSubmitting(true);
+    setIs402Error(false);
     setErrors({});
+
+    // Ensure fixed idempotencyKey for this attempt
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "10000000-1000-4000-8000-100000000000".replace(
+              /[018]/g,
+              (c: string) =>
+                (
+                  +c ^
+                  (crypto.getRandomValues(new Uint8Array(1))[0] &
+                    (15 >> (+c / 4)))
+                ).toString(16),
+            );
+    }
 
     // Cache input data in React state ref and localStorage draft before async operation
     const currentInputData = {
@@ -320,19 +387,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     saveCheckoutDraft(currentInputData);
 
     try {
-      const currentUser: any = null;
+      const { data: { session: _orderSession } } = await supabase.auth.getSession();
+      const currentUser = _orderSession?.user ? { uid: _orderSession.user.id, email: _orderSession.user.email } : null;
       const orderNum = `IND-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      let paymentLabel = 'الدفع عند الاستلام (نقداً)';
-      if (paymentMethod === 'kuraimi') paymentLabel = 'حساب بنك الكريمي (حاسب)';
-      if (paymentMethod === 'jawalpay') paymentLabel = 'محفظة جوال بي / وان كاش';
-      if (paymentMethod === 'transfer') paymentLabel = 'حوالة صرافة (النجم / المميز)';
+      let paymentLabel = "ط§ظ„ط¯ظپط¹ ط¹ظ†ط¯ ط§ظ„ط§ط³طھظ„ط§ظ… (ظ†ظ‚ط¯ط§ظ‹)";
+      if (paymentMethod === "kuraimi") paymentLabel = "ط­ط³ط§ط¨ ط¨ظ†ظƒ ط§ظ„ظƒط±ظٹظ…ظٹ (ط­ط§ط³ط¨)";
+      if (paymentMethod === "jawalpay")
+        paymentLabel = "ظ…ط­ظپط¸ط© ط¬ظˆط§ظ„ ط¨ظٹ / ظˆط§ظ† ظƒط§ط´";
+      if (paymentMethod === "transfer")
+        paymentLabel = "ط­ظˆط§ظ„ط© طµط±ط§ظپط© (ط§ظ„ظ†ط¬ظ… / ط§ظ„ظ…ظ…ظٹط²)";
 
       const fullAddressText = nearestLandmark
-        ? `${address} (أقرب معلم: ${nearestLandmark})`
+        ? `${address} (ط£ظ‚ط±ط¨ ظ…ط¹ظ„ظ…: ${nearestLandmark})`
         : address;
 
-      const orderData: Omit<OrderStatus, 'id'> = {
+      const orderData: Omit<OrderStatus, "id"> = {
         orderNumber: orderNum,
         customerName: customerName.trim(),
         phone: normalizePhoneDigits(phone).trim(),
@@ -344,31 +414,68 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           price: i.product.priceYER,
         })),
         totalPriceYER: totalYER,
-        status: 'received',
-        statusLabel: 'تم استلام طلبك بنجاح! جاري التجهيز 📦',
-        date: new Date().toLocaleDateString('ar-YE', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
+        status: "received",
+        statusLabel: "طھظ… ط§ط³طھظ„ط§ظ… ط·ظ„ط¨ظƒ ط¨ظ†ط¬ط§ط­! ط¬ط§ط±ظٹ ط§ظ„طھط¬ظ‡ظٹط² ًں“¦",
+        date: new Date().toLocaleDateString("ar-YE", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
         }),
         paymentMethod: paymentLabel,
       };
 
-      // Add userId if logged in
-      const firestorePayload = {
-        ...orderData,
-        userId: currentUser ? currentUser.uid : 'guest',
-        deliveryInstruction: deliveryInstruction || '',
-        altPhone: altPhone ? normalizePhoneDigits(altPhone) : '',
-      };
+      // Get Supabase session token if available
+      let authToken = "";
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          authToken = sessionData.session.access_token;
+        }
+      } catch (e) {
+        // ignore session retrieval error
+      }
 
-      // Create in Firestore securely
-            const res = await createOrder(firestorePayload as any);
-      const resAny = res as any;
-      const docId = resAny?.orderId || resAny?.id || resAny?.data?.id || `ord_${Date.now()}`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
+      // Submit order via POST /api/orders
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          items: cartItems.map((i) => ({
+            productId: i.product.id,
+            quantity: i.quantity,
+          })),
+          customerName: customerName.trim(),
+          customerPhone: normalizePhoneDigits(phone).trim(),
+          customerAddress: fullAddressText,
+          notes: deliveryInstruction || undefined,
+          paymentProvider: paymentMethod,
+          idempotencyKey: idempotencyKeyRef.current,
+        }),
+      });
+
+      const resData = await response.json().catch(() => ({}));
+
+      if (!response.ok || !resData.orderId) {
+        const errObj = new Error(
+          resData.error || `ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¥ظ†ط´ط§ط، ط§ظ„ط·ظ„ط¨ (${response.status})`,
+        ) as Error & {
+          status?: number;
+        };
+        errObj.status = response.status;
+        throw errObj;
+      }
+
+      const docId = resData.orderId;
 
       const createdOrder: OrderStatus = {
-        id: docId || `ord_${Date.now()}`,
+        id: docId,
         ...orderData,
       };
 
@@ -390,26 +497,69 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       submissionCacheRef.current = null;
       clearCheckoutDraft();
 
+      // Reset idempotencyKey for subsequent distinct checkout attempts
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "10000000-1000-4000-8000-100000000000".replace(
+              /[018]/g,
+              (c: string) =>
+                (
+                  +c ^
+                  (crypto.getRandomValues(new Uint8Array(1))[0] &
+                    (15 >> (+c / 4)))
+                ).toString(16),
+            );
+
       setPlacedOrder(createdOrder);
+      // Confirmed success: notify parent and clear cart
       onOrderPlaced(createdOrder);
-    } catch (err) {
-      console.error('Order submission failed:', err);
-      // Ensure cached input data is preserved and re-saved in case of network failure
-      if (submissionCacheRef.current) {
-        const cached = submissionCacheRef.current;
-        setCustomerName(cached.customerName);
-        setPhone(cached.phone);
-        setAltPhone(cached.altPhone);
-        setGovernorate(cached.governorate);
-        setAddress(cached.address);
-        setNearestLandmark(cached.nearestLandmark);
-        setDeliveryInstruction(cached.deliveryInstruction);
-        setPaymentMethod(cached.paymentMethod);
-        setRememberDevice(cached.rememberDevice);
-        setStep(cached.step);
-        saveCheckoutDraft(cached);
+    } catch (err: unknown) {
+      console.error("Order submission failed:", err);
+
+      const errObj = err as {
+        status?: number;
+        statusCode?: number;
+        response?: { status?: number };
+        message?: string;
+      } | null;
+      const status =
+        errObj?.status || errObj?.statusCode || errObj?.response?.status;
+      const message = String(errObj?.message || err || "");
+      const is402 =
+        status === 402 ||
+        message.includes("402") ||
+        message.toLowerCase().includes("payment required");
+
+      if (is402) {
+        setIs402Error(true);
+        // Do NOT clear cart; retain items and present non-retryable message
+        setErrors({
+          submitErr:
+            "ط®ط·ط£ 402 (ط§ظ„ط¯ظپط¹ ظ…ط·ظ„ظˆط¨): ظٹطھط·ظ„ط¨ ط¥طھظ…ط§ظ… ط§ظ„ط¹ظ…ظ„ظٹط© ط§ظ„ط¯ظپط¹ ط£ظˆظ„ط§ظ‹. ظ„ط§ ظٹظ…ظƒظ† ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط©.",
+        });
+      } else {
+        // Ensure cached input data is preserved and re-saved in case of network failure
+        if (submissionCacheRef.current) {
+          const cached = submissionCacheRef.current;
+          setCustomerName(cached.customerName);
+          setPhone(cached.phone);
+          setAltPhone(cached.altPhone);
+          setGovernorate(cached.governorate);
+          setAddress(cached.address);
+          setNearestLandmark(cached.nearestLandmark);
+          setDeliveryInstruction(cached.deliveryInstruction);
+          setPaymentMethod(cached.paymentMethod);
+          setRememberDevice(cached.rememberDevice);
+          setStep(cached.step);
+          saveCheckoutDraft(cached);
+        }
+        setErrors({
+          submitErr:
+            message ||
+            "ط­ط¯ط« ط®ط·ط£ ظپظٹ ط§ظ„ط§طھطµط§ظ„ ط£ط«ظ†ط§ط، ط¥ط±ط³ط§ظ„ ط§ظ„ط·ظ„ط¨. ط¨ظٹط§ظ†ط§طھظƒ ظ…ط­ظپظˆط¸ط© ط¨ط§ظ„ظƒط§ظ…ظ„ ظˆظٹظ…ظƒظ†ظƒ ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط© ط§ظ„ط¢ظ†.",
+        });
       }
-      setErrors({ submitErr: 'حدث خطأ في الاتصال أثناء إرسال الطلب. بياناتك محفوظة بالكامل ويمكنك إعادت المحاولة الآن.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -417,20 +567,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const getWhatsappMsg = (order: OrderStatus) => {
     const itemsText = order.items
-      .map((i) => `• ${i.productName} (الكمية: ${i.quantity})`)
-      .join('\n');
+      .map((i) => `â€¢ ${i.productName} (ط§ظ„ظƒظ…ظٹط©: ${i.quantity})`)
+      .join("\n");
 
     return encodeURIComponent(
-      `🛍️ *طلب جديد من متجر إندكس*\n` +
-        `رقم الطلب: *${order.orderNumber}*\n\n` +
-        `👤 *الاسم:* ${order.customerName}\n` +
-        `📱 *الهاتف:* ${order.phone}\n` +
-        `📍 *المحافظة:* ${order.governorate}\n` +
-        `🏠 *العنوان:* ${order.address}\n` +
-        `💳 *طريقة الدفع:* ${order.paymentMethod}\n\n` +
-        `📦 *المنتجات:*\n${itemsText}\n\n` +
-        `💰 *الإجمالي النهائي:* ${formatPrice(order.totalPriceYER, currency)}\n` +
-        `شكراً لكم!`
+      `ًں›چï¸ڈ *ط·ظ„ط¨ ط¬ط¯ظٹط¯ ظ…ظ† ظ…طھط¬ط± ط¥ظ†ط¯ظƒط³*\n` +
+        `ط±ظ‚ظ… ط§ظ„ط·ظ„ط¨: *${order.orderNumber}*\n\n` +
+        `ًں‘¤ *ط§ظ„ط§ط³ظ…:* ${order.customerName}\n` +
+        `ًں“± *ط§ظ„ظ‡ط§طھظپ:* ${order.phone}\n` +
+        `ًں“چ *ط§ظ„ظ…ط­ط§ظپط¸ط©:* ${order.governorate}\n` +
+        `ًںڈ  *ط§ظ„ط¹ظ†ظˆط§ظ†:* ${order.address}\n` +
+        `ًں’³ *ط·ط±ظٹظ‚ط© ط§ظ„ط¯ظپط¹:* ${order.paymentMethod}\n\n` +
+        `ًں“¦ *ط§ظ„ظ…ظ†طھط¬ط§طھ:*\n${itemsText}\n\n` +
+        `ًں’° *ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ†ظ‡ط§ط¦ظٹ:* ${formatPrice(order.totalPriceYER, currency)}\n` +
+        `ط´ظƒط±ط§ظ‹ ظ„ظƒظ…!`,
     );
   };
 
@@ -447,7 +597,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           initial={{ opacity: 0, y: 30, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 30, scale: 0.97 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 280 }}
+          transition={{ type: "spring", damping: 25, stiffness: 280 }}
           onClick={(e) => e.stopPropagation()}
           className="bg-[var(--color-surface-1)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-[28px] sm:rounded-[32px] w-full max-w-lg max-h-[92vh] overflow-y-auto no-scrollbar p-5 sm:p-7 relative shadow-2xl flex flex-col justify-between"
         >
@@ -459,20 +609,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </span>
               <div>
                 <h3 className="text-base sm:text-lg font-black text-[var(--color-text-primary)]">
-                  {placedOrder ? 'تم تأكيد طلبك بنجاح' : 'إتمام الطلب والتوصيل السريع'}
+                  {placedOrder
+                    ? "طھظ… طھط£ظƒظٹط¯ ط·ظ„ط¨ظƒ ط¨ظ†ط¬ط§ط­"
+                    : "ط¥طھظ…ط§ظ… ط§ظ„ط·ظ„ط¨ ظˆط§ظ„طھظˆطµظٹظ„ ط§ظ„ط³ط±ظٹط¹"}
                 </h3>
                 <span className="text-[11px] text-[var(--color-text-secondary)] font-medium block">
-                  {placedOrder ? 'تفاصيل ومعلومات المتابعة' : '3 خطوات مريحة وبدون تعقيد'}
+                  {placedOrder
+                    ? "طھظپط§طµظٹظ„ ظˆظ…ط¹ظ„ظˆظ…ط§طھ ط§ظ„ظ…طھط§ط¨ط¹ط©"
+                    : "3 ط®ط·ظˆط§طھ ظ…ط±ظٹط­ط© ظˆط¨ط¯ظˆظ† طھط¹ظ‚ظٹط¯"}
                 </span>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              aria-label="إغلاق"
+              aria-label="ط¥ط؛ظ„ط§ظ‚"
               className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <span className="material-symbols-outlined text-[18px]">
+                close
+              </span>
             </button>
           </div>
 
@@ -484,10 +640,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
 
               <h3 className="text-xl sm:text-2xl font-black text-[var(--color-text-primary)]">
-                تم تسجيل طلبك بنجاح! 🎉
+                طھظ… طھط³ط¬ظٹظ„ ط·ظ„ط¨ظƒ ط¨ظ†ط¬ط§ط­! ًںژ‰
               </h3>
               <p className="text-[var(--color-text-secondary)] text-xs sm:text-sm">
-                رقم الطلب الخاص بك هو:{' '}
+                ط±ظ‚ظ… ط§ظ„ط·ظ„ط¨ ط§ظ„ط®ط§طµ ط¨ظƒ ظ‡ظˆ:{" "}
                 <strong className="text-[#2F6BFF] bg-[#2F6BFF]/10 border border-[#2F6BFF]/20 px-3 py-1 rounded-xl text-base font-mono font-extrabold dir-ltr inline-block">
                   {placedOrder.orderNumber}
                 </strong>
@@ -495,20 +651,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div className="bg-[var(--color-surface-2)] p-4 rounded-2xl border border-[var(--color-border-default)] text-right text-xs space-y-2 text-[var(--color-text-secondary)] shadow-inner">
                 <p>
-                  <strong className="text-[var(--color-text-primary)]">الاسم:</strong> {placedOrder.customerName}
+                  <strong className="text-[var(--color-text-primary)]">
+                    ط§ظ„ط§ط³ظ…:
+                  </strong>{" "}
+                  {placedOrder.customerName}
                 </p>
                 <p>
-                  <strong className="text-[var(--color-text-primary)]">المحافظة:</strong> {placedOrder.governorate}
+                  <strong className="text-[var(--color-text-primary)]">
+                    ط§ظ„ظ…ط­ط§ظپط¸ط©:
+                  </strong>{" "}
+                  {placedOrder.governorate}
                 </p>
                 <p>
-                  <strong className="text-[var(--color-text-primary)]">العنوان:</strong> {placedOrder.address}
+                  <strong className="text-[var(--color-text-primary)]">
+                    ط§ظ„ط¹ظ†ظˆط§ظ†:
+                  </strong>{" "}
+                  {placedOrder.address}
                 </p>
                 <p>
-                  <strong className="text-[var(--color-text-primary)]">طريقة الدفع:</strong> {placedOrder.paymentMethod}
+                  <strong className="text-[var(--color-text-primary)]">
+                    ط·ط±ظٹظ‚ط© ط§ظ„ط¯ظپط¹:
+                  </strong>{" "}
+                  {placedOrder.paymentMethod}
                 </p>
                 <p className="text-sm font-bold text-[#2F6BFF] pt-2 border-t border-[var(--color-border-subtle)] flex justify-between items-center">
-                  <span>المبلغ الإجمالي:</span>
-                  <span className="text-base font-black">{formatPrice(placedOrder.totalPriceYER, currency)}</span>
+                  <span>ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ:</span>
+                  <span className="text-base font-black">
+                    {formatPrice(placedOrder.totalPriceYER, currency)}
+                  </span>
                 </p>
               </div>
 
@@ -521,7 +691,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     }}
                     className="w-full bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-md transition-all text-xs sm:text-sm cursor-pointer"
                   >
-                    <span>فتح طلبي والتتبع المباشر</span>
+                    <span>ظپطھط­ ط·ظ„ط¨ظٹ ظˆط§ظ„طھطھط¨ط¹ ط§ظ„ظ…ط¨ط§ط´ط±</span>
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                 )}
@@ -532,7 +702,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   rel="noopener noreferrer"
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all text-xs sm:text-sm cursor-pointer"
                 >
-                  <span>إرسال تفاصيل الطلب عبر واتساب</span>
+                  <span>ط¥ط±ط³ط§ظ„ طھظپط§طµظٹظ„ ط§ظ„ط·ظ„ط¨ ط¹ط¨ط± ظˆط§طھط³ط§ط¨</span>
                   <Phone className="w-4 h-4" />
                 </a>
 
@@ -540,7 +710,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={onClose}
                   className="w-full bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-primary)] font-bold py-3 rounded-2xl border border-[var(--color-border-default)] transition-all text-xs cursor-pointer"
                 >
-                  متابعة التسوق
+                  ظ…طھط§ط¨ط¹ط© ط§ظ„طھط³ظˆظ‚
                 </button>
               </div>
             </div>
@@ -553,13 +723,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="button"
                   onClick={() => setStep(1)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    step === 1 ? 'bg-[#2F6BFF] text-white shadow-sm' : 'text-[var(--color-text-muted)]'
+                    step === 1
+                      ? "bg-[#2F6BFF] text-white shadow-sm"
+                      : "text-[var(--color-text-muted)]"
                   }`}
                 >
                   <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-black">
                     1
                   </span>
-                  <span>التواصل</span>
+                  <span>ط§ظ„طھظˆط§طµظ„</span>
                 </button>
 
                 <div className="w-4 h-0.5 bg-[var(--color-border-default)]" />
@@ -568,28 +740,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="button"
                   onClick={() => validateStep1() && setStep(2)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    step === 2 ? 'bg-[#2F6BFF] text-white shadow-sm' : 'text-[var(--color-text-muted)]'
+                    step === 2
+                      ? "bg-[#2F6BFF] text-white shadow-sm"
+                      : "text-[var(--color-text-muted)]"
                   }`}
                 >
                   <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-black">
                     2
                   </span>
-                  <span>التوصيل</span>
+                  <span>ط§ظ„طھظˆطµظٹظ„</span>
                 </button>
 
                 <div className="w-4 h-0.5 bg-[var(--color-border-default)]" />
 
                 <button
                   type="button"
-                  onClick={() => validateStep1() && validateStep2() && setStep(3)}
+                  onClick={() =>
+                    validateStep1() && validateStep2() && setStep(3)
+                  }
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    step === 3 ? 'bg-[#2F6BFF] text-white shadow-sm' : 'text-[var(--color-text-muted)]'
+                    step === 3
+                      ? "bg-[#2F6BFF] text-white shadow-sm"
+                      : "text-[var(--color-text-muted)]"
                   }`}
                 >
                   <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-black">
                     3
                   </span>
-                  <span>التأكيد</span>
+                  <span>ط§ظ„طھط£ظƒظٹط¯</span>
                 </button>
               </div>
 
@@ -598,19 +776,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="bg-[#2F6BFF]/10 border border-[#2F6BFF]/30 p-2.5 rounded-xl flex items-center justify-between text-[11px] text-[#2F6BFF]">
                   <div className="flex items-center gap-1.5 font-bold">
                     <Sparkles className="w-4 h-4 shrink-0" />
-                    <span>استخدمنا بيانات حسابك لتسريع الطلب</span>
+                    <span>ط§ط³طھط®ط¯ظ…ظ†ط§ ط¨ظٹط§ظ†ط§طھ ط­ط³ط§ط¨ظƒ ظ„طھط³ط±ظٹط¹ ط§ظ„ط·ظ„ط¨</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setIsPrefilled(false);
-                      setCustomerName('');
-                      setPhone('');
-                      setAddress('');
+                      setCustomerName("");
+                      setPhone("");
+                      setAddress("");
                     }}
                     className="text-[10px] text-[var(--color-text-secondary)] hover:underline font-semibold cursor-pointer"
                   >
-                    إلغاء التعبئة
+                    ط¥ظ„ط؛ط§ط، ط§ظ„طھط¹ط¨ط¦ط©
                   </button>
                 </div>
               )}
@@ -620,7 +798,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                      الاسم الكامل *
+                      ط§ظ„ط§ط³ظ… ط§ظ„ظƒط§ظ…ظ„ *
                     </label>
                     <input
                       ref={nameInputRef}
@@ -631,17 +809,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       value={customerName}
                       onChange={(e) => {
                         setCustomerName(e.target.value);
-                        if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                        if (errors.name)
+                          setErrors((prev) => ({ ...prev, name: undefined }));
                       }}
-                      placeholder="أدخل اسمك الثلاثي"
+                      placeholder="ط£ط¯ط®ظ„ ط§ط³ظ…ظƒ ط§ظ„ط«ظ„ط§ط«ظٹ"
                       className="w-full h-11 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3.5 text-xs sm:text-sm text-[var(--color-text-primary)] focus:border-[#2F6BFF] outline-none transition-all placeholder-[var(--color-text-muted)]"
                     />
-                    {errors.name && <p className="text-rose-400 text-[11px] mt-1 font-bold">{errors.name}</p>}
+                    {errors.name && (
+                      <p className="text-rose-400 text-[11px] mt-1 font-bold">
+                        {errors.name}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                      رقم الهاتف (الواتساب للتأكيد) *
+                      ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ (ط§ظ„ظˆط§طھط³ط§ط¨ ظ„ظ„طھط£ظƒظٹط¯) *
                     </label>
                     <input
                       ref={phoneInputRef}
@@ -652,12 +835,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value);
-                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                        if (errors.phone)
+                          setErrors((prev) => ({ ...prev, phone: undefined }));
                       }}
                       placeholder="771234567"
                       className="w-full h-11 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3.5 text-xs sm:text-sm text-[var(--color-text-primary)] focus:border-[#2F6BFF] outline-none dir-ltr text-right transition-all placeholder-[var(--color-text-muted)] font-mono"
                     />
-                    {errors.phone && <p className="text-rose-400 text-[11px] mt-1 font-bold">{errors.phone}</p>}
+                    {errors.phone && (
+                      <p className="text-rose-400 text-[11px] mt-1 font-bold">
+                        {errors.phone}
+                      </p>
+                    )}
                   </div>
 
                   {/* Optional Alt Phone Toggle */}
@@ -668,12 +856,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       className="text-[11px] text-[#2F6BFF] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>إضافة هاتف بديل (اختياري)</span>
+                      <span>ط¥ط¶ط§ظپط© ظ‡ط§طھظپ ط¨ط¯ظٹظ„ (ط§ط®طھظٹط§ط±ظٹ)</span>
                     </button>
                   ) : (
                     <div>
                       <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                        رقم هاتف بديل (اختياري)
+                        ط±ظ‚ظ… ظ‡ط§طھظپ ط¨ط¯ظٹظ„ (ط§ط®طھظٹط§ط±ظٹ)
                       </label>
                       <input
                         type="tel"
@@ -691,7 +879,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     onClick={handleNextToStep2}
                     className="w-full bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-extrabold py-3.5 rounded-2xl shadow-md transition-all text-xs sm:text-sm cursor-pointer mt-2 flex items-center justify-center gap-2"
                   >
-                    <span>التالي: العنوان والتوصيل</span>
+                    <span>ط§ظ„طھط§ظ„ظٹ: ط§ظ„ط¹ظ†ظˆط§ظ† ظˆط§ظ„طھظˆطµظٹظ„</span>
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                 </div>
@@ -701,47 +889,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {step === 2 && (
                 <div className="space-y-3">
                   {/* Saved Addresses list if available */}
-                  {customerProfile?.addresses && customerProfile.addresses.length > 0 && (
-                    <div>
-                      <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1.5">
-                        اختر عنواناً محفوظاً لتسريع الطلب:
-                      </label>
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
-                        {customerProfile.addresses.map((addr) => (
-                          <div
-                            key={addr.id}
-                            onClick={() => handleSelectSavedAddress(addr)}
-                            className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
-                              selectedAddressId === addr.id
-                                ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold'
-                                : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]'
-                            }`}
-                          >
-                            <div>
-                              <span className="font-extrabold block text-xs">
-                                {addr.label === 'منزل' ? '🏠' : '💼'} {addr.label} ({addr.governorate})
-                              </span>
-                              <span className="text-[10px] text-[var(--color-text-muted)] truncate block max-w-[240px]">
-                                {addr.address}
-                              </span>
+                  {customerProfile?.addresses &&
+                    customerProfile.addresses.length > 0 && (
+                      <div>
+                        <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1.5">
+                          ط§ط®طھط± ط¹ظ†ظˆط§ظ†ط§ظ‹ ظ…ط­ظپظˆط¸ط§ظ‹ ظ„طھط³ط±ظٹط¹ ط§ظ„ط·ظ„ط¨:
+                        </label>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
+                          {customerProfile.addresses.map((addr) => (
+                            <div
+                              key={addr.id}
+                              onClick={() => handleSelectSavedAddress(addr)}
+                              className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                                selectedAddressId === addr.id
+                                  ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold"
+                                  : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
+                              }`}
+                            >
+                              <div>
+                                <span className="font-extrabold block text-xs">
+                                  {addr.label === "منزل" ? "🏠" : "🏢"}{" "}
+                                  {addr.label} ({addr.governorate})
+                                </span>
+                                <span className="text-[10px] text-[var(--color-text-muted)] truncate block max-w-[240px]">
+                                  {addr.address}
+                                </span>
+                              </div>
+                              {selectedAddressId === addr.id && (
+                                <Check className="w-4 h-4 text-[#2F6BFF]" />
+                              )}
                             </div>
-                            {selectedAddressId === addr.id && <Check className="w-4 h-4 text-[#2F6BFF]" />}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                      المحافظة *
+                      ط§ظ„ظ…ط­ط§ظپط¸ط© *
                     </label>
                     <select
                       value={governorate}
                       onChange={(e) => setGovernorate(e.target.value)}
                       className="w-full h-11 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3.5 text-xs sm:text-sm text-[var(--color-text-primary)] focus:border-[#2F6BFF] outline-none cursor-pointer font-medium"
                     >
-                      {STORE_INFO.governorates.map((gov: string) => (
+                      {STORE_INFO.governorates.map((gov) => (
                         <option key={gov} value={gov}>
                           {gov}
                         </option>
@@ -751,7 +943,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                      العنوان التفصيلي (الشارع والحي) *
+                      ط§ظ„ط¹ظ†ظˆط§ظ† ط§ظ„طھظپطµظٹظ„ظٹ (ط§ظ„ط´ط§ط±ط¹ ظˆط§ظ„ط­ظٹ) *
                     </label>
                     <textarea
                       ref={addressInputRef}
@@ -760,23 +952,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       value={address}
                       onChange={(e) => {
                         setAddress(e.target.value);
-                        if (errors.address) setErrors((prev) => ({ ...prev, address: undefined }));
+                        if (errors.address)
+                          setErrors((prev) => ({
+                            ...prev,
+                            address: undefined,
+                          }));
                       }}
-                      placeholder="مثال: صنعاء - شارع حدة - حي حداء"
+                      placeholder="ظ…ط«ط§ظ„: طµظ†ط¹ط§ط، - ط´ط§ط±ط¹ ط­ط¯ط© - ط­ظٹ ط­ط¯ط§ط،"
                       className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl p-3 text-xs sm:text-sm text-[var(--color-text-primary)] focus:border-[#2F6BFF] outline-none transition-all placeholder-[var(--color-text-muted)] resize-none"
                     />
-                    {errors.address && <p className="text-rose-400 text-[11px] mt-1 font-bold">{errors.address}</p>}
+                    {errors.address && (
+                      <p className="text-rose-400 text-[11px] mt-1 font-bold">
+                        {errors.address}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1">
-                      أقرب معلم بارز (اختياري)
+                      ط£ظ‚ط±ط¨ ظ…ط¹ظ„ظ… ط¨ط§ط±ط² (ط§ط®طھظٹط§ط±ظٹ)
                     </label>
                     <input
                       type="text"
                       value={nearestLandmark}
                       onChange={(e) => setNearestLandmark(e.target.value)}
-                      placeholder="مثال: بجانب مركز صخر / خلف صيدلية ابن حيان"
+                      placeholder="ظ…ط«ط§ظ„: ط¨ط¬ط§ظ†ط¨ ظ…ط±ظƒط² طµط®ط± / ط®ظ„ظپ طµظٹط¯ظ„ظٹط© ط§ط¨ظ† ط­ظٹط§ظ†"
                       className="w-full h-10 bg-[var(--color-surface-2)] border border-[var(--color-border-default)] rounded-xl px-3.5 text-xs text-[var(--color-text-primary)] focus:border-[#2F6BFF] outline-none"
                     />
                   </div>
@@ -784,7 +984,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {/* Delivery instructions chips */}
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-[11px] font-bold mb-1.5">
-                      تعليمات خاصة بالتوصيل:
+                      طھط¹ظ„ظٹظ…ط§طھ ط®ط§طµط© ط¨ط§ظ„طھظˆطµظٹظ„:
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {instructionChips.map((chip) => (
@@ -792,12 +992,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           type="button"
                           key={chip}
                           onClick={() =>
-                            setDeliveryInstruction(deliveryInstruction === chip ? '' : chip)
+                            setDeliveryInstruction(
+                              deliveryInstruction === chip ? "" : chip,
+                            )
                           }
                           className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
                             deliveryInstruction === chip
-                              ? 'bg-[#2F6BFF] text-white border-[#2F6BFF]'
-                              : 'bg-[var(--color-surface-2)] border-[var(--color-border-default)] text-[var(--color-text-secondary)]'
+                              ? "bg-[#2F6BFF] text-white border-[#2F6BFF]"
+                              : "bg-[var(--color-surface-2)] border-[var(--color-border-default)] text-[var(--color-text-secondary)]"
                           }`}
                         >
                           {chip}
@@ -812,14 +1014,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       onClick={() => setStep(1)}
                       className="w-1/3 bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-bold py-3 rounded-2xl border border-[var(--color-border-default)] text-xs cursor-pointer"
                     >
-                      السابق
+                      ط§ظ„ط³ط§ط¨ظ‚
                     </button>
                     <button
                       type="button"
                       onClick={handleNextToStep3}
                       className="w-2/3 bg-[#2F6BFF] hover:bg-[#2458D8] text-white font-extrabold py-3 rounded-2xl shadow-md transition-all text-xs cursor-pointer flex items-center justify-center gap-1"
                     >
-                      <span>التالي: المراجعة والدفع</span>
+                      <span>ط§ظ„طھط§ظ„ظٹ: ط§ظ„ظ…ط±ط§ط¬ط¹ط© ظˆط§ظ„ط¯ظپط¹</span>
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                   </div>
@@ -832,25 +1034,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {/* Summary Card */}
                   <div className="bg-[var(--color-surface-2)] p-3.5 rounded-2xl border border-[var(--color-border-default)] text-xs space-y-2 text-[var(--color-text-secondary)]">
                     <div className="flex justify-between items-center pb-2 border-b border-[var(--color-border-subtle)] font-bold text-[var(--color-text-primary)]">
-                      <span>ملخص المستلم والشحن</span>
+                      <span>ظ…ظ„ط®طµ ط§ظ„ظ…ط³طھظ„ظ… ظˆط§ظ„ط´ط­ظ†</span>
                       <button
                         type="button"
                         onClick={() => setStep(1)}
                         className="text-[10px] text-[#2F6BFF] hover:underline"
                       >
-                        تعديل
+                        طھط¹ط¯ظٹظ„
                       </button>
                     </div>
 
                     <p>
-                      <strong className="text-[var(--color-text-primary)]">العميل:</strong> {customerName} ({phone})
+                      <strong className="text-[var(--color-text-primary)]">
+                        ط§ظ„ط¹ظ…ظٹظ„:
+                      </strong>{" "}
+                      {customerName} ({phone})
                     </p>
                     <p>
-                      <strong className="text-[var(--color-text-primary)]">العنوان:</strong> {governorate} - {address}
+                      <strong className="text-[var(--color-text-primary)]">
+                        ط§ظ„ط¹ظ†ظˆط§ظ†:
+                      </strong>{" "}
+                      {governorate} - {address}
                     </p>
                     {deliveryInstruction && (
                       <p>
-                        <strong className="text-[var(--color-text-primary)]">تعليمات:</strong> {deliveryInstruction}
+                        <strong className="text-[var(--color-text-primary)]">
+                          طھط¹ظ„ظٹظ…ط§طھ:
+                        </strong>{" "}
+                        {deliveryInstruction}
                       </p>
                     )}
                   </div>
@@ -858,65 +1069,81 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {/* Payment Method Selector */}
                   <div>
                     <label className="block text-[var(--color-text-secondary)] text-xs font-bold mb-1.5">
-                      طريقة الدفع المناسبة:
+                      ط·ط±ظٹظ‚ط© ط§ظ„ط¯ظپط¹ ط§ظ„ظ…ظ†ط§ط³ط¨ط©:
                     </label>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('cash')}
+                        onClick={() => setPaymentMethod("cash")}
                         className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                          paymentMethod === 'cash'
-                            ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold'
-                            : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]'
+                          paymentMethod === "cash"
+                            ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold"
+                            : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                         }`}
                       >
-                        <span className="font-bold text-xs block">💵 عند الاستلام</span>
-                        <span className="text-[10px] text-[var(--color-text-muted)]">نقداً للمندوب</span>
+                        <span className="font-bold text-xs block">
+                          ًں’µ ط¹ظ†ط¯ ط§ظ„ط§ط³طھظ„ط§ظ…
+                        </span>
+                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                          ظ†ظ‚ط¯ط§ظ‹ ظ„ظ„ظ…ظ†ط¯ظˆط¨
+                        </span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('kuraimi')}
+                        onClick={() => setPaymentMethod("kuraimi")}
                         className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                          paymentMethod === 'kuraimi'
-                            ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold'
-                            : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]'
+                          paymentMethod === "kuraimi"
+                            ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold"
+                            : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                         }`}
                       >
-                        <span className="font-bold text-xs block">🏦 بنك الكريمي</span>
-                        <span className="text-[10px] text-[var(--color-text-muted)]">حاسب / إيداع</span>
+                        <span className="font-bold text-xs block">
+                          ًںڈ¦ ط¨ظ†ظƒ ط§ظ„ظƒط±ظٹظ…ظٹ
+                        </span>
+                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                          ط­ط§ط³ط¨ / ط¥ظٹط¯ط§ط¹
+                        </span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('jawalpay')}
+                        onClick={() => setPaymentMethod("jawalpay")}
                         className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                          paymentMethod === 'jawalpay'
-                            ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold'
-                            : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]'
+                          paymentMethod === "jawalpay"
+                            ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold"
+                            : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                         }`}
                       >
-                        <span className="font-bold text-xs block">📱 جوال بي / وان كاش</span>
-                        <span className="text-[10px] text-[var(--color-text-muted)]">محفظة إلكترونية</span>
+                        <span className="font-bold text-xs block">
+                          ًں“± ط¬ظˆط§ظ„ ط¨ظٹ / ظˆط§ظ† ظƒط§ط´
+                        </span>
+                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                          ظ…ط­ظپط¸ط© ط¥ظ„ظƒطھط±ظˆظ†ظٹط©
+                        </span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('transfer')}
+                        onClick={() => setPaymentMethod("transfer")}
                         className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                          paymentMethod === 'transfer'
-                            ? 'border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold'
-                            : 'border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]'
+                          paymentMethod === "transfer"
+                            ? "border-[#2F6BFF] bg-[#2F6BFF]/10 text-[var(--color-text-primary)] font-bold"
+                            : "border-[var(--color-border-default)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                         }`}
                       >
-                        <span className="font-bold text-xs block">✉️ حوالة صرافة</span>
-                        <span className="text-[10px] text-[var(--color-text-muted)]">النجم / المميز</span>
+                        <span className="font-bold text-xs block">
+                          âœ‰ï¸ڈ ط­ظˆط§ظ„ط© طµط±ط§ظپط©
+                        </span>
+                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                          ط§ظ„ظ†ط¬ظ… / ط§ظ„ظ…ظ…ظٹط²
+                        </span>
                       </button>
                     </div>
                   </div>
 
                   {/* Guest remember device option */}
-                  {!currentUser && (
+                  {true && (
                     <div className="bg-[var(--color-surface-2)] p-2.5 rounded-xl border border-[var(--color-border-default)]">
                       <label className="flex items-center gap-2 cursor-pointer text-[11px] text-[var(--color-text-primary)] font-bold">
                         <input
@@ -925,17 +1152,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           onChange={(e) => setRememberDevice(e.target.checked)}
                           className="w-4 h-4 rounded text-[#2F6BFF]"
                         />
-                        <span>تذكّر بياناتي على هذا الجهاز لتسريع طلبي القادم</span>
+                        <span>
+                          طھط°ظƒظ‘ط± ط¨ظٹط§ظ†ط§طھظٹ ط¹ظ„ظ‰ ظ‡ط°ط§ ط§ظ„ط¬ظ‡ط§ط² ظ„طھط³ط±ظٹط¹ ط·ظ„ط¨ظٹ ط§ظ„ظ‚ط§ط¯ظ…
+                        </span>
                       </label>
                       <p className="text-[10px] text-[var(--color-text-secondary)] mt-1">
-                        سيتم حفظ اسمك وهاتفك محلياً على هذا الجهاز لتسهيل الطلب المرة القادمة.
+                        ط³ظٹطھظ… ط­ظپط¸ ط§ط³ظ…ظƒ ظˆظ‡ط§طھظپظƒ ظ…ط­ظ„ظٹط§ظ‹ ط¹ظ„ظ‰ ظ‡ط°ط§ ط§ظ„ط¬ظ‡ط§ط² ظ„طھط³ظ‡ظٹظ„ ط§ظ„ط·ظ„ط¨
+                        ط§ظ„ظ…ط±ط© ط§ظ„ظ‚ط§ط¯ظ…ط©.
                       </p>
                     </div>
                   )}
 
                   {/* Total summary price banner */}
                   <div className="bg-[var(--color-surface-2)] p-3.5 rounded-2xl border border-[var(--color-border-default)] flex justify-between items-center text-xs sm:text-sm font-bold text-[var(--color-text-primary)] shadow-sm">
-                    <span>المبلغ الإجمالي النهائي:</span>
+                    <span>ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ†ظ‡ط§ط¦ظٹ:</span>
                     <span className="text-[#2F6BFF] text-lg font-black">
                       {formatPrice(totalYER, currency)}
                     </span>
@@ -953,25 +1183,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       onClick={() => setStep(2)}
                       className="w-1/3 bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-bold py-3.5 rounded-2xl border border-[var(--color-border-default)] text-xs cursor-pointer"
                     >
-                      السابق
+                      ط§ظ„ط³ط§ط¨ظ‚
                     </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-2/3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-2xl shadow-md transition-all text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>جاري تسجيل ونقل طلبك...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>تأكيد وإرسال الطلب نهائياً</span>
-                        </>
-                      )}
-                    </button>
+                    {is402Error ? (
+                      <div className="w-2/3 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold py-3.5 px-2 rounded-2xl text-center text-xs flex items-center justify-center gap-1">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>طھط¹ط°ط± ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط© (HTTP 402)</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-2/3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-2xl shadow-md transition-all text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>ط¬ط§ط±ظٹ طھط³ط¬ظٹظ„ ظˆظ†ظ‚ظ„ ط·ظ„ط¨ظƒ...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>طھط£ظƒظٹط¯ ظˆط¥ط±ط³ط§ظ„ ط§ظ„ط·ظ„ط¨ ظ†ظ‡ط§ط¦ظٹط§ظ‹</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </form>
               )}

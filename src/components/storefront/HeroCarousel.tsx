@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from './types';
 import { HolographicGlobe } from './HolographicGlobe';
@@ -57,6 +57,17 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ products,
               {/* Top Badges Row: Left "تصفح 3D" & "تفكيك سينمائي 3D", Right "عروض حصرية 50%" */}
               <div className="flex items-center justify-between w-full mb-1 sm:mb-2">
                 <div className="flex items-center gap-1.5 sm:gap-2">
+                  {onOpenUniverse && (
+                    <button
+                      onClick={onOpenUniverse}
+                      className="bg-gradient-to-r from-blue-600/30 via-indigo-600/30 to-purple-600/30 hover:from-blue-600/40 hover:to-purple-600/40 border border-blue-400/40 text-blue-200 text-[10px] sm:text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md flex items-center gap-1 transition-all cursor-pointer group/btn"
+                      title="استكشاف سينمائي تفاعلي ثلاثي الأبعاد للمنتجات"
+                    >
+                      <Orbit className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-cyan-400" />
+                      <span>عالم 3D الفضائي 🪐</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setIsExpanded(true)}
                     className="bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[10px] sm:text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm flex items-center gap-1 transition-all cursor-pointer group/btn"

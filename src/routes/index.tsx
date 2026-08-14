@@ -61,6 +61,7 @@ import { CartShareModal } from "@/components/storefront/CartShareModal";
 import { CustomerSupportHub } from "@/components/storefront/CustomerSupportHub";
 import type { SupportContext } from "@/components/storefront/CustomerSupportHub";
 import { IndexesEvolutionStudio } from "@/components/storefront/evolution-studio/IndexesEvolutionStudio";
+import { PerformanceMonitor } from "@/components/storefront/PerformanceMonitor";
 import { supabase } from "@/integrations/supabase/client";
 import { AddToCartAnimationOverlay, type FlyingCartItem } from "@/components/storefront/AddToCartAnimation";
 
@@ -516,6 +517,7 @@ function HomePage() {
               onSelectCategory={handleSelectCategoryWithLoading}
               onSelectProduct={handleSelectProduct}
               onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
+              onOpenUniverse={() => setIsProductUniverseOpen(true)}
             />
           )}
 
@@ -679,7 +681,12 @@ function HomePage() {
           <LoyaltyBanner onOpenLoyaltyModal={() => setIsAccountDrawerOpen(true)} />
 
           {/* 11. Footer */}
-          <StoreFooter onOpenTracker={() => setIsTrackerModalOpen(true)} />
+          <StoreFooter
+            onOpenTracker={() => setIsTrackerModalOpen(true)}
+            onOpenAdmin={handleOpenAdmin}
+            onOpenSupport={() => setIsSupportHubOpen(true)}
+            isAdminUser={isAdminUser}
+          />
         </main>
 
         {/* 12. Bottom Navigation Bar */}
@@ -691,6 +698,9 @@ function HomePage() {
 
         {/* Floating WhatsApp Quick Contact Button */}
         <FloatingWhatsAppButton isOpen={true} onToggle={() => {}} />
+
+        {/* Live Performance & FPS Monitor */}
+        <PerformanceMonitor />
 
         {/* Modals & Drawers */}
         <ProductDetailModal
@@ -839,6 +849,7 @@ function HomePage() {
           onOpenTrackerForOrder={() => setIsTrackerModalOpen(true)}
           onOpenAdmin={handleOpenAdmin}
           onOpenEvolutionStudio={() => setIsEvolutionStudioOpen(true)}
+          onOpenUniverse={() => setIsProductUniverseOpen(true)}
           isAdminUser={isAdminUser}
         />
 

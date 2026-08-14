@@ -213,7 +213,7 @@ function ShellInner() {
 
           <div className="mt-4 space-y-2">
             <a
-              href="/"
+              href="/app/"
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center gap-2 rounded-xl border border-border/60 px-3.5 py-2.5 text-sm font-semibold hover:bg-accent"

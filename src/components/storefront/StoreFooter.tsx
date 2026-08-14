@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { STORE_INFO } from './constants';
 import { MessageCircle, MapPin, Truck, Package, Facebook, Instagram, PhoneCall } from 'lucide-react';
@@ -6,9 +6,17 @@ import { StoreLogo } from './StoreLogo';
 
 interface StoreFooterProps {
   onOpenTracker: () => void;
+  onOpenAdmin?: () => void;
+  onOpenSupport?: () => void;
+  isAdminUser?: boolean;
 }
 
-export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
+export const StoreFooter: React.FC<StoreFooterProps> = ({
+  onOpenTracker,
+  onOpenAdmin,
+  onOpenSupport,
+  isAdminUser,
+}) => {
   const whatsappUrl = `https://wa.me/${STORE_INFO.whatsappNumber}?text=${encodeURIComponent(
     'السلام عليكم، أود الاستفسار عن منتجات متجر إندكس'
   )}`;
@@ -121,7 +129,26 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({ onOpenTracker }) => {
 
       </div>
 
-      <div className="mt-6 text-center text-gray-500 text-xs">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs">
+        {onOpenAdmin && (
+          <button
+            onClick={onOpenAdmin}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 font-bold transition-all cursor-pointer"
+          >
+            <span>بوابة لوحة التحكم والإدارة 🛡️</span>
+          </button>
+        )}
+        {onOpenSupport && (
+          <button
+            onClick={onOpenSupport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 font-bold transition-all cursor-pointer"
+          >
+            <span>فتح مركز المساعدة</span>
+          </button>
+        )}
+      </div>
+
+      <div className="mt-4 text-center text-gray-500 text-xs">
         جميع الحقوق محفوظة © {new Date().getFullYear()} متجر إندكس - INDEXES STORE
       </div>
     </motion.footer>
