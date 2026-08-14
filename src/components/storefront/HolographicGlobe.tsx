@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Sparkles, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,12 +11,24 @@ const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
   e.currentTarget.src = FALLBACK_IMAGE;
 };
 
-interface HolographicGlobeProps {
+export interface HolographicGlobeProps {
   products?: Product[];
   onSelectProduct?: (product: Product) => void;
   size?: number | string;
   className?: string;
   showTitleBadge?: boolean;
+  maxProducts?: number;
+  radius?: number;
+  rotationSpeed?: number;
+  cardShape?: 'rectangle' | 'circle';
+  showName?: boolean;
+  showPrice?: boolean;
+  showParticles?: boolean;
+  overlayBadge?: string;
+  overlayTitle?: string;
+  overlaySubtitle?: string;
+  overlayTitleFontSize?: number;
+  overlaySubtitleFontSize?: number;
 }
 
 // Error Boundary for WebGL fallback on unsupported or context-lost mobile devices
@@ -66,129 +78,74 @@ const generateFibonacciCoords = (count: number) => {
 
 const PRODUCT_COORDS_50 = generateFibonacciCoords(50);
 
-// Dense Photorealistic CGI Particle Sphere Component
-const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) => {
+// Holographic CGI Particle Globe Mesh Component
+const ParticleSphere: React.FC = () => {
   const pointsRef = useRef<THREE.Points>(null);
-  const coreRef = useRef<THREE.Points>(null);
   const ring1Ref = useRef<THREE.Mesh>(null);
   const ring2Ref = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Points>(null);
 
-  // Check prefers-reduced-motion
-  const prefersReducedMotion = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }, []);
-
-  // Create smooth round glowing point texture
-  const particleTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-      gradient.addColorStop(0.25, 'rgba(255, 255, 255, 0.8)');
-      gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)');
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 32, 32);
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-
-  // Generate outer glowing particles using Fibonacci distribution for fast rendering
-  const { positions, colors } = useMemo(() => {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-    const count = isMobile ? 1200 : 1800;
+  // Generate 850 surface particles for dense, glowing holographic grid
+  const [positions, colors] = useMemo(() => {
+    const count = 850;
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
 
-    const phi = (1 + Math.sqrt(5)) / 2; // Golden ratio
-    const radius = 2.25;
-
-    const cyan = new THREE.Color('#00f0ff');
-    const magenta = new THREE.Color('#ff007f');
-    const violet = new THREE.Color('#a855f7');
-    const tempColor = new THREE.Color();
+    const color1 = new THREE.Color('#00f0ff');
+    const color2 = new THREE.Color('#a855f7');
+    const color3 = new THREE.Color('#ff007f');
 
     for (let i = 0; i < count; i++) {
-      const y = 1 - (i / (count - 1)) * 2;
-      const radiusAtY = Math.sqrt(1 - y * y);
-      const theta = (2 * Math.PI * i) / phi;
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      const phi = Math.acos(2.0 * v - 1.0);
+      const r = 2.85 + (Math.random() - 0.5) * 0.08;
 
-      const jitter = (Math.random() - 0.5) * 0.12;
-      const r = radius + jitter;
-
-      const x = r * radiusAtY * Math.cos(theta);
-      const yPos = r * y;
-      const z = r * radiusAtY * Math.sin(theta);
+      const x = r * Math.sin(phi) * Math.cos(theta);
+      const y = r * Math.sin(phi) * Math.sin(theta);
+      const z = r * Math.cos(phi);
 
       pos[i * 3] = x;
-      pos[i * 3 + 1] = yPos;
+      pos[i * 3 + 1] = y;
       pos[i * 3 + 2] = z;
 
-      const t = (y + 1) / 2;
-      if (t > 0.5) {
-        tempColor.copy(cyan).lerp(magenta, (t - 0.5) * 2);
-      } else {
-        tempColor.copy(magenta).lerp(violet, t * 2);
+      let mixedColor = color1.clone();
+      if (y > 0.5) {
+        mixedColor.lerp(color2, Math.min(1, y / 2.5));
+      } else if (y < -0.5) {
+        mixedColor.lerp(color3, Math.min(1, Math.abs(y) / 2.5));
       }
 
-      col[i * 3] = tempColor.r;
-      col[i * 3 + 1] = tempColor.g;
-      col[i * 3 + 2] = tempColor.b;
+      col[i * 3] = mixedColor.r;
+      col[i * 3 + 1] = mixedColor.g;
+      col[i * 3 + 2] = mixedColor.b;
     }
 
-    return { positions: pos, colors: col };
+    return [pos, col];
   }, []);
 
-  // Hollow Core Particle Sphere Cloud
+  // Generate 320 internal stardust particles
   const corePositions = useMemo(() => {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-    const count = isMobile ? 600 : 800;
+    const count = 320;
     const pos = new Float32Array(count * 3);
-    const phi = (1 + Math.sqrt(5)) / 2;
-    const radius = 1.35;
-
     for (let i = 0; i < count; i++) {
-      const y = 1 - (i / (count - 1)) * 2;
-      const radiusAtY = Math.sqrt(1 - y * y);
-      const theta = (2 * Math.PI * i) / phi;
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      const phi = Math.acos(2.0 * v - 1.0);
+      const r = Math.cbrt(Math.random()) * 2.3;
 
-      pos[i * 3] = radius * radiusAtY * Math.cos(theta);
-      pos[i * 3 + 1] = radius * y;
-      pos[i * 3 + 2] = radius * radiusAtY * Math.sin(theta);
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      pos[i * 3 + 2] = r * Math.cos(phi);
     }
     return pos;
   }, []);
 
-  // Calm, steady rotation animation with pause on touch/hover & prefers-reduced-motion support
-  useFrame((state, delta) => {
-    if (isPaused || prefersReducedMotion) return;
-
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y += delta * 0.15;
-    }
-    if (coreRef.current) {
-      coreRef.current.rotation.y -= delta * 0.1;
-      coreRef.current.rotation.x += delta * 0.05;
-    }
-    if (ring1Ref.current) {
-      ring1Ref.current.rotation.z += delta * 0.18;
-      ring1Ref.current.rotation.x += delta * 0.06;
-    }
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.z -= delta * 0.15;
-      ring2Ref.current.rotation.y += delta * 0.08;
-    }
-  });
-
   return (
     <group>
-      {/* Outer 3D CGI Particle Sphere Cloud */}
+      {/* Outer Holographic Surface Lattice Points */}
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -201,8 +158,7 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.07}
-          map={particleTexture}
+          size={0.04}
           vertexColors
           transparent
           opacity={0.92}
@@ -211,7 +167,7 @@ const ParticleSphere: React.FC<{ isPaused?: boolean }> = ({ isPaused = false }) 
         />
       </points>
 
-      {/* Hollow Core Stardust Particle Sphere (Replaces solid sphere mesh) */}
+      {/* Hollow Core Stardust Particle Sphere */}
       <points ref={coreRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -259,6 +215,10 @@ interface ProductNodeProps {
   product: Product;
   lat: number;
   lon: number;
+  radius?: number;
+  cardShape?: 'rectangle' | 'circle';
+  showName?: boolean;
+  showPrice?: boolean;
   onSelectProduct?: (product: Product) => void;
 }
 
@@ -266,21 +226,27 @@ const ProductNode: React.FC<ProductNodeProps> = ({
   product,
   lat,
   lon,
+  radius = 1.8,
+  cardShape = 'circle',
+  showName = true,
+  showPrice = true,
   onSelectProduct,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Convert Spherical Lat/Lon to 3D Cartesian coordinates on sphere radius ~1.8
+  // Convert Spherical Lat/Lon to 3D Cartesian coordinates on sphere radius
   const position = useMemo(() => {
-    const radius = 1.8;
+    const r = radius > 0 ? radius : 1.8;
     const latRad = (lat * Math.PI) / 180;
     const lonRad = (lon * Math.PI) / 180;
 
-    const x = radius * Math.cos(latRad) * Math.sin(lonRad);
-    const y = radius * Math.sin(latRad);
-    const z = radius * Math.cos(latRad) * Math.cos(lonRad);
+    const x = r * Math.cos(latRad) * Math.sin(lonRad);
+    const y = r * Math.sin(latRad);
+    const z = r * Math.cos(latRad) * Math.cos(lonRad);
     return [x, y, z] as [number, number, number];
-  }, [lat, lon]);
+  }, [lat, lon, radius]);
+
+  const isCircle = cardShape === 'circle';
 
   return (
     <group position={position}>
@@ -299,25 +265,31 @@ const ProductNode: React.FC<ProductNodeProps> = ({
           onMouseLeave={() => setIsHovered(false)}
           className="relative cursor-pointer group flex flex-col items-center select-none transition-transform duration-300 hover:scale-115"
         >
-          {/* Circular Round Card (دائري ناعم وجميل) */}
-          <div className="w-11 h-11 sm:w-13 sm:h-13 bg-[#09071a]/85 backdrop-blur-xl border border-cyan-400/50 rounded-full p-1 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all duration-300 group-hover:border-purple-400 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.7)]">
+          {/* Card Shape (دائري ناعم وجميل أو مستطيل حسب الإعداد) */}
+          <div className={`w-11 h-11 sm:w-13 sm:h-13 bg-[#09071a]/85 backdrop-blur-xl border border-cyan-400/50 ${isCircle ? 'rounded-full' : 'rounded-2xl'} p-1 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all duration-300 group-hover:border-purple-400 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.7)]`}>
             <img
               src={product.image || FALLBACK_IMAGE}
               alt={product.name}
               onError={handleImageError}
-              className="w-full h-full object-contain rounded-full bg-transparent transition-transform duration-300 group-hover:scale-110"
+              className={`w-full h-full object-contain ${isCircle ? 'rounded-full' : 'rounded-xl'} bg-transparent transition-transform duration-300 group-hover:scale-110`}
             />
           </div>
 
-          {/* Name & Price Badge (عرض الاسم والسعر مفعل) */}
-          <div className="mt-1 flex flex-col items-center pointer-events-none">
-            <span className="px-1.5 py-0.5 rounded-md bg-black/80 border border-white/15 text-[8px] sm:text-[9px] font-bold text-white max-w-[85px] truncate text-center leading-tight shadow-md">
-              {product.name}
-            </span>
-            <span className="text-[7.5px] sm:text-[8.5px] font-black text-cyan-300 font-mono mt-0.5 drop-shadow">
-              {product.priceYER.toLocaleString('ar-YE')} ر.ي
-            </span>
-          </div>
+          {/* Name & Price Badge */}
+          {(showName || showPrice) && (
+            <div className="mt-1 flex flex-col items-center pointer-events-none">
+              {showName && (
+                <span className="px-1.5 py-0.5 rounded-md bg-black/80 border border-white/15 text-[8px] sm:text-[9px] font-bold text-white max-w-[85px] truncate text-center leading-tight shadow-md">
+                  {product.name}
+                </span>
+              )}
+              {showPrice && (
+                <span className="text-[7.5px] sm:text-[8.5px] font-black text-cyan-300 font-mono mt-0.5 drop-shadow">
+                  {product.priceYER.toLocaleString('ar-YE')} ر.ي
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Interactive Hover Tooltip */}
           <AnimatePresence>
@@ -463,6 +435,18 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
   size,
   className = '',
   showTitleBadge = true,
+  maxProducts = 50,
+  radius = 1.8,
+  rotationSpeed = 0.5,
+  cardShape = 'circle',
+  showName = true,
+  showPrice = true,
+  showParticles = true,
+  overlayBadge = 'INDEXES · LIVE SHOWCASE',
+  overlayTitle = 'آلاف المنتجات',
+  overlaySubtitle = 'اسحب الكرة — كل وجه منتج، اضغط لتفتحه',
+  overlayTitleFontSize = 28,
+  overlaySubtitleFontSize = 12,
 }) => {
   const { isActive } = useLiteMode();
 
@@ -473,10 +457,15 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
       }
     : undefined;
 
+  const displayProducts = useMemo(() => {
+    const limit = maxProducts > 0 ? maxProducts : 50;
+    return products.slice(0, limit);
+  }, [products, maxProducts]);
+
   if (isActive) {
     return (
       <div className={`relative flex flex-col items-center justify-center rounded-[2rem] bg-[#02000A] overflow-hidden border border-white/10 ${className}`} style={dimensionStyle}>
-        <HolographicFallback products={products} onSelectProduct={onSelectProduct} />
+        <HolographicFallback products={displayProducts} onSelectProduct={onSelectProduct} />
       </div>
     );
   }
@@ -495,13 +484,19 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 text-center pointer-events-none px-4 w-full">
           <div className="inline-flex items-center gap-1.5 bg-[#050514]/85 border border-cyan-400/30 px-3 py-0.5 rounded-full text-[10px] font-black shadow-xl backdrop-blur-2xl text-cyan-300">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span>INDEXES · LIVE SHOWCASE</span>
+            <span>{overlayBadge}</span>
           </div>
-          <h3 className="text-[28px] font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-            آلاف المنتجات
+          <h3
+            style={{ fontSize: `${overlayTitleFontSize}px` }}
+            className="font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]"
+          >
+            {overlayTitle}
           </h3>
-          <p className="text-[12px] text-gray-300 font-medium">
-            اسحب الكرة — كل وجه منتج، اضغط لتفتحه
+          <p
+            style={{ fontSize: `${overlaySubtitleFontSize}px` }}
+            className="text-gray-300 font-medium"
+          >
+            {overlaySubtitle}
           </p>
         </div>
       )}
@@ -509,7 +504,7 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
       {/* R3F WebGL Canvas Scene with Error Boundary */}
       <div className="w-full h-full relative z-10" style={{ touchAction: 'pan-y' }}>
         <WebGLErrorBoundary
-          fallback={<HolographicFallback products={products} onSelectProduct={onSelectProduct} />}
+          fallback={<HolographicFallback products={displayProducts} onSelectProduct={onSelectProduct} />}
         >
           <Canvas
             camera={{ position: [0, 0, 7.5], fov: 45 }}
@@ -532,14 +527,18 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
               <Stars radius={60} depth={40} count={600} factor={3} saturation={0} fade speed={1} />
 
               {/* Atmospheric Space Dust Sparkles (تأثير الجسيمات الخلفية مفعّل) */}
-              <Sparkles count={60} scale={10} size={2.5} speed={0.5} color="#00f0ff" />
-              <Sparkles count={40} scale={12} size={2.0} speed={0.4} color="#ff007f" />
+              {showParticles && (
+                <>
+                  <Sparkles count={60} scale={10} size={2.5} speed={0.5} color="#00f0ff" />
+                  <Sparkles count={40} scale={12} size={2.0} speed={0.4} color="#ff007f" />
+                </>
+              )}
 
               {/* 3D CGI WebGL Particle Globe */}
               <ParticleSphere />
 
               {/* Product Card Overlays (Up to 50 Circular Nodes) */}
-              {products.slice(0, 50).map((product, idx) => {
+              {displayProducts.map((product, idx) => {
                 const coord = PRODUCT_COORDS_50[idx % PRODUCT_COORDS_50.length];
                 return (
                   <ProductNode
@@ -547,6 +546,10 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
                     product={product}
                     lat={coord.lat}
                     lon={coord.lon}
+                    radius={radius}
+                    cardShape={cardShape}
+                    showName={showName}
+                    showPrice={showPrice}
                     onSelectProduct={onSelectProduct}
                   />
                 );
@@ -555,7 +558,7 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
               {/* Smart Touch-Aware Cinematic Orbit Controls */}
               <SmartOrbitControls
                 autoRotate
-                autoRotateSpeed={0.5}
+                autoRotateSpeed={rotationSpeed}
                 enableZoom={false}
                 enablePan={false}
                 rotateSpeed={0.6}
@@ -567,5 +570,3 @@ export const HolographicGlobe: React.FC<HolographicGlobeProps> = ({
     </div>
   );
 };
-
-

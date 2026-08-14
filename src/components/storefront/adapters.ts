@@ -127,8 +127,8 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
     priceYER,
     originalPriceYER,
     discountBadge,
-    rating: p.rating || 4.8,
-    reviewsCount: p.reviews || 12,
+    rating: typeof p.rating === "number" && !isNaN(p.rating) && p.rating > 0 ? p.rating : 0,
+    reviewsCount: typeof p.reviews === "number" && !isNaN(p.reviews) && p.reviews > 0 ? p.reviews : 0,
     image: mainImage,
     gallery,
     videoUrl,
@@ -138,6 +138,8 @@ export function mapProductionProductToDesignProduct(p: LegacyProductShape): Desi
     isBestOffer: p.isDeal || Boolean(rawOldPrice && rawOldPrice > priceYER),
     isNewArrival: p.featured || false,
     isFeatured: p.featured || false,
+    dealStart: p.dealStart ?? null,
+    dealEnd: p.dealEnd ?? null,
   };
 }
 

@@ -1,12 +1,21 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Rocket, Zap, Truck } from 'lucide-react';
 
-interface ShippingBannerProps {
+export interface ShippingBannerProps {
   onOpenShippingInfo?: () => void;
+  shippingConfig?: {
+    deliveryText?: string;
+    freeText?: string;
+    threshold?: number;
+  };
 }
 
-export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingInfo }) => {
+export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingInfo, shippingConfig }) => {
+  const deliveryText = shippingConfig?.deliveryText || 'توصيل سريع خلال 24-48 ساعة للمحافظات';
+  const freeThreshold = shippingConfig?.threshold || 30000;
+  const freeText = shippingConfig?.freeText || 'شحن مجاني فوق';
+
   return (
     <div className="px-3 sm:px-6 py-1.5">
       <motion.div 
@@ -23,7 +32,7 @@ export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingIn
             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#2F6BFF]/10 border border-[#2F6BFF]/30 flex items-center justify-center text-[#2F6BFF] shrink-0 group-hover:scale-110 transition-transform">
               <Truck className="w-3 h-3 text-[#2F6BFF]" />
             </div>
-            <span>توصيل سريع خلال <strong className="text-[var(--color-text-primary)] font-black text-xs">24-48 ساعة</strong> للمحافظات</span>
+            <span>{deliveryText}</span>
           </div>
 
           <div className="w-5 h-5 rounded-full bg-amber-500/10 border border-amber-500/30 flex sm:hidden items-center justify-center text-amber-400 shrink-0">
@@ -35,7 +44,7 @@ export const ShippingBanner: React.FC<ShippingBannerProps> = ({ onOpenShippingIn
         <div className="flex items-center justify-between w-full sm:w-auto gap-2 text-[11px] sm:text-xs text-[var(--color-text-secondary)] border-t sm:border-t-0 border-[var(--color-border-subtle)] pt-1 sm:pt-0 relative z-10">
           <div className="flex items-center gap-1.5">
             <span className="hidden sm:inline">•</span>
-            <span>شحن مجاني فوق <strong className="text-[var(--color-text-primary)] font-black text-xs">30,000 ريال</strong></span>
+            <span>{freeText} <strong className="text-[var(--color-text-primary)] font-black text-xs">{freeThreshold.toLocaleString('ar-YE')} ريال</strong></span>
           </div>
 
           <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 group-hover:rotate-12 transition-transform">

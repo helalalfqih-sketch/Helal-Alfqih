@@ -25,6 +25,8 @@ export interface Product {
   brand?: string;
   specs?: Record<string, string>;
   colors?: string[];
+  dealStart?: string | null;
+  dealEnd?: string | null;
 }
 
 export interface Category {

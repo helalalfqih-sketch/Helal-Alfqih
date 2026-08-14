@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Product, Currency } from './types';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './SkeletonLoader';
@@ -33,20 +33,40 @@ export const BestOffersSection: React.FC<BestOffersSectionProps> = ({
 
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Flash Deal Timer State
-  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 18, seconds: 45 });
+  // Real Flash Deal Countdown State derived from nearest valid active dealEnd
+  const nearestDealEndTime = useMemo(() => {
+    const now = Date.now();
+    const validEnds = bestOffers
+      .map((p) => (p.dealEnd ? new Date(p.dealEnd).getTime() : NaN))
+      .filter((t) => !isNaN(t) && t > now);
+    return validEnds.length > 0 ? Math.min(...validEnds) : null;
+  }, [bestOffers]);
+
+  const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
-        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        return { hours: 12, minutes: 0, seconds: 0 };
-      });
-    }, 1000);
+    if (!nearestDealEndTime) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const remainingMs = nearestDealEndTime - Date.now();
+      if (remainingMs <= 0) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const totalSeconds = Math.floor(remainingMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      setTimeLeft({ hours, minutes, seconds });
+    };
+
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [nearestDealEndTime]);
 
   // Check scroll positions for active dot indicator
   const updateScrollStatus = useCallback(() => {
@@ -138,14 +158,16 @@ export const BestOffersSection: React.FC<BestOffersSectionProps> = ({
             <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 fill-amber-400 animate-pulse" />
           </h3>
 
-          {/* Flash Timer Pills */}
-          <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/30 px-2.5 py-1 rounded-full text-xs font-mono font-bold text-amber-400 shadow-sm">
-            <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
-            <span>
-              {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
-            </span>
-            <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
-          </div>
+          {/* Flash Timer Pills (Rendered only when active timed deal exists) */}
+          {timeLeft && (timeLeft.hours > 0 || timeLeft.minutes > 0 || timeLeft.seconds > 0) && (
+            <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/30 px-2.5 py-1 rounded-full text-xs font-mono font-bold text-amber-400 shadow-sm">
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+              <span>
+                {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+              </span>
+              <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
+            </div>
+          )}
         </div>
 
         <button

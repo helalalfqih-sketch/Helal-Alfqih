@@ -198,11 +198,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </h4>
 
             {/* Rating */}
-            <div className="flex items-center gap-1 text-[11px] mt-1 text-[var(--color-text-secondary)]">
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-              <span className="text-[var(--color-text-primary)] font-bold">{product.rating || '4.8'}</span>
-              <span className="text-[var(--color-text-muted)]">({product.reviewsCount || 85})</span>
-            </div>
+            {product.rating > 0 ? (
+              <div className="flex items-center gap-1 text-[11px] mt-1 text-[var(--color-text-secondary)]">
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                <span className="text-[var(--color-text-primary)] font-bold">{product.rating.toFixed(1)}</span>
+                {product.reviewsCount > 0 && (
+                  <span className="text-[var(--color-text-muted)]">({product.reviewsCount})</span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-[10px] mt-1 text-[var(--color-text-muted)]">
+                <Star className="w-3 h-3 text-slate-500 shrink-0" />
+                <span>لا توجد تقييمات</span>
+              </div>
+            )}
           </div>
 
           {/* Pricing & Add-to-Cart Button */}

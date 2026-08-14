@@ -1,57 +1,51 @@
-﻿import { useRef } from "react";
+import { useRef } from "react";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { MessageCircle } from "lucide-react";
 
-// Public, muted, looping ambient video â€” CDN hosted, safe for autoplay.
-const VIDEO_SRC = "https://cdn.coverr.co/videos/coverr-a-luxury-modern-living-room-4568/1080p.mp4";
-const VIDEO_POSTER =
+const DEFAULT_VIDEO_SRC = "https://cdn.coverr.co/videos/coverr-a-luxury-modern-living-room-4568/1080p.mp4";
+const DEFAULT_VIDEO_POSTER =
   "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1600&q=70";
 
-const WA_LINK =
-  "https://wa.me/967771370740?text=" +
-  encodeURIComponent("ظ…ط±ط­ط¨ط§ظ‹طŒ ط£ط±ظٹط¯ ط§ظ„ط§ط³طھظپط³ط§ط± ط¹ظ† ظ…ظ†طھط¬ط§طھ ط§ظ†ط¯ظƒط³ ط³طھظˆط±");
-
-const HEADLINE = "ط§ظ†ط¯ظƒط³ ط³طھظˆط±: ط­ظٹط« طھظ„طھظ‚ظٹ ط§ظ„ظپط®ط§ظ…ط© ط¨ط§ظ„طھظ‚ظ†ظٹط©";
+const DEFAULT_HEADLINE = "اندكس ستور: حيث تلتقي الفخامة بالتقنية";
 
 const STORY_BLOCKS = [
   {
-    kicker: "ط§ظ„ظپطµظ„ ط§ظ„ط£ظˆظ„",
-    title: "طھط¬ط±ط¨ط© طھط³ظˆظ‘ظ‚ ط³ظٹظ†ظ…ط§ط¦ظٹط©",
-    body: "ظ„ط§ ظ†ط¨ظٹط¹ ظ…ظ†طھط¬ط§طھ ظپظ‚ط· â€” ظ†طµظ†ط¹ ظ„ط­ط¸ط§طھ. ظƒظ„ طھظپطµظٹظ„ط© ط¯ط§ط®ظ„ ط§ظ†ط¯ظƒط³ ط³طھظˆط± ظ…طµظ…ظ‘ظ…ط© ظ„طھظ…ظ†ط­ظƒ ط¥ط­ط³ط§ط³ظ‹ط§ ط¨ط§ظ„ظپط®ط§ظ…ط© ظ…ظ†ط° ط§ظ„ظ„ظ…ط³ط© ط§ظ„ط£ظˆظ„ظ‰.",
+    kicker: "الفصل الأول",
+    title: "تجربة تسوّق سينمائية",
+    body: "لا نبيع منتجات فقط — نصنع لحظات. كل تفصيلة داخل اندكس ستور مصمّمة لتمنحك إحساساً بالفخامة منذ اللمسة الأولى.",
   },
   {
-    kicker: "ط§ظ„ظپطµظ„ ط§ظ„ط«ط§ظ†ظٹ",
-    title: "طھظ‚ظ†ظٹط© ط¨ظ„ط§ ط­ط¯ظˆط¯",
-    body: "ط£ط­ط¯ط« ط§ظ„ط£ط¬ظ‡ط²ط© ط§ظ„ط°ظƒظٹط©طŒ ط§ظ„ط¥ظƒط³ط³ظˆط§ط±ط§طھ ط§ظ„ظپط§ط®ط±ط©طŒ ظˆط§ظ„طھط¬ط§ط±ط¨ ط«ظ„ط§ط«ظٹط© ط§ظ„ط£ط¨ط¹ط§ط¯ ط§ظ„طھظٹ طھط¬ط¹ظ„ظƒ طھط¹ظٹط´ ط§ظ„ظ…ظ†طھط¬ ظ‚ط¨ظ„ ط§ظ‚طھظ†ط§ط¦ظ‡.",
+    kicker: "الفصل الثاني",
+    title: "تقنية بلا حدود",
+    body: "أحدث الأجهزة الذكية، الإكسسوارات الفاخرة، والتجارب ثلاثية الأبعاد التي تجعلك تعيش المنتج قبل اقتنائه.",
   },
   {
-    kicker: "ط§ظ„ظپطµظ„ ط§ظ„ط«ط§ظ„ط«",
-    title: "ط®ط¯ظ…ط© طھظ„ظٹظ‚ ط¨ظƒ",
-    body: "طھظˆطµظٹظ„ ظ„ظƒظ„ ط§ظ„ظ…ط­ط§ظپط¸ط§طھطŒ ط¯ط¹ظ… ظ…ط¨ط§ط´ط± ط¹ط¨ط± ط§ظ„ظˆط§طھط³ط§ط¨طŒ ظˆط¶ظ…ط§ظ† ط¬ظˆط¯ط© ط¹ظ„ظ‰ ظƒظ„ ظ‚ط·ط¹ط©. ط£ظ†طھ ظپظٹ ط§ظ„ظ…ظƒط§ظ† ط§ظ„طµط­ظٹط­.",
+    kicker: "الفصل الثالث",
+    title: "خدمة تليق بك",
+    body: "توصيل لكل المحافظات، دعم مباشر عبر الواتساب، وضمان جودة على كل قطعة. أنت في المكان الصحيح.",
   },
 ];
 
-const headlineWords = HEADLINE.split(" ");
+export interface CinematicStoryProps {
+  cinematicConfig?: {
+    title?: string;
+    subtitle?: string;
+    videoUrl?: string;
+    posterUrl?: string;
+  };
+  whatsappNumber?: string;
+}
 
-const wordVariants: Variants = {
-  hidden: { opacity: 0, y: 40, filter: "blur(12px)" },
-  show: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    transition: {
-      duration: 0.9,
-      delay: i * 0.08,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  }),
-};
+export function CinematicStory({ cinematicConfig, whatsappNumber = "967771370740" }: CinematicStoryProps) {
+  const headline = cinematicConfig?.title || DEFAULT_HEADLINE;
+  const videoSrc = cinematicConfig?.videoUrl || DEFAULT_VIDEO_SRC;
+  const videoPoster = cinematicConfig?.posterUrl || DEFAULT_VIDEO_POSTER;
+  const waLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("مرحباً، أود الاستفسار عن منتجات متجر اندكس ستور")}`;
 
-export function CinematicStory() {
   return (
     <section
       dir="rtl"
-      aria-label="ظ‚طµط© ط§ظ†ط¯ظƒط³ ط³طھظˆط±"
+      aria-label="قصة اندكس ستور"
       className="relative w-full rounded-3xl overflow-hidden my-4 py-12 md:py-16 bg-showcase border border-showcase-border/40"
       style={{
         fontFamily: "Tajawal, system-ui, sans-serif",
@@ -60,8 +54,8 @@ export function CinematicStory() {
       {/* Video background */}
       <div className="absolute inset-0 h-full w-full">
         <video
-          src={VIDEO_SRC}
-          poster={VIDEO_POSTER}
+          src={videoSrc}
+          poster={videoPoster}
           autoPlay
           muted
           loop
@@ -97,8 +91,13 @@ export function CinematicStory() {
       {/* Foreground content */}
       <div className="relative z-10 flex flex-col items-center justify-center px-4 md:px-6 text-center text-showcase-foreground">
         <h2 className="mx-auto max-w-4xl font-black leading-[1.15] tracking-tight text-2xl sm:text-4xl md:text-5xl">
-          {HEADLINE}
+          {headline}
         </h2>
+        {cinematicConfig?.subtitle && (
+          <p className="mt-2 text-sm sm:text-base text-showcase-foreground/80 max-w-2xl">
+            {cinematicConfig.subtitle}
+          </p>
+        )}
 
         {/* Chapters */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">
@@ -124,16 +123,15 @@ export function CinematicStory() {
 
         {/* CTA */}
         <a
-          href={WA_LINK}
+          href={waLink}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-8 inline-flex items-center gap-2.5 rounded-full border border-showcase-foreground/25 bg-showcase-foreground/10 px-7 py-3 text-xs md:text-sm font-black text-showcase-foreground shadow-2xl backdrop-blur-xl transition hover:bg-showcase-foreground/20 hover:scale-105"
         >
           <MessageCircle className="h-4 w-4" />
-          <span>ط§ط¨ط¯ط£ ط±ط­ظ„طھظƒ ظ…ط¹ظ†ط§ ط¹ط¨ط± ظˆط§طھط³ط§ط¨</span>
+          <span>ابدأ رحلتك معنا عبر واتساب</span>
         </a>
       </div>
     </section>
   );
 }
-

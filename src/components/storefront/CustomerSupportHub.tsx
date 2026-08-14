@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageCircle, Phone, X, Send, Sparkles, 
@@ -19,6 +19,8 @@ interface CustomerSupportHubProps {
   cartItems?: CartItem[];
   currency?: Currency;
   lastOrderRef?: string | null;
+  whatsappNumber?: string;
+  phone?: string;
   onOpenTracker?: () => void;
   onOpenSearch?: () => void;
 }
@@ -31,6 +33,8 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
   cartItems = [],
   currency = 'YER',
   lastOrderRef,
+  whatsappNumber,
+  phone,
   onOpenTracker,
   onOpenSearch,
 }) => {
@@ -60,8 +64,8 @@ export const CustomerSupportHub: React.FC<CustomerSupportHubProps> = ({
   const [specialLink, setSpecialLink] = useState('');
   const [specialQty, setSpecialQty] = useState('1');
 
-  const rawNumber = STORE_INFO.whatsappNumber || '967771370740';
-  const formattedPhone = '+967 771 370 740';
+  const rawNumber = whatsappNumber || STORE_INFO.whatsappNumber || '967771370740';
+  const formattedPhone = phone || '+967 771 370 740';
 
   // Body scroll lock
   useEffect(() => {

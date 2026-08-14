@@ -38,6 +38,9 @@ import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { BottomNav } from "@/components/storefront/BottomNav";
 import { AmbientBackground } from "@/components/storefront/AmbientBackground";
 import { FloatingWhatsAppButton } from "@/components/storefront/FloatingWhatsAppButton";
+import { CinematicStory } from "@/components/storefront/cinematic-story";
+import { useAppearance } from "@/components/appearance-provider";
+import { mapPublishedStorefrontSettings } from "@/lib/adapters/storefront-settings.adapter";
 import {
   ProductCardSkeleton,
   HeroCarouselSkeleton,
@@ -111,6 +114,12 @@ function HomeSkeleton() {
 }
 
 function HomePage() {
+  const { settings: rawAppearanceSettings } = useAppearance();
+  const mappedSettings = useMemo(
+    () => mapPublishedStorefrontSettings(rawAppearanceSettings),
+    [rawAppearanceSettings],
+  );
+
   const { data: bestSellers } = useSuspenseQuery(bestSellersQuery(20));
   const { data: dailyDeals } = useSuspenseQuery(offersQuery(20));
   const { data: allProducts } = useSuspenseQuery(globePoolQuery(100));
@@ -133,6 +142,22 @@ function HomePage() {
       mapProductionProductToDesignProduct(p),
     );
   }, [rawProductList]);
+
+  // 3D Globe products pool based on published product source setting
+  const globeProducts = useMemo(() => {
+    const source = mappedSettings.hero.globe.productSource;
+    if (source === "offers" && dailyDeals.length > 0) {
+      return (dailyDeals as (LegacyProductShape | ProductionProduct)[]).map((p) =>
+        mapProductionProductToDesignProduct(p),
+      );
+    }
+    if (source === "bestsellers" && bestSellers.length > 0) {
+      return (bestSellers as (LegacyProductShape | ProductionProduct)[]).map((p) =>
+        mapProductionProductToDesignProduct(p),
+      );
+    }
+    return products;
+  }, [mappedSettings.hero.globe.productSource, dailyDeals, bestSellers, products]);
 
   // Real production cart & favorites hooks
   const cartStoreItems = useCart((s) => s.items);
@@ -207,11 +232,6 @@ function HomePage() {
         const session = data.session;
         if (!session?.user) {
           setIsAdminUser(false);
-          return;
-        }
-        const userEmail = (session.user.email || "").toLowerCase();
-        if (userEmail === "helalalfqih@gmail.com") {
-          setIsAdminUser(true);
           return;
         }
         const { data: roleRows } = await supabase
@@ -504,188 +524,253 @@ function HomePage() {
         />
 
         {/* 2. Top Shipping Announcement Banner */}
-        <ShippingBanner onOpenShippingInfo={() => setIsTrackerModalOpen(true)} />
+        <ShippingBanner
+          onOpenShippingInfo={() => setIsTrackerModalOpen(true)}
+          shippingConfig={mappedSettings.shipping}
+        />
 
         {/* Main Container */}
         <main className="flex-grow w-full max-w-7xl mx-auto pb-28 sm:pb-32">
-          {/* 3. Hero Carousel Banner ("عروض حصرية 50%") */}
-          {isLoading ? (
-            <HeroCarouselSkeleton />
-          ) : (
-            <HeroCarousel
-              products={products}
-              onSelectCategory={handleSelectCategoryWithLoading}
-              onSelectProduct={handleSelectProduct}
-              onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
-              onOpenUniverse={() => setIsProductUniverseOpen(true)}
-            />
-          )}
-
-          <DiscoveryStrip
-            onSelectDiscoveryOption={handleSelectDiscoveryOption}
-            activeFilter={discoveryFilter}
-            onResetFilter={() => {
-              setDiscoveryFilter(null);
-              setSortBy("default");
-              setSelectedCategory("all");
-              setPriceRange("all");
-              setCustomMinPrice(undefined);
-              setCustomMaxPrice(undefined);
-            }}
-          />
-
-          {/* Recently Viewed Strip */}
-          {recentlyViewed.length > 0 && (
-            <RecentlyViewedStrip
-              products={recentlyViewed}
-              currency={currency}
-              onSelectProduct={handleSelectProduct}
-              onClearHistory={() => setRecentlyViewed([])}
-            />
-          )}
-
-          {/* 4. 6-Category Grid & Filter/Sort Bar */}
-          <CategoryBar
-            selectedCategoryId={selectedCategory}
-            onSelectCategory={handleSelectCategoryWithLoading}
-            selectedSort={sortBy}
-            onSelectSort={(sortOption) => setSortBy(sortOption)}
-            selectedPriceRange={priceRange}
-            customMinPrice={customMinPrice}
-            customMaxPrice={customMaxPrice}
-            onSelectPriceRange={(range, min, max) => {
-              setPriceRange(range);
-              setCustomMinPrice(min);
-              setCustomMaxPrice(max);
-            }}
-            selectedBrands={selectedBrands}
-            onSelectBrands={setSelectedBrands}
-            selectedRatings={selectedRatings}
-            onSelectRatings={setSelectedRatings}
-          />
-
-          {/* 5. Best Offers Section (أفضل العروض 🔥) */}
-          {selectedCategory === "all" && !searchQuery && (
-            <BestOffersSection
-              bestOffers={bestOffers.length ? bestOffers : products.slice(0, 6)}
-              currency={currency}
-              favorites={favorites}
-              isLoading={isLoading}
-              onToggleFavorite={handleToggleFavorite}
-              onAddToCart={(prod) => handleAddToCart(prod, 1)}
-              onSelectProduct={(prod) => setSelectedProductModal(prod)}
-              onViewAll={() => handleSelectCategoryWithLoading("all")}
-            />
-          )}
-
-          {/* 6. AI-Powered Smart Search Section */}
-          <AISearchSection
-            products={products}
-            currency={currency}
-            onSelectProduct={(prod) => setSelectedProductModal(prod)}
-            onSearchQuerySubmit={(q) => {
-              setIsLoading(true);
-              setSearchQuery(q);
-              setTimeout(() => setIsLoading(false), 250);
-            }}
-          />
-
-          {/* 7. Product Catalog Grid Section */}
-          <section className="px-4 sm:px-6 py-6">
-            <div className="dir-rtl mb-6 flex flex-col justify-between gap-3 border-b border-[var(--color-border-default)] pb-4 sm:flex-row sm:items-center">
-              <div>
-                <h3 className="text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
-                  {selectedCategory === "all"
-                    ? searchQuery
-                      ? `نتائج البحث عن "${searchQuery}"`
-                      : "جميع المنتجات المتوفرة"
-                    : "منتجات القسم المختار"}
-                </h3>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)] sm:text-sm">
-                  عرض {filteredProducts.length} منتجات أصلية مع ضمان متجر إندكس
-                </p>
-              </div>
-              {sortBy !== "default" ? (
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                  <div className="inline-flex items-center gap-1.5 rounded-full border border-[#2F6BFF]/40 bg-[#2F6BFF]/15 px-3 py-1.5 text-xs font-black text-[#2F6BFF] shadow-sm">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-[#2F6BFF]" />
-                    <span>
-                      الترتيب المطبق:{" "}
-                      {sortBy === "price-high"
-                        ? "الأعلى سعراً"
-                        : sortBy === "price-low"
-                          ? "الأقل سعراً"
-                          : sortBy === "best-selling"
-                            ? "الأكثر مبيعاً"
-                            : "الأحدث وصولاً"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSortBy("default")}
-                      className="cursor-pointer rounded-full p-1 text-[#2F6BFF] transition-colors hover:bg-rose-500/20 hover:text-rose-500"
-                      title="إلغاء الترتيب والإعادة للافتراضي"
-                      aria-label="إلغاء الترتيب"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+          {mappedSettings.sections.sectionOrder.map((sectionKey) => {
+            switch (sectionKey) {
+              case "hero":
+                if (!mappedSettings.hero.enabled) return null;
+                return (
+                  <div key="hero">
+                    {isLoading ? (
+                      <HeroCarouselSkeleton />
+                    ) : (
+                      <HeroCarousel
+                        products={globeProducts}
+                        heroConfig={mappedSettings.hero}
+                        onSelectCategory={handleSelectCategoryWithLoading}
+                        onSelectProduct={handleSelectProduct}
+                        onOpenDeconstruction={() => setIsDeconstructionOpen(true)}
+                        onOpenUniverse={() => setIsProductUniverseOpen(true)}
+                      />
+                    )}
                   </div>
-                </div>
-              ) : null}
-            </div>
+                );
 
-            {isLoading ? (
-              <ProductGridSkeleton count={8} />
-            ) : filteredProducts.length === 0 ? (
-              <div className="rounded-3xl border border-[var(--color-border-default)] bg-[var(--color-surface-1)] py-16 text-center text-[var(--color-text-secondary)]">
-                <span className="material-symbols-outlined mb-2 text-[64px] text-[var(--color-text-muted)]">
-                  search_off
-                </span>
-                <p className="text-lg font-bold text-[var(--color-text-primary)]">
-                  لم نتمكن من العثور على منتجات مطابقة
-                </p>
-                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                  جرّب تغيير كلمة البحث أو قسم المنتجات.
-                </p>
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    handleSelectCategoryWithLoading("all");
-                  }}
-                  className="mt-4 cursor-pointer rounded-2xl bg-[#2F6BFF] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#2458D8]"
-                >
-                  إعادة ضبط البحث
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
+              case "discovery":
+                return (
+                  <DiscoveryStrip
+                    key="discovery"
+                    onSelectDiscoveryOption={handleSelectDiscoveryOption}
+                    activeFilter={discoveryFilter}
+                    onResetFilter={() => {
+                      setDiscoveryFilter(null);
+                      setSortBy("default");
+                      setSelectedCategory("all");
+                      setPriceRange("all");
+                      setCustomMinPrice(undefined);
+                      setCustomMaxPrice(undefined);
+                    }}
+                  />
+                );
+
+              case "recently_viewed":
+                if (recentlyViewed.length === 0) return null;
+                return (
+                  <RecentlyViewedStrip
+                    key="recently_viewed"
+                    products={recentlyViewed}
                     currency={currency}
-                    isFavorite={favorites.includes(product.id)}
+                    onSelectProduct={handleSelectProduct}
+                    onClearHistory={() => setRecentlyViewed([])}
+                  />
+                );
+
+              case "categories":
+                if (!mappedSettings.sections.categories.enabled) return null;
+                return (
+                  <CategoryBar
+                    key="categories"
+                    selectedCategoryId={selectedCategory}
+                    onSelectCategory={handleSelectCategoryWithLoading}
+                    selectedSort={sortBy}
+                    onSelectSort={(sortOption) => setSortBy(sortOption)}
+                    selectedPriceRange={priceRange}
+                    customMinPrice={customMinPrice}
+                    customMaxPrice={customMaxPrice}
+                    onSelectPriceRange={(range, min, max) => {
+                      setPriceRange(range);
+                      setCustomMinPrice(min);
+                      setCustomMaxPrice(max);
+                    }}
+                    selectedBrands={selectedBrands}
+                    onSelectBrands={setSelectedBrands}
+                    selectedRatings={selectedRatings}
+                    onSelectRatings={setSelectedRatings}
+                  />
+                );
+
+              case "deals":
+                if (!mappedSettings.sections.deals.enabled) return null;
+                if (selectedCategory !== "all" || searchQuery) return null;
+                return (
+                  <BestOffersSection
+                    key="deals"
+                    bestOffers={
+                      bestOffers.length
+                        ? bestOffers.slice(0, mappedSettings.sections.deals.limit)
+                        : products.slice(0, mappedSettings.sections.deals.limit)
+                    }
+                    currency={currency}
+                    favorites={favorites}
+                    isLoading={isLoading}
                     onToggleFavorite={handleToggleFavorite}
                     onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                    onSelectProduct={handleSelectProduct}
-                    variant="grid"
+                    onSelectProduct={(prod) => setSelectedProductModal(prod)}
+                    onViewAll={() => handleSelectCategoryWithLoading("all")}
                   />
-                ))}
-              </div>
-            )}
-          </section>
+                );
 
-          {/* 9. Trust Features Bar */}
-          <TrustBar />
+              case "ai_search":
+                return (
+                  <AISearchSection
+                    key="ai_search"
+                    products={products}
+                    currency={currency}
+                    onSelectProduct={(prod) => setSelectedProductModal(prod)}
+                    onSearchQuerySubmit={(q) => {
+                      setIsLoading(true);
+                      setSearchQuery(q);
+                      setTimeout(() => setIsLoading(false), 250);
+                    }}
+                  />
+                );
 
-          {/* 10. Loyalty Banner */}
-          <LoyaltyBanner onOpenLoyaltyModal={() => setIsAccountDrawerOpen(true)} />
+              case "cinematic":
+                if (!mappedSettings.sections.cinematic.enabled) return null;
+                return (
+                  <div key="cinematic" className="px-3 sm:px-6">
+                    <CinematicStory
+                      cinematicConfig={mappedSettings.sections.cinematic}
+                      whatsappNumber={mappedSettings.contact.whatsappPhone}
+                    />
+                  </div>
+                );
 
-          {/* 11. Footer */}
+              case "latest":
+                if (!mappedSettings.sections.latest.enabled) return null;
+                return (
+                  <div key="latest">
+                    {/* Product Catalog Grid Section */}
+                    <section className="px-4 sm:px-6 py-6">
+                      <div className="dir-rtl mb-6 flex flex-col justify-between gap-3 border-b border-[var(--color-border-default)] pb-4 sm:flex-row sm:items-center">
+                        <div>
+                          <h3 className="text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
+                            {selectedCategory === "all"
+                              ? searchQuery
+                                ? `نتائج البحث عن "${searchQuery}"`
+                                : mappedSettings.sections.latest.title || "جميع المنتجات المتوفرة"
+                              : "منتجات القسم المختار"}
+                          </h3>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)] sm:text-sm">
+                            عرض {filteredProducts.length} منتجات أصلية مع ضمان متجر إندكس
+                          </p>
+                        </div>
+                        {sortBy !== "default" ? (
+                          <div className="flex items-center gap-2 self-start sm:self-center">
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#2F6BFF]/40 bg-[#2F6BFF]/15 px-3 py-1.5 text-xs font-black text-[#2F6BFF] shadow-sm">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-[#2F6BFF]" />
+                              <span>
+                                الترتيب المطبق:{" "}
+                                {sortBy === "price-high"
+                                  ? "الأعلى سعراً"
+                                  : sortBy === "price-low"
+                                    ? "الأقل سعراً"
+                                    : sortBy === "best-selling"
+                                      ? "الأكثر مبيعاً"
+                                      : "الأحدث وصولاً"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSortBy("default")}
+                                className="cursor-pointer rounded-full p-1 text-[#2F6BFF] transition-colors hover:bg-rose-500/20 hover:text-rose-500"
+                                title="إلغاء الترتيب والإعادة للافتراضي"
+                                aria-label="إلغاء الترتيب"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {isLoading ? (
+                        <ProductGridSkeleton count={8} />
+                      ) : filteredProducts.length === 0 ? (
+                        <div className="rounded-3xl border border-[var(--color-border-default)] bg-[var(--color-surface-1)] py-16 text-center text-[var(--color-text-secondary)]">
+                          <span className="material-symbols-outlined mb-2 text-[64px] text-[var(--color-text-muted)]">
+                            search_off
+                          </span>
+                          <p className="text-lg font-bold text-[var(--color-text-primary)]">
+                            لم نتمكن من العثور على منتجات مطابقة
+                          </p>
+                          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            جرّب تغيير كلمة البحث أو قسم المنتجات.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setSearchQuery("");
+                              handleSelectCategoryWithLoading("all");
+                            }}
+                            className="mt-4 cursor-pointer rounded-2xl bg-[#2F6BFF] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#2458D8]"
+                          >
+                            إعادة ضبط البحث
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                          {filteredProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              currency={currency}
+                              isFavorite={favorites.includes(product.id)}
+                              onToggleFavorite={handleToggleFavorite}
+                              onAddToCart={(prod) => handleAddToCart(prod, 1)}
+                              onSelectProduct={handleSelectProduct}
+                              variant="grid"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                );
+
+              case "trustBadges":
+                if (!mappedSettings.sections.trustBadges.enabled) return null;
+                return (
+                  <TrustBar
+                    key="trustBadges"
+                    trustBadges={mappedSettings.sections.trustBadges}
+                  />
+                );
+
+              case "loyalty":
+                return (
+                  <LoyaltyBanner
+                    key="loyalty"
+                    onOpenLoyaltyModal={() => setIsAccountDrawerOpen(true)}
+                  />
+                );
+
+              default:
+                return null;
+            }
+          })}
+
+          {/* Footer */}
           <StoreFooter
             onOpenTracker={() => setIsTrackerModalOpen(true)}
             onOpenAdmin={handleOpenAdmin}
             onOpenSupport={() => setIsSupportHubOpen(true)}
             isAdminUser={isAdminUser}
+            footerConfig={mappedSettings.contact}
           />
         </main>
 
@@ -777,6 +862,8 @@ function HomePage() {
           currentProduct={selectedProductModal}
           cartItems={cartItems}
           currency={currency}
+          whatsappNumber={mappedSettings.contact.whatsappPhone}
+          phone={mappedSettings.contact.phone}
           onOpenTracker={() => {
             setIsSupportHubOpen(false);
             setIsTrackerModalOpen(true);

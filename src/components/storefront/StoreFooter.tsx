@@ -4,11 +4,28 @@ import { STORE_INFO } from './constants';
 import { MessageCircle, MapPin, Truck, Package, Facebook, Instagram, PhoneCall } from 'lucide-react';
 import { StoreLogo } from './StoreLogo';
 
-interface StoreFooterProps {
+export interface StoreFooterProps {
   onOpenTracker: () => void;
   onOpenAdmin?: () => void;
   onOpenSupport?: () => void;
   isAdminUser?: boolean;
+  footerConfig?: {
+    storeName?: string;
+    tagline?: string;
+    description?: string;
+    address?: string;
+    deliveryInfoText?: string;
+    phone?: string;
+    whatsappPhone?: string;
+    supportEmail?: string;
+    copyrightText?: string;
+    socialLinks?: {
+      facebook?: string;
+      instagram?: string;
+      tiktok?: string;
+      twitter?: string;
+    };
+  };
 }
 
 export const StoreFooter: React.FC<StoreFooterProps> = ({
@@ -16,10 +33,17 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   onOpenAdmin,
   onOpenSupport,
   isAdminUser,
+  footerConfig,
 }) => {
-  const whatsappUrl = `https://wa.me/${STORE_INFO.whatsappNumber}?text=${encodeURIComponent(
+  const waNumber = footerConfig?.whatsappPhone || footerConfig?.phone || STORE_INFO.whatsappNumber;
+  const whatsappUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(
     'السلام عليكم، أود الاستفسار عن منتجات متجر إندكس'
   )}`;
+  const storeAddress = footerConfig?.address || STORE_INFO.address;
+  const deliveryInfo = footerConfig?.deliveryInfoText || 'متوفر لدينا خدمة التوصيل السريع لجميع المحافظات';
+  const copyright = footerConfig?.copyrightText || `جميع الحقوق محفوظة © ${new Date().getFullYear()} متجر إندكس - INDEXES STORE`;
+  const facebookUrl = footerConfig?.socialLinks?.facebook || '#';
+  const instagramUrl = footerConfig?.socialLinks?.instagram || '#';
 
   return (
     <motion.footer 
@@ -41,7 +65,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
             className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm hover:text-[var(--color-primary)] transition-colors cursor-pointer group"
           >
             <span>
-              للطلب والاستفسار (واتساب): <strong className="text-[var(--color-text-primary)] dir-ltr inline-block group-hover:text-emerald-500 transition-colors">967771370740</strong>
+              للطلب والاستفسار (واتساب): <strong className="text-[var(--color-text-primary)] dir-ltr inline-block group-hover:text-emerald-500 transition-colors">{waNumber}</strong>
             </span>
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform">
               <MessageCircle className="w-4 h-4 fill-emerald-500/20" />
@@ -51,7 +75,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
           {/* Location */}
           <div className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm">
             <span>
-              العنوان: <strong className="text-[var(--color-text-primary)]">صنعاء - شارع بيون - مقابل صيدلية الرعاية الصحية</strong>
+              العنوان: <strong className="text-[var(--color-text-primary)]">{storeAddress}</strong>
             </span>
             <div className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0">
               <MapPin className="w-4 h-4" />
@@ -60,7 +84,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
 
           {/* Delivery */}
           <div className="flex items-center justify-end gap-2.5 text-[var(--color-text-secondary)] text-xs sm:text-sm">
-            <span>متوفر لدينا خدمة التوصيل السريع لجميع المحافظات</span>
+            <span>{deliveryInfo}</span>
             <div className="w-8 h-8 rounded-full bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shrink-0">
               <Truck className="w-4 h-4" />
             </div>
@@ -96,7 +120,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
 
             <div className="flex items-center gap-2">
               <a
-                href="#"
+                href={facebookUrl}
                 aria-label="فيسبوك"
                 className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-primary)] bg-[var(--color-surface-1)] transition-all"
               >
@@ -104,7 +128,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
               </a>
 
               <a
-                href="#"
+                href={instagramUrl}
                 aria-label="انستغرام"
                 className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-pink-500 bg-[var(--color-surface-1)] transition-all"
               >
@@ -112,7 +136,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
               </a>
 
               <a
-                href={`tel:${STORE_INFO.whatsappNumber}`}
+                href={`tel:${waNumber}`}
                 aria-label="اتصال مباشر"
                 className="w-9 h-9 rounded-full border border-[var(--color-border-default)] flex items-center justify-center text-emerald-500 hover:border-emerald-500 bg-[var(--color-surface-1)] transition-all"
               >
@@ -149,7 +173,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
       </div>
 
       <div className="mt-4 text-center text-gray-500 text-xs">
-        جميع الحقوق محفوظة © {new Date().getFullYear()} متجر إندكس - INDEXES STORE
+        {copyright}
       </div>
     </motion.footer>
   );

@@ -1,15 +1,33 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, RotateCcw, Truck, ShieldCheck } from 'lucide-react';
 
-const TRUST_ITEMS = [
-  { icon: Truck, title: 'توصيل سريع', desc: 'خلال 24 - 48 ساعة' },
-  { icon: ShieldCheck, title: 'ضمان أصلي', desc: 'جودة عالية %100' },
-  { icon: Headphones, title: 'دعم 24/7', desc: 'خدمة عملاء مميزة' },
-  { icon: RotateCcw, title: 'استبدال وإرجاع', desc: 'ضمان رضا العملاء' },
-];
+export interface TrustBarProps {
+  trustBadges?: {
+    badge1?: string;
+    badge2?: string;
+    badge3?: string;
+    badge4?: string;
+  };
+}
 
-export const TrustBar: React.FC = () => {
+export const TrustBar: React.FC<TrustBarProps> = ({ trustBadges }) => {
+  const badgeList = [
+    { icon: Truck, title: trustBadges?.badge1 || 'توصيل سريع', desc: 'خلال 24 - 48 ساعة' },
+    { icon: ShieldCheck, title: trustBadges?.badge2 || 'ضمان أصلي', desc: 'جودة عالية %100' },
+    { icon: Headphones, title: trustBadges?.badge3 || 'دعم 24/7', desc: 'خدمة عملاء مميزة' },
+    { icon: RotateCcw, title: trustBadges?.badge4 || 'استبدال وإرجاع', desc: 'ضمان رضا العملاء' },
+  ];
+
+  const gridColsClass =
+    badgeList.length === 1
+      ? 'grid-cols-1'
+      : badgeList.length === 2
+      ? 'grid-cols-2'
+      : badgeList.length === 3
+      ? 'grid-cols-3'
+      : 'grid-cols-2 sm:grid-cols-4';
+
   return (
     <section className="px-3 sm:px-6 my-5">
       <motion.div 
@@ -17,9 +35,9 @@ export const TrustBar: React.FC = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.4 }}
-        className="bg-[var(--color-surface-1)] backdrop-blur-md rounded-2xl py-3.5 px-2 border border-[var(--color-border-default)] grid grid-cols-4 gap-1 text-center shadow-sm divide-x divide-x-reverse divide-[var(--color-border-subtle)] dir-rtl"
+        className={`bg-[var(--color-surface-1)] backdrop-blur-md rounded-2xl py-3.5 px-2 border border-[var(--color-border-default)] grid ${gridColsClass} gap-1 text-center shadow-sm divide-x divide-x-reverse divide-[var(--color-border-subtle)] dir-rtl`}
       >
-        {TRUST_ITEMS.map((item, idx) => {
+        {badgeList.map((item, idx) => {
           const Icon = item.icon;
           return (
             <motion.div
@@ -39,5 +57,3 @@ export const TrustBar: React.FC = () => {
     </section>
   );
 };
-
-
