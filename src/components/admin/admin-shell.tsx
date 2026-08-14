@@ -258,7 +258,7 @@ function ShellInner() {
 
   useEffect(() => {
     console.log("[ShellInner] pathname:", pathname);
-    if (pathname === "/admin" || pathname === "/app/admin") {
+    if (pathname === "/app/admin") {
       navigate({ to: "/admin", replace: true });
     }
   }, [pathname, navigate]);

@@ -41,7 +41,8 @@ const publicClient = () =>
 
 const readHeaders = async (): Promise<Headers | null> => {
   try {
-    const { getRequest } = await import("@tanstack/react-start/server");
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     return getRequest().headers;
   } catch {
     return null;
@@ -85,7 +86,7 @@ const resolveAdminTenant = async (
 // ============ PUBLIC READS ============
 
 export const listProducts = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         tenantId: z.string().uuid().optional(),
@@ -114,7 +115,7 @@ export const listProducts = createServerFn({ method: "GET" })
   });
 
 export const getProductBySlug = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ slug: z.string(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data }) => {
@@ -139,7 +140,7 @@ export const getProductBySlug = createServerFn({ method: "GET" })
  * Multi-tenant safe: resolves tenant from subdomain / header / default.
  */
 export const getProductsByIds = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         ids: z.array(z.string().min(1)).min(1).max(50),
@@ -254,7 +255,7 @@ export const getProductsByIds = createServerFn({ method: "GET" })
   });
 
 export const listCategories = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ tenantId: z.string().uuid().optional() }).parse(raw ?? {}),
   )
   .handler(async ({ data }) => {
@@ -264,7 +265,7 @@ export const listCategories = createServerFn({ method: "GET" })
   });
 
 export const getCategoryBySlug = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ slug: z.string(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data }) => {
@@ -278,7 +279,7 @@ const tenantScope = z.object({ tenantId: z.string().uuid().optional() });
 
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         tenantId: z.string().uuid().optional(),
@@ -331,7 +332,7 @@ export const adminListProducts = createServerFn({ method: "GET" })
 
 export const adminGetProduct = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ id: z.string().uuid(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -343,7 +344,7 @@ export const adminGetProduct = createServerFn({ method: "GET" })
 
 export const adminListCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => tenantScope.parse(raw ?? {}))
+  .validator((raw: unknown) => tenantScope.parse(raw ?? {}))
   .handler(async ({ data, context }) => {
     const ctx = context;
     await assertAdmin(ctx);
@@ -355,7 +356,7 @@ export const adminListCategories = createServerFn({ method: "GET" })
 
 export const adminCreateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     productInputBase.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -368,7 +369,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
 
 export const adminUpdateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     productUpdateBase.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -381,7 +382,7 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
 
 export const adminDeleteProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ id: z.string().uuid(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -463,7 +464,7 @@ export function inferCategorySlug(
 
 export const adminAutoCategorizeProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ tenantId: z.string().uuid().optional() }).parse(raw ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -540,7 +541,7 @@ export const adminAutoCategorizeProducts = createServerFn({ method: "POST" })
 
 export const adminBulkAssignCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         productIds: z.array(z.string()),
@@ -568,7 +569,7 @@ export const adminBulkAssignCategory = createServerFn({ method: "POST" })
 
 export const adminCreateCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     categoryInputSchema.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -581,7 +582,7 @@ export const adminCreateCategory = createServerFn({ method: "POST" })
 
 export const adminUpdateCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     categoryUpdateSchema.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -594,7 +595,7 @@ export const adminUpdateCategory = createServerFn({ method: "POST" })
 
 export const adminDeleteCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ id: z.string().uuid(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -609,7 +610,7 @@ export const adminDeleteCategory = createServerFn({ method: "POST" })
 
 export const adminRecordInventory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     inventoryMovementSchema.extend({ tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -625,7 +626,7 @@ export const adminRecordInventory = createServerFn({ method: "POST" })
 
 export const adminListInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ productId: z.string().uuid(), tenantId: z.string().uuid().optional() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -749,7 +750,7 @@ const requireAuthWithClient = createMiddleware({ type: "function" }).client(asyn
 
 export const aiAnalyzeImage = createServerFn({ method: "POST" })
   .middleware([requireAuthWithClient, requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ image: z.string() }).parse(raw))
+  .validator((raw: unknown) => z.object({ image: z.string() }).parse(raw))
   .handler(async ({ data }) => {
     let cleanBase64 = data.image;
     let mimeType = "image/jpeg";
@@ -774,7 +775,7 @@ export const aiAnalyzeImage = createServerFn({ method: "POST" })
 
 export const aiOptimizeDescription = createServerFn({ method: "POST" })
   .middleware([requireAuthWithClient, requireSupabaseAuth])
-  .inputValidator((raw: unknown) => z.object({ text: z.string() }).parse(raw))
+  .validator((raw: unknown) => z.object({ text: z.string() }).parse(raw))
   .handler(async ({ data }) => {
     const cleanedText = data.text;
     const promptText = `

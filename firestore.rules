@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Products Collection
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 2. Orders Collection
+    // Enforce ownership: Customers can only read and update orders where userId matches their request.auth.uid
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update: if (
+        (request.auth != null && resource.data.userId == request.auth.uid) ||
+        resource == null
+      );
+      allow delete: if request.auth != null;
+    }
+
+    // 3. User Profiles Collection
+    // Strict ownership: Customers can only read/write their own user profile document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 4. Order Self Service Change Requests & Support Tickets
+    match /customer_support_requests/{ticketId} {
+      allow create: if true;
+      allow read, update: if request.auth != null;
+    }
+
+    match /order_change_requests/{requestId} {
+      allow create: if true;
+      allow read, update: if request.auth != null;
+    }
+
+    // 5. Saved Yemen Addresses
+    match /yemen_addresses/{addressId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

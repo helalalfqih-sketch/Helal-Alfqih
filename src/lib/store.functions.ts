@@ -91,7 +91,7 @@ export const getMyStore = createServerFn({ method: "GET" })
 
 /** Update the store identity (owner-level). */
 export const updateStoreProfile = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => storeProfileSchema.parse(raw))
+  .validator((raw: unknown) => storeProfileSchema.parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };
@@ -109,7 +109,7 @@ export const updateStoreProfile = createServerFn({ method: "POST" })
 
 /** Update one store setting (payment/shipping/contact/…) — owner-level. */
 export const updateStoreSetting = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => upsertStoreSettingSchema.parse(raw))
+  .validator((raw: unknown) => upsertStoreSettingSchema.parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId } = context as unknown as { supabase: any; userId: string };

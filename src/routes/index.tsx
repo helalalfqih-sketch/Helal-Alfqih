@@ -24,6 +24,8 @@ import {
 } from "@/components/storefront/types";
 import { mapProductionProductToDesignProduct } from "@/components/storefront/adapters";
 
+import { supabase } from "@/integrations/supabase/client";
+import { checkAdminSession } from "@/lib/adminAuth";
 import { Header } from "@/components/storefront/Header";
 import { ShippingBanner } from "@/components/storefront/ShippingBanner";
 import { AISearchSection } from "@/components/storefront/AISearchSection";
@@ -521,6 +523,7 @@ function HomePage() {
           onOpenAdmin={handleOpenAdmin}
           isAdminUser={isAdminUser}
           onSelectProduct={(p) => setSelectedProductModal(p)}
+          isAdminUser={isAdminUser}
         />
 
         {/* 2. Top Shipping Announcement Banner */}

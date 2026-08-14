@@ -606,3 +606,4 @@ export const ProductCompareModal: React.FC<ProductCompareModalProps> = ({
     </AnimatePresence>
   );
 };
+

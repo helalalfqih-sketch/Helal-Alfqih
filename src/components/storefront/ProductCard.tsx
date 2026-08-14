@@ -17,6 +17,8 @@ interface ProductCardProps {
   index?: number;
 }
 
+import { getSmartProductFallbackImage, isSvgFallbackOrEmpty } from '@/lib/product-fallback-image';
+
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   currency,

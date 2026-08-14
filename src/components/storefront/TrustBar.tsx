@@ -57,3 +57,5 @@ export const TrustBar: React.FC<TrustBarProps> = ({ trustBadges }) => {
     </section>
   );
 };
+
+

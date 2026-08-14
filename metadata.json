@@ -1,0 +1,6 @@
+{
+  "name": "INDEXES STORE | متجر إندكس",
+  "description": "متجر إندكس للالكترونيات والعطور والساعات الذكية - التوصيل لكافة المحافظات اليمنية مع خيارات شحن مجاني ودفع عند الاستلام",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -8,7 +8,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { getRequest } from "@tanstack/react-start/server";
 import type { Database } from "@/integrations/supabase/types";
 import {
   DEFAULT_TENANT_SLUG,
@@ -27,16 +26,20 @@ const publicClient = () => {
   });
 };
 
-const readRequestHost = (): string | null => {
+const readRequestHost = async (): Promise<string | null> => {
   try {
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     return getRequest().headers.get("host");
   } catch {
     return null;
   }
 };
 
-const readRequestHeaders = (): Headers | null => {
+const readRequestHeaders = async (): Promise<Headers | null> => {
   try {
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     return getRequest().headers;
   } catch {
     return null;
@@ -44,7 +47,7 @@ const readRequestHeaders = (): Headers | null => {
 };
 
 export const getCurrentTenant = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         slug: z.string().trim().toLowerCase().min(2).max(32).optional(),
@@ -58,7 +61,8 @@ export const getCurrentTenant = createServerFn({ method: "GET" })
     // Client-provided context (e.g. from window.location on the browser call)
     // acts as an override so subdomain resolution works even when the request
     // hits the shared preview origin.
-    const headers = new Headers(readRequestHeaders() ?? undefined);
+    const reqHeaders = await readRequestHeaders();
+    const headers = new Headers(reqHeaders ?? undefined);
     if (data.host) headers.set("host", data.host);
     if (data.slug) headers.set("x-tenant-slug", data.slug);
 

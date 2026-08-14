@@ -43,7 +43,7 @@ export type DashboardTimeRange = z.infer<typeof rangeSchema>;
 
 export const getAdminDashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z.object({ range: rangeSchema.optional() }).parse(raw ?? {}),
   )
   .handler(async ({ data, context }): Promise<AdminDashboardStats & { selectedRange: DashboardTimeRange }> => {

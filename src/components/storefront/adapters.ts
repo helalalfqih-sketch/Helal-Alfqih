@@ -1,8 +1,6 @@
 import type { LegacyProductShape, LegacyCategoryShape } from "@/lib/data-adapter";
 import type { Product as DesignProduct, Category as DesignCategory } from "./types";
-
-const NEUTRAL_FALLBACK_IMAGE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'%3E%3Crect width='800' height='800' fill='%23140E24'/%3E%3Cpath d='M270 330h260v180H270z' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3Ccircle cx='350' cy='390' r='34' fill='%236b7280'/%3E%3Cpath d='m290 490 90-90 60 60 45-45 55 75' fill='none' stroke='%236b7280' stroke-width='18'/%3E%3C/svg%3E";
+import { getSmartProductFallbackImage, isSvgFallbackOrEmpty } from "@/lib/product-fallback-image";
 
 function isVideoUrl(url: string | undefined | null): boolean {
   if (!url) return false;
@@ -18,7 +16,9 @@ function isVideoUrl(url: string | undefined | null): boolean {
 }
 
 function validImageUrl(url: string | undefined | null): url is string {
-  return Boolean(url?.trim()) && !isVideoUrl(url);
+  if (!url || !url.trim()) return false;
+  if (isSvgFallbackOrEmpty(url)) return false;
+  return !isVideoUrl(url);
 }
 
 function resolveVideoPoster(p: LegacyProductShape): string | undefined {
@@ -29,7 +29,7 @@ function resolveVideoPoster(p: LegacyProductShape): string | undefined {
   return undefined;
 }
 
-/** Production media priority: primary DTO image -> legacy image -> image media -> video poster -> neutral fallback. */
+/** Production media priority: primary DTO image -> legacy image -> image media -> video poster -> smart fallback. */
 export function resolveProductImage(p: LegacyProductShape): string {
   const primaryDtoImage = p.images?.find(validImageUrl);
   if (primaryDtoImage) return primaryDtoImage;
@@ -39,7 +39,10 @@ export function resolveProductImage(p: LegacyProductShape): string {
   const imageMedia = p.media?.find((media) => media.type === "image" && validImageUrl(media.url));
   if (imageMedia?.url) return imageMedia.url;
 
-  return resolveVideoPoster(p) ?? NEUTRAL_FALLBACK_IMAGE;
+  const poster = resolveVideoPoster(p);
+  if (poster && validImageUrl(poster)) return poster;
+
+  return getSmartProductFallbackImage(p.name, p.categoryId, p.id);
 }
 
 export function resolveProductGallery(p: LegacyProductShape): string[] {
@@ -55,7 +58,9 @@ export function resolveProductGallery(p: LegacyProductShape): string[] {
   });
   add(resolveVideoPoster(p));
 
-  if (gallery.length === 0) gallery.push(NEUTRAL_FALLBACK_IMAGE);
+  if (gallery.length === 0) {
+    gallery.push(getSmartProductFallbackImage(p.name, p.categoryId, p.id));
+  }
   return gallery;
 }
 

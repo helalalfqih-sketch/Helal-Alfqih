@@ -71,7 +71,8 @@ async function resolveCmsScope(
 /** Resolve the storefront tenant for PUBLIC reads from request headers. */
 async function resolvePublicCmsTenant(db: any): Promise<string | null> {
   try {
-    const { getRequest } = await import("@tanstack/react-start/server");
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     const headers = getRequest()?.headers ?? null;
     return await resolveTenantId(db, { headers });
   } catch {

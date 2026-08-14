@@ -125,8 +125,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 const storefrontSettingsQueryOptions = queryOptions({
   queryKey: ["storefront-settings"],
   queryFn: async (): Promise<StorefrontSettingsShape> => {
-    const res = await getStorefrontAppearance();
-    return res as unknown as StorefrontSettingsShape;
+    try {
+      const res = await getStorefrontAppearance();
+      return (res as unknown as StorefrontSettingsShape) || DEFAULT_STOREFRONT_SETTINGS;
+    } catch (err) {
+      console.warn("[storefrontSettingsQueryOptions] Safe fallback to default:", err);
+      return DEFAULT_STOREFRONT_SETTINGS;
+    }
   },
   staleTime: 5 * 60 * 1000,
 });
@@ -295,35 +300,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   loader: async (ctx: any) => {
-    // PERF: route the settings fetch through react-query so navigation never
-    // repeats the server roundtrip — cached 5min, deduped, refreshed silently
-    // in the background. (Realtime publish events still refresh instantly via
-    // the AppearanceProvider broadcast subscription.)
-    const queryClient = ctx.context.queryClient as QueryClient;
-    const settings: StorefrontSettingsShape = await queryClient.ensureQueryData(
-      storefrontSettingsQueryOptions,
-    );
-    return { settings };
+    try {
+      const queryClient = ctx.context.queryClient as QueryClient;
+      const settings: StorefrontSettingsShape = await queryClient.ensureQueryData(
+        storefrontSettingsQueryOptions,
+      );
+      return { settings: settings || DEFAULT_STOREFRONT_SETTINGS };
+    } catch (err) {
+      console.warn("[Root loader] Safe fallback to default appearance settings:", err);
+      return { settings: DEFAULT_STOREFRONT_SETTINGS };
+    }
   },
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="ar" dir="rtl">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

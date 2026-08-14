@@ -37,7 +37,7 @@ async function allow(
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export const getStoreProducts = createServerFn({ method: "GET" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         search: z.string().trim().max(120).optional(),
@@ -55,7 +55,7 @@ export const getStoreProducts = createServerFn({ method: "GET" })
   });
 
 export const createStoreProduct = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         name: z.string().trim().min(2, "اسم المنتج قصير").max(200),
@@ -78,7 +78,7 @@ export const createStoreProduct = createServerFn({ method: "POST" })
   });
 
 export const updateStoreProduct = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -101,7 +101,7 @@ export const updateStoreProduct = createServerFn({ method: "POST" })
   });
 
 export const deleteStoreProduct = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => z.object({ id: z.string().uuid() }).parse(raw))
+  .validator((raw: unknown) => z.object({ id: z.string().uuid() }).parse(raw))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<{ success: boolean; message?: string }> => {
     const { supabase, userId, tenantId } = await ctxOf(context);
@@ -127,7 +127,7 @@ export const getStoreInventory = createServerFn({ method: "GET" })
   });
 
 export const recordStoreInventory = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) =>
+  .validator((raw: unknown) =>
     z
       .object({
         productId: z.string().uuid(),

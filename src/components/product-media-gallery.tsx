@@ -98,22 +98,32 @@ function extractMuxId(url?: string | null): string | null {
   return null;
 }
 
+function isValidMediaUrl(url: string | undefined | null): url is string {
+  if (!url || typeof url !== "string") return false;
+  const clean = url.trim();
+  return Boolean(clean) && !clean.startsWith("data:image/svg");
+}
+
 function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] {
   const items: MediaItem[] = [];
   const seenUrls = new Set<string>();
 
   let imgCounter = 0;
   let vidCounter = 0;
-  const defaultPoster = product.image || (product.images && product.images[0]) || "";
+  const defaultPoster = isValidMediaUrl(product.image)
+    ? product.image.trim()
+    : (product.images && product.images.find(isValidMediaUrl)) || "";
 
   // 1. Process explicit media array if provided
   if (Array.isArray(product.media) && product.media.length > 0) {
     for (const item of product.media) {
-      if (!item || !item.url || seenUrls.has(item.url)) continue;
-      seenUrls.add(item.url);
+      if (!item || !isValidMediaUrl(item.url)) continue;
+      const cleanUrl = item.url.trim();
+      if (seenUrls.has(cleanUrl)) continue;
+      seenUrls.add(cleanUrl);
 
-      if (item.type === "video" || isVideoUrl(item.url)) {
-        const muxId = item.playbackId || extractMuxId(item.url);
+      if (item.type === "video" || isVideoUrl(cleanUrl)) {
+        const muxId = item.playbackId || extractMuxId(cleanUrl);
         if (muxId) {
           items.push({
             kind: "video-mux",
@@ -123,7 +133,7 @@ function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] 
         } else {
           items.push({
             kind: "video-url",
-            url: item.url,
+            url: cleanUrl,
             poster: item.poster || defaultPoster,
             index: vidCounter++,
           });
@@ -131,7 +141,7 @@ function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] 
       } else {
         items.push({
           kind: "image",
-          url: item.url,
+          url: cleanUrl,
           index: imgCounter++,
         });
       }
@@ -139,24 +149,26 @@ function buildMediaList(product: Props["product"], has3D: boolean): MediaItem[] 
   }
 
   // 2. Process images[] array
-  const allImages =
+  const rawImages =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images
-      : [product.image].filter(Boolean);
+      : [product.image];
 
-  for (const url of allImages) {
-    if (seenUrls.has(url)) continue;
-    seenUrls.add(url);
+  for (const url of rawImages) {
+    if (!isValidMediaUrl(url)) continue;
+    const cleanUrl = url.trim();
+    if (seenUrls.has(cleanUrl)) continue;
+    seenUrls.add(cleanUrl);
 
-    if (isVideoUrl(url)) {
-      const muxId = extractMuxId(url);
+    if (isVideoUrl(cleanUrl)) {
+      const muxId = extractMuxId(cleanUrl);
       if (muxId) {
         items.push({ kind: "video-mux", playbackId: muxId, poster: defaultPoster });
       } else {
-        items.push({ kind: "video-url", url, poster: defaultPoster, index: vidCounter++ });
+        items.push({ kind: "video-url", url: cleanUrl, poster: defaultPoster, index: vidCounter++ });
       }
     } else {
-      items.push({ kind: "image", url, index: imgCounter++ });
+      items.push({ kind: "image", url: cleanUrl, index: imgCounter++ });
     }
   }
 
@@ -340,14 +352,59 @@ export function ProductMediaGallery({ product }: Props) {
   const mounted = useMounted();
   const has3D = mounted && !!modelFor(product.id);
 
-  const mediaList = buildMediaList(product, has3D);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
+
+  // Reset failed URLs when product changes
+  useEffect(() => {
+    setFailedUrls(new Set());
+    setActiveIndex(0);
+  }, [product.id]);
+
+  const rawMediaList = useMemo(() => buildMediaList(product, has3D), [product, has3D]);
+
+  // Pre-validate candidate images to prune broken ones
+  useEffect(() => {
+    rawMediaList.forEach((item) => {
+      if (item.kind === "image" && item.url) {
+        const img = new Image();
+        img.src = item.url;
+        img.onerror = () => {
+          setFailedUrls((prev) => {
+            if (prev.has(item.url)) return prev;
+            const next = new Set(prev);
+            next.add(item.url);
+            return next;
+          });
+        };
+      }
+    });
+  }, [rawMediaList]);
+
+  // Filter out failed images and re-index valid image items
+  const mediaList = useMemo(() => {
+    const valid = rawMediaList.filter((item) => {
+      if (item.kind === "image") {
+        return isValidMediaUrl(item.url) && !failedUrls.has(item.url);
+      }
+      return true;
+    });
+
+    let imgIndex = 0;
+    return valid.map((item) => {
+      if (item.kind === "image") {
+        return { ...item, index: imgIndex++ };
+      }
+      return item;
+    });
+  }, [rawMediaList, failedUrls]);
+
   const imageItems = mediaList.filter((m) => m.kind === "image") as Extract<
     MediaItem,
     { kind: "image" }
   >[];
   const hasAnyVideo = mediaList.some((m) => m.kind === "video-url" || m.kind === "video-mux");
 
-  const [activeIndex, setActiveIndex] = useState(0);
   const [videoModal, setVideoModal] = useState<{ src?: string; muxId?: string } | null>(null);
   const [requestSent, setRequestSent] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -355,7 +412,8 @@ export function ProductMediaGallery({ product }: Props) {
 
   const requestVideoFn = useServerFn(requestProductVideo);
 
-  const activeItem = mediaList[activeIndex] ?? mediaList[0];
+  const safeActiveIndex = Math.min(activeIndex, Math.max(0, mediaList.length - 1));
+  const activeItem = mediaList[safeActiveIndex] ?? mediaList[0];
 
   const openVideoModal = (modal: { src?: string; muxId?: string }, trigger: HTMLElement) => {
     videoTriggerRef.current = trigger;
@@ -363,10 +421,12 @@ export function ProductMediaGallery({ product }: Props) {
   };
 
   const goNext = useCallback(() => {
+    if (mediaList.length === 0) return;
     setActiveIndex((i) => (i + 1) % mediaList.length);
   }, [mediaList.length]);
 
   const goPrev = useCallback(() => {
+    if (mediaList.length === 0) return;
     setActiveIndex((i) => (i - 1 + mediaList.length) % mediaList.length);
   }, [mediaList.length]);
 
@@ -549,7 +609,7 @@ export function ProductMediaGallery({ product }: Props) {
       {mediaList.length > 1 && (
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
           {mediaList.map((item, idx) => {
-            const isActive = idx === activeIndex;
+            const isActive = idx === safeActiveIndex;
             const baseClass = `relative flex-shrink-0 h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-2xl border-2 transition-all cursor-pointer ${
               isActive
                 ? "border-primary ring-2 ring-primary/30 scale-105"

@@ -3,7 +3,6 @@
  * Wraps `resolveTenantId` to pull request headers automatically inside
  * server-fn / server-route handlers.
  */
-import { getRequest } from "@tanstack/react-start/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveTenantId } from "./tenant-context";
@@ -14,6 +13,8 @@ export async function resolveCurrentTenant(
 ): Promise<string> {
   let headers: Headers | null = null;
   try {
+    const pkgName = "@tanstack/react-start/server";
+    const { getRequest } = await import(/* @vite-ignore */ pkgName);
     headers = getRequest().headers;
   } catch {
     headers = null;
